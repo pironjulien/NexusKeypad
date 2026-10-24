@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Loupedeck.TrinitePlugin</RootNamespace>
+
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <NoWarn>$(NoWarn);SA0001;SA1136;SA1300;SA1307;SA1310;SA1402;SA1407;SA1414;SA1502;SA1649</NoWarn>
+
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+    <PluginDir>$(LocalAppData)\Logi\LogiPluginService\Plugins\</PluginDir>
+
+    <BaseOutputPath>$(NexusBuild)bin\</BaseOutputPath>
+    <OutputPath>$(BaseOutputPath)$(Configuration)\bin\</OutputPath>
+
+    <PluginShortName>TrinitePad</PluginShortName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <LogiService>C:\Program Files\Logi\LogiPluginService\</LogiService>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(LogiService)PluginApi.dll')">
+    <!-- API du service installé : une version plus récente que le service est refusée au chargement. -->
+    <Reference Include="PluginApi" HintPath="$(LogiService)PluginApi.dll" Private="false" />
+    <!-- SkiaSharp du service (2.88.8, déjà chargé par lui) : encodage WebP de la photo collée, rien d'ajouté au paquet. -->
+    <Reference Include="SkiaSharp" HintPath="$(LogiService)SkiaSharp.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- Sans service Logi (intégration continue) : l'API publiée par Logitech, pour compiler seulement. -->
+  <ItemGroup Condition="!Exists('$(LogiService)PluginApi.dll')">
+    <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Target Name="CopyPackage" AfterTargets="PostBuildEvent">
+    <ItemGroup>
+      <PackageFiles Include="package\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(OutputPath)..\%(RecursiveDir)" />
+  </Target>
+
+  <!-- test.ps1 compile avec NexusTest=true : ni lien posé, ni rechargement du plugin en service. -->
+  <!-- Installé comme un vrai paquet (Plugins\TrinitePad), pas par un lien .link : avec le lien, le service ne chargeait
+       pas le plugin quand Logi démarrait avec Windows (pad sur le logo Logi) ; le paquet se charge toujours. -->
+  <Target Name="PostBuild" AfterTargets="CopyPackage" Condition="'$(NexusTest)' != 'true'">
+    <ItemGroup>
+      <Paquet Include="$(BaseOutputPath)$(Configuration)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(Paquet)" DestinationFolder="$(PluginDir)$(PluginShortName)\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Delete Files="$(PluginDir)$(ProjectName).link" />
+    <!-- Pas d'ordre « reload » : Logi surveille ce dossier et recharge déjà le plugin à la copie ; l'ordre en plus le
+         chargeait deux fois (deux moteurs, tube du pilote pris, 23/10). -->
+  </Target>
+
+  <Target Name="PluginClean" AfterTargets="CoreClean">
+    <Delete Files="$(PluginDir)$(ProjectName).link" Condition="'$(NexusTest)' != 'true'" />
+    <RemoveDir Directories="$(PluginDir)$(PluginShortName)\" Condition="'$(NexusTest)' != 'true'" />
+    <RemoveDir Directories="$(OutputPath)..\" />
+  </Target>
+
+</Project>

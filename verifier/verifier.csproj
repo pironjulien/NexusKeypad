@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Vérification de la logique du pad, hors du pad : règles d'état, ordre, quotas, cache d'images. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <!-- Outils de contrôle : pas d'analyseurs de style (ceux du paquet LogiPluginApi en CI). -->
+    <RunAnalyzers>false</RunAnalyzers>
+    <BaseOutputPath>$(LocalAppData)\NexusKeypad\verifier\bin\</BaseOutputPath>
+    <LogiService>C:\Program Files\Logi\LogiPluginService\</LogiService>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\plugin\src\Trinite\*.cs" />
+    <Compile Include="..\plugin\src\Helpers\PluginLog.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(LogiService)PluginApi.dll')">
+    <Reference Include="PluginApi" HintPath="$(LogiService)PluginApi.dll" />
+    <Reference Include="SkiaSharp" HintPath="$(LogiService)SkiaSharp.dll" />
+  </ItemGroup>
+
+  <!-- Sans service Logi (intégration continue) : l'API publiée par Logitech et ses dépendances (SkiaSharp 2.88.8). -->
+  <ItemGroup Condition="!Exists('$(LogiService)PluginApi.dll')">
+    <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" />
+  </ItemGroup>
+
+</Project>
