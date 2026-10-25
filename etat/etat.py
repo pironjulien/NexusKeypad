@@ -83,7 +83,7 @@ def etat_pour(evenement: str, payload: dict, precedent: dict) -> str | None:
     if evenement == "Notification":
         kind = payload.get("notification_type") or ""
         message = (payload.get("message") or "").lower()
-        return "wait" if kind == "permission_prompt" or "permission" in message else None
+        return "perm" if kind == "permission_prompt" or "permission" in message else None
     if evenement == "PreToolUse":
         # Claude : tool_name ; Antigravity : toolCall.name.
         outil = payload.get("tool_name") or (payload.get("toolCall") or {}).get("name") or ""
@@ -93,18 +93,23 @@ def etat_pour(evenement: str, payload: dict, precedent: dict) -> str | None:
             return "ask"  # affiché « travaille » ; devient « wait » au Stop
         return "run"
     # Antigravity n'a pas d'UserPromptSubmit : PreInvocation (avant chaque appel du modèle) marque la reprise d'un tour.
-    if evenement == "PostToolUse":
+    if evenement in ("PostToolUse", "PostToolUseFailure"):  # l'outil a tourné (réussi ou non) : plus d'autorisation en attente
         outil = payload.get("tool_name") or (payload.get("toolCall") or {}).get("name") or ""
         if outil == CHOIX and precedent.get("state") == "ask":
             return None  # la boîte de fin pose sa question : « ask » doit tenir jusqu'au Stop
         return "run"
     if evenement in ("UserPromptSubmit", "PreInvocation", "PostInvocation"):
         return "run"
+    if evenement == "StopFailure":
+        # Claude : tour arrêté par une erreur d'API ; limite d'usage ou de facturation à part (rien à faire qu'attendre).
+        erreur = payload.get("error") or payload.get("error_type")  # schéma officiel : error (quelques versions : error_type)
+        return "limit" if erreur in ("rate_limit", "billing_error") else "error"
     if evenement == "Stop":
         if payload.get("fullyIdle") is False:
             return "run"  # Antigravity : un sous-agent travaille encore
         if lancee_par_une_session(str(payload.get("session_id") or "")):
             return "repos"  # travaille pour Claude : au repos sur le pad, jamais d'alerte
+        # Une autorisation encore en attente n'a pas de Stop : après un refus, le tour se termine comme les autres.
         if precedent.get("state") in ("ask", "wait"):
             return "wait"
         reponse = derniere_reponse(payload.get("transcript_path") or payload.get("transcriptPath") or "")

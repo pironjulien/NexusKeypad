@@ -38,10 +38,12 @@ namespace Loupedeck.TrinitePlugin
         {
             var q = s.Instantane.Quotas[agent];
             var t = s.Temps + (agent * 0.7); // chaque IA à son rythme
+            // Chaque jauge centrée sur son icône (horloge de 11 à 35 ; calendrier de 43 à 65, anneaux compris) : elles
+            // étaient 1 à 2 px plus haut (remarque de Julien, 25/10).
             HorlogeVivante(b, 4, 11, q?.Cinq is null ? null : t);
-            Jauge(b, 10, q?.Cinq, t);
+            Jauge(b, 12, q?.Cinq, t);
             CalendrierVivant(b, 4, 43, q?.Semaine is null ? null : t);
-            Jauge(b, 42, q?.Semaine, t + 0.5);
+            Jauge(b, 44, q?.Semaine, t + 0.5);
 
             Carte(b, BulleVide, 22, 80, 2, Gris);
             var travaille = s.Instantane.EtatIA(agent) == Etat.Travaille;

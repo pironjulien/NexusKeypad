@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Animations: waiting and done states of their own for Codex (tilted head, terminal typing "?"; check mark, hops and
+  confetti) and Antigravity (radar waves; landing and fireworks); new states for all three: permission requested
+  (padlock), error (crossed eyes, bolt, shake, red ring; Claude through the new `StopFailure` hook), usage limit
+  (faded, empty battery), listening during a dictation, waking up while an app the pad launched starts. The relay is
+  no longer a line of tiny Clawds: between Claude and the peer, at mid-height, two lanes of chevrons (orange towards
+  the peer, blue or cyan back to Claude).
 - Second Logitech Marketplace plugin, "PC Dashboard" 1.0.0: page 2 alone (`-p:Edition=Poste`), as its own plugin
   `PcDashboard`, without the agents, the phone photo or the test pipe; Chrome and the phone are only read while its keys
   are shown. Its website key is a "Website" action whose address you type in Options+ (no website by default).
@@ -37,6 +43,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   of behind your windows, then minimized); up to date, each window closes by itself; installing or unproven, it stays.
 
 ### Fixed
+- Quota gauges sat 1 to 2 px above their icons (the calendar ended below its bar): centred.
+- Hooks: `PostToolUseFailure` and `StopFailure` (official `error` field); a denied permission no longer leaves the
+  padlock stuck.
 - Claude key, the view bounced (bottom, up, down…): the conversation already shown was reopened through its link and
   Claude reloaded it; the 100 % fallback scroll then jumped to the middle of a loaded part. Already shown, it is only
   brought to the front; only Claude's own "Scroll to bottom" button scrolls it down.

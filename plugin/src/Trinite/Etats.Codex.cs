@@ -55,7 +55,7 @@ namespace Loupedeck.TrinitePlugin
 
                     var (etat, depuis) = this.EtatCodexGarde(f);
                     var relais = entete.Contains(@".nexus\\relay", StringComparison.OrdinalIgnoreCase);
-                    if (relais && etat is not (Etat.Travaille or Etat.Attend) && DateTime.UtcNow - f.LastWriteTimeUtc > TimeSpan.FromHours(12))
+                    if (relais && etat is not (Etat.Travaille or Etat.Attend or Etat.Autorisation) && DateTime.UtcNow - f.LastWriteTimeUtc > TimeSpan.FromHours(12))
                     {
                         continue; // un réveil du relais ne reste « actif » que 12 h après son dernier message
                     }
@@ -258,7 +258,7 @@ namespace Loupedeck.TrinitePlugin
             return etat switch
             {
                 Etat.Travaille when silence > TimeSpan.FromHours(2) => (Etat.Repos, depuis),
-                Etat.Fini or Etat.Attend when age > TimeSpan.FromHours(12) => (Etat.Repos, depuis),
+                Etat.Fini or Etat.Attend or Etat.Autorisation when age > TimeSpan.FromHours(12) => (Etat.Repos, depuis),
                 _ => (etat, depuis),
             };
         }
@@ -290,7 +290,11 @@ namespace Loupedeck.TrinitePlugin
                 {
                     (this.Etat, this.Depuis, this._accord) = (Etat.Travaille, quand, false);
                 }
-                else if (ligne.Contains("_approval_request\"", StringComparison.Ordinal) || ligne.Contains("\"type\":\"request_user_input\"", StringComparison.Ordinal))
+                else if (ligne.Contains("_approval_request\"", StringComparison.Ordinal))
+                {
+                    (this.Etat, this.Depuis, this._accord) = (Etat.Autorisation, quand, true); // une commande ou un fichier à accorder
+                }
+                else if (ligne.Contains("\"type\":\"request_user_input\"", StringComparison.Ordinal))
                 {
                     (this.Etat, this.Depuis, this._accord) = (Etat.Attend, quand, true);
                 }
@@ -301,7 +305,7 @@ namespace Loupedeck.TrinitePlugin
                     var texte = question.Success ? Regex.Unescape(question.Groups[1].Value).TrimEnd('*', '_', ' ', ')', '»', '"', '\n') : "";
                     (this.Etat, this.Depuis, this._accord) = (texte.EndsWith('?') ? Etat.Attend : Etat.Fini, quand, false);
                 }
-                else if (this._accord && this.Etat == Etat.Attend && quand >= this.Depuis
+                else if (this._accord && this.Etat is Etat.Attend or Etat.Autorisation && quand >= this.Depuis
                     && Reprise.Any(r => ligne.Contains(r, StringComparison.Ordinal)))
                 {
                     // Accord donné pendant le tour : le travail a repris (commande lancée, réponse…).

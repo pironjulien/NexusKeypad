@@ -28,8 +28,11 @@ animated.
 | Row 3 | **Screen capture** | **Phone photo** (or clock) | **Dictation** |
 
 - **Characters.** Each head is animated after the state of its most urgent conversation. Idle: it breathes, blinks and
-  looks around. Working: Clawd (Claude's mascot) trots, Codex types code, Antigravity flies. Waiting for you: Clawd
-  waves, the other two show a "?". Done: sunglasses or sparkles. App closed: it sleeps ("z"), a press starts it.
+  looks around. Working: Clawd (Claude's mascot) trots, Codex types code, Antigravity flies. A question for you: Clawd
+  waves, Codex tilts its head while its terminal types "?", Antigravity sways under radar waves; a permission request
+  adds a padlock. Done: Clawd's sunglasses, Codex's check mark and confetti, Antigravity's landing and fireworks.
+  Error: crossed eyes and a red bolt. Usage limit reached: faded, heavy eyelids, empty battery. Dictation in its app:
+  it listens. App closed: it sleeps ("z"); a press starts it and it wakes up.
 - **Alerts.** A question blinks clearly, a finished turn breathes slowly, until you open that conversation.
 - **One press** opens the conversation that blinks (full screen, scrolled to the last message), otherwise the app.
   App already in front: each press moves to the next conversation, urgent ones first, then most recent first.
@@ -95,7 +98,7 @@ and when one is missing the pad falls back to something useful instead of an emp
 | Hooks (`etat/etat.py`, Python 3.11+, one command: see [Installation](#installation)) | Live Claude and Antigravity states: working, waiting for you, done, with their alerts | Claude and Antigravity heads stay at rest; conversations, quotas and sleep still shown (Codex needs no hook) |
 | Antigravity debugging port (`--remote-debugging-port=9227` on its shortcut, see [Installation](#installation)) | Antigravity's conversations, quota gauges, opening the one that needs you, dictation and its usage panel | Antigravity's key only shows whether the app is open and brings it to the front |
 | [NexusAndroid](https://github.com/pironjulien/NexusAndroid) (phone over adb) | The photo key pastes your phone's latest photo into the AI conversation; Messages badge from the phone | The photo key shows an animated clock and date (or your PC's latest screenshot); Messages counted from its open tab only |
-| Nexus Relay (Claude, Codex and Antigravity talk to each other; not public yet) | A tiny Clawd runs from Claude to Codex or Antigravity while they work for Claude | Each agent works on its own; no runner |
+| Nexus Relay (Claude, Codex and Antigravity talk to each other; not public yet) | Two lanes of chevrons flow between Claude and Codex or Antigravity while they work for Claude | Each agent works on its own; no runner |
 | [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (your real Chrome for AI agents) | Gmail unread count even with Gmail closed (read in your own Chrome session, only the number, stays on your PC) | Gmail counted only while it is open in a Chrome window or tab |
 | [NexusWindows](https://julienpiron.fr/nexuswindows/) (desktop apps for AI agents) | Your agents also drive desktop apps in the background | The pad does not depend on it |
 | Codex LB (local Codex load balancer) | Codex quota across all your accounts; a quota key that opens its dashboard | The official Codex app, quota read from its own logs, usage page in the browser |

@@ -30,6 +30,9 @@ namespace Loupedeck.TrinitePlugin
         public Signet Site { get; init; }
 
         public Boolean Appui(Int32 touche) => this.Temps - this.Appuis[touche] < 0.2;
+
+        // Secondes depuis que le pad a lancé chaque IA (sa tête se réveille pendant le démarrage).
+        public Double[] Lancements { get; init; } = [99, 99, 99];
     }
 
     // Lit l'état chaque seconde (le téléphone toutes les 3 s, et dès qu'il prévient) et redessine les touches animées
@@ -317,6 +320,7 @@ namespace Loupedeck.TrinitePlugin
             MiseAJour = this._miseAJour,
             MiseAJourFinie = this._miseAJourFinie,
             MiseAJourReussie = this._miseAJourReussie,
+            Lancements = [Gestes.LanceIlYA(0), Gestes.LanceIlYA(1), Gestes.LanceIlYA(2)],
         };
 
         // Un appui : action hors du fil du service (ouvrir une appli ou taper prend du temps).
@@ -573,7 +577,8 @@ namespace Loupedeck.TrinitePlugin
                 var horloge = this._observateur.Telephone.Derniere is null;
                 for (var t = 0; t < 9; t++)
                 {
-                    var vive = t < 3 && (i.EtatIA(t) is Etat.Travaille or Etat.Attend || i.Premiere(t)?.Alerte == true || i.PourClaude(1) || i.PourClaude(2));
+                    var vive = t < 3 && (i.EtatIA(t) is not (Etat.Repos or Etat.Ferme or Etat.Fini) || i.Premiere(t)?.Alerte == true
+                        || i.PourClaude(1) || i.PourClaude(2) || i.DicteeIa == t || Gestes.LanceIlYA(t) < 15);
                     if ((t != Photo || horloge) && (vive || this._tic % 2 == 0))
                     {
                         this.Envoyer(t);

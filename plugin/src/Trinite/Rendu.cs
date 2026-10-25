@@ -75,7 +75,7 @@ namespace Loupedeck.TrinitePlugin
             "..........##", ".........##.", "........##..", ".......##...", "##....##....", ".##..##.....", "..####......", "...##.......",
         ];
 
-        private enum Teinte { Vive, Dort, Eteinte }
+        private enum Teinte { Vive, Dort, Eteinte, Lasse }
 
         public static BitmapImage Dessiner(Int32 touche, Scene scene, PluginImageSize taille)
         {

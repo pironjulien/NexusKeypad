@@ -122,10 +122,11 @@ for (var k = 0; k < 3; k++)
 
 File.WriteAllBytes(Path.Combine(sortie, "tetes.png"), zoom.ToArray(BitmapImageFormat.Png));
 
-// Planche des états : une ligne par état (repos, travaille, attend, fini, fermé), pour chaque IA 4 instants.
-Etat[] etats = [Etat.Repos, Etat.Travaille, Etat.Attend, Etat.Fini, Etat.Ferme];
+// Planche des états : une ligne par état, pour chaque IA 4 instants ; puis la dictée (il écoute) et le réveil (appli
+// lancée par le pad, en cours de démarrage).
+Etat[] etats = [Etat.Repos, Etat.Travaille, Etat.Attend, Etat.Autorisation, Etat.Fini, Etat.Erreur, Etat.Limite, Etat.Ferme];
 Double[] instants = [0.0, 0.35, 0.7, 1.3];
-using var tableau = new BitmapBuilder(3 * instants.Length * 120, etats.Length * 120);
+using var tableau = new BitmapBuilder(3 * instants.Length * 120, (etats.Length + 2) * 120);
 tableau.Clear(new BitmapColor(217, 214, 207));
 for (var ligne = 0; ligne < etats.Length; ligne++)
 {
@@ -139,6 +140,24 @@ for (var ligne = 0; ligne < etats.Length; ligne++)
         {
             var scene = new Scene { Instantane = i, Temps = instants[c], Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9 };
             tableau.DrawImage(Rendu.Png(a, scene), ((a * instants.Length) + c) * 120, ligne * 120, BitmapRotation.None);
+        }
+    }
+}
+
+for (var ligne = 0; ligne < 2; ligne++)
+{
+    var dictee = ligne == 0;
+    for (var a = 0; a < 3; a++)
+    {
+        var i = new Instantane([[], [], []], [0, 0, 0], quotas, Enumerable.Repeat(dictee, 3).ToArray(), false, photo, -1) { Dictee = dictee, DicteeIa = dictee ? a : -1 };
+        for (var c = 0; c < instants.Length; c++)
+        {
+            var scene = new Scene
+            {
+                Instantane = i, Temps = instants[c], Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9,
+                Lancements = dictee ? [99, 99, 99] : Enumerable.Repeat(new[] { 0.3, 1.2, 2.0, 4.0 }[c], 3).ToArray(),
+            };
+            tableau.DrawImage(Rendu.Png(a, scene), ((a * instants.Length) + c) * 120, (etats.Length + ligne) * 120, BitmapRotation.None);
         }
     }
 }

@@ -25,7 +25,7 @@ def sous_onedrive() -> str | None:
         return None
 
 # PostToolUse : après un accord ou une réponse de l'utilisateur, le tour reprend (sinon « t'attend » restait jusqu'au Stop).
-EVENEMENTS_CLAUDE = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "Notification", "Stop", "SessionEnd"]
+EVENEMENTS_CLAUDE = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "Stop", "StopFailure", "SessionEnd"]
 # Antigravity (antigravity.google/docs/hooks) : ni UserPromptSubmit ni Notification ; PreInvocation, avant chaque appel du
 # modèle, marque la reprise d'un tour.
 EVENEMENTS_AGY = ["PreInvocation", "PreToolUse", "PostToolUse", "Stop"]
@@ -61,7 +61,7 @@ def commande_claude(evenement: str) -> dict:
     return {
         "type": "command",
         "shell": "powershell",
-        "command": f"python -I {script} claude {evenement}",
+        "command": f"python -I -B {script} claude {evenement}",
         "async": True,
         "timeout": 10,
     }
@@ -96,7 +96,7 @@ def poser_antigravity() -> None:
         print(f"hooks Antigravity non posés : chemin avec espace sans nom court ({ETAT}) ; déplacez le pad", file=sys.stderr)
         return
     def gestionnaire(e: str) -> dict:
-        return {"type": "command", "command": f"python -I {script} antigravity {e}", "timeout": 10}
+        return {"type": "command", "command": f"python -I -B {script} antigravity {e}", "timeout": 10}
 
     # Événements d'outil : enveloppe { matcher, hooks } (matcher = expression régulière, « * » = tous les outils) ;
     # PreInvocation et Stop : gestionnaires directement sous l'événement.

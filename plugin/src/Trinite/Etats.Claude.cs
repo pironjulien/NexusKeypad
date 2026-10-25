@@ -74,7 +74,7 @@ namespace Loupedeck.TrinitePlugin
                 var etat = hook is { } h ? Traduire(h.Etat, h.Quand) : Etat.Repos;
                 var depuis = hook?.Quand ?? activite;
                 var vu = regard > depuis || this.Vu(0, id, depuis);
-                yield return new(0, id, titre, etat == Etat.Fini && vu ? Etat.Repos : etat, depuis, activite, vu);
+                yield return new(0, id, titre, etat is Etat.Fini or Etat.Erreur && vu ? Etat.Repos : etat, depuis, activite, vu);
             }
 
             this._clisClaude = clis;

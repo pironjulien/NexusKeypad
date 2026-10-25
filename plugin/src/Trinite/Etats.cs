@@ -275,16 +275,18 @@ namespace Loupedeck.TrinitePlugin
             this._quotas[2] = ouverte[2] && DateTime.UtcNow - this._quotaAgyLu > TimeSpan.FromHours(5) ? null
                 : QuotaAntigravity.Actuel(this._quotas[2], this._quotaAgyLu);
 
+            var dictee = this.DicteeEnCours();
             return new(conversations, ouvertes, [.. this._quotas], ouverte, eteint, this.Telephone.Derniere, Array.IndexOf(Processus, premier))
             {
-                Dictee = this.DicteeEnCours(),
+                Dictee = dictee,
+                DicteeIa = dictee ? this._dicteeIa : -1,
             };
         }
 
         // Ordre d'une touche : ce qui appelle l'utilisateur (question, puis fin), puis ce qui travaille pour lui, puis le reste.
         internal static Int32 Rang(Conversation c) => c switch
         {
-            { Alerte: true, Etat: Etat.Attend } => 5,
+            { Alerte: true, Etat: Etat.Attend or Etat.Autorisation or Etat.Erreur } => 5,
             { Alerte: true } => 4,
             { Etat: Etat.Travaille, Relais: false } => 3,
             { Etat: Etat.Travaille } => 2,
@@ -320,6 +322,9 @@ namespace Loupedeck.TrinitePlugin
         internal static Etat Traduire(String etat, DateTime quand) => (etat, DateTime.UtcNow - quand) switch
         {
             ("wait", var age) when age < TimeSpan.FromHours(12) => Etat.Attend,
+            ("perm", var age) when age < TimeSpan.FromHours(12) => Etat.Autorisation,
+            ("error", var age) when age < TimeSpan.FromHours(12) => Etat.Erreur,
+            ("limit", var age) when age < TimeSpan.FromHours(5) => Etat.Limite,
             // Une commande longue (compilation, essais) ne donne aucun signe pendant des dizaines de minutes : 2 h.
             ("run" or "ask", var age) when age < TimeSpan.FromHours(2) => Etat.Travaille,
             ("done", var age) when age < TimeSpan.FromHours(12) => Etat.Fini,

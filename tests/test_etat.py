@@ -86,7 +86,7 @@ class Regles(unittest.TestCase):
         self.assertEqual(installer.chaine_powershell("C:/Mes documents/l'pad"), "'C:/Mes documents/l''pad'")
         installer.ETAT, installer.sous_onedrive = Path("C:/Mes documents/l'pad/etat/etat.py"), lambda: None
         commande = installer.commande_claude("Stop")["command"]
-        self.assertEqual(commande, "python -I 'C:\\Mes documents\\l''pad\\etat\\etat.py' claude Stop")
+        self.assertEqual(commande, "python -I -B 'C:\\Mes documents\\l''pad\\etat\\etat.py' claude Stop")  # -B : aucun cache dans OneDrive
         self.assertTrue(installer.du_pad({"command": commande}))
 
     def test_sous_agent_d_antigravity_encore_au_travail(self):
@@ -106,7 +106,17 @@ class Regles(unittest.TestCase):
             self.assertEqual(etat.etat_pour("Stop", {"transcriptPath": str(morceaux)}, {}), "wait")
 
     def test_permission_demandee(self):
-        self.assertEqual(etat.etat_pour("Notification", {"notification_type": "permission_prompt"}, {}), "wait")
+        self.assertEqual(etat.etat_pour("Notification", {"notification_type": "permission_prompt"}, {}), "perm")
+        self.assertEqual(etat.etat_pour("Stop", {}, {"state": "perm"}), "done")  # refusée : le tour finit, plus de cadenas
+        self.assertEqual(etat.etat_pour("PostToolUse", {"tool_name": "Bash"}, {"state": "perm"}), "run")  # accordée
+
+    def test_erreur_et_limite(self):
+        self.assertEqual(etat.etat_pour("StopFailure", {"error": "rate_limit"}, {}), "limit")
+        self.assertEqual(etat.etat_pour("StopFailure", {"error_type": "billing_error"}, {}), "limit")
+        self.assertEqual(etat.etat_pour("StopFailure", {"error_type": "server_error"}, {}), "error")
+        self.assertIn("StopFailure", installer_claude_evenements())
+        self.assertIn("PostToolUseFailure", installer_claude_evenements())
+        self.assertEqual(etat.etat_pour("PostToolUseFailure", {"tool_name": "Bash"}, {"state": "perm"}), "run")  # accordée, l'outil a échoué
         self.assertIsNone(etat.etat_pour("Notification", {"message": "idle"}, {}))
 
     def test_fichier_ecrit_et_retire(self):
@@ -144,5 +154,15 @@ class Regles(unittest.TestCase):
                 etat.RACINE = ancienne
 
 
+def installer_claude_evenements():
+    import importlib.util as iu
+    chemin = Path(__file__).resolve().parents[1] / "outils" / "installer_hooks.py"
+    spec = iu.spec_from_file_location("installer_hooks", chemin)
+    module = iu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.EVENEMENTS_CLAUDE
+
+
 if __name__ == "__main__":
     unittest.main()
+

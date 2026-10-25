@@ -424,6 +424,9 @@ namespace Loupedeck.TrinitePlugin
         // Met l'appli au premier plan, en plein écran, ou la lance si elle est fermée.
         private static readonly Int64[] Lances = [Int64.MinValue / 2, Int64.MinValue / 2, Int64.MinValue / 2];
 
+        // Secondes depuis que le pad a lancé cette IA (grand nombre s'il ne l'a pas lancée).
+        public static Double LanceIlYA(Int32 agent) => Math.Min(99, (Environment.TickCount64 - Lances[agent]) / 1000.0);
+
         public static void Premier(Int32 agent)
         {
             // Sa fenêtre visible avec un titre (la « fenêtre principale » de Windows est parfois vide, chez Antigravity).

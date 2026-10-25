@@ -45,7 +45,7 @@ namespace Loupedeck.TrinitePlugin
         {
             var hook = Hook("antigravity", id);
             var etat = hook is { } h ? Traduire(h.Etat, h.Quand) : Etat.Repos;
-            if (relais && etat is not (Etat.Travaille or Etat.Attend))
+            if (relais && etat is not (Etat.Travaille or Etat.Attend or Etat.Autorisation))
             {
                 return null;
             }
