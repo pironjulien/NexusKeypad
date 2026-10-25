@@ -50,16 +50,20 @@ animated.
 |---|---|---|
 | Volume down (level in 10 steps) | Mute: waves that move with the sound | Volume up |
 | Gmail: unread mails | Calendar: today's date and time | Messages: unread SMS/RCS |
-| PC health: CPU and memory; opens Task Manager | Store and Windows Update: one press starts both update checks | Website: your own link and logo |
+| PC health: CPU and memory; opens Task Manager | Store and Windows Update: one press installs every available update | Website: your own link and logo |
 
 - **Gmail, Calendar, Messages and the website** always open **in front**: their window if it is open, otherwise their
   Chrome-installed app (a Start menu or desktop shortcut with `--app-id`), otherwise a tabless Chrome app window
   (`--app=<url>`), otherwise the default browser.
-- **Unread counts**: the number in parentheses in the title of the Gmail or Google Messages window open on the PC
-  (re-read every 2 s at most); otherwise, with a phone, its pending notifications; otherwise no badge.
-- **Updates**: Windows Update through `UsoClient StartInteractiveScan` (no admin rights needed); the Microsoft Store's
-  update API is denied to desktop apps, so its *Downloads and updates* page opens behind your windows, its update
-  button is pressed through UI Automation and the window is minimized. The key spins for 30 s, then shows a check mark.
+- **A second press closes** the window the key opened (Gmail, Calendar, Messages, website, Task Manager, Codex quota).
+- **Unread counts**: Gmail, from the title of its window or **tab** in Chrome (re-read every 3 s), otherwise from
+  [NexusBrowser](https://github.com/pironjulien/NexusBrowser) when its "Gmail unread for the pad" box is ticked (works
+  with Gmail closed); Messages, from its window or tab title, otherwise from the phone's pending notifications. No
+  source, no badge.
+- **Updates**: one press installs everything, without bringing anything to the front. There is no update API without
+  admin rights, so the Store's *Downloads and updates* page and Windows Update's Settings page are shown behind your
+  windows (minimized, they expose no buttons), searched, then their *Update all* / *Download & install all* button is
+  pressed through UI Automation, and they are minimized again. Never a restart. The key spins until both are done.
 - **Task Manager on Performance**: set `"DefaultStartPage": 1` in
   `%LOCALAPPDATA%\Microsoft\Windows\TaskManager\settings.json` while Task Manager is closed.
 
@@ -77,6 +81,19 @@ The bottom-right key opens a link of your choice. Create `%USERPROFILE%\.nexus\t
 `image` is a PNG or JPEG (absolute, or relative to the JSON file), `anneau` the colors of the spinning ring, `titre` a
 word of its window title (and the name of its app shortcut), by default the site's host name. Without
 this file, the key shows a spinning globe and opens this repository. The file is read when the plugin loads.
+
+## Better with the Nexus family, fine on its own
+
+Every part of the Nexus family is optional. Install only the pad, or the whole family: each part adds to the others,
+and when one is missing the pad falls back to something useful instead of an empty key.
+
+| With | The pad gains | Without it |
+|---|---|---|
+| [NexusAndroid](https://github.com/pironjulien/NexusAndroid) (phone over adb) | The photo key pastes your phone's latest photo into the AI conversation; Messages badge from the phone | The photo key shows an animated clock and date (or your PC's latest screenshot); Messages counted from its open tab only |
+| Nexus Relay (Claude, Codex and Antigravity talk to each other; not public yet) | A tiny Clawd runs from Claude to Codex or Antigravity while they work for Claude | Each agent works on its own; no runner |
+| [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (your real Chrome for AI agents) | Gmail unread count even with Gmail closed (read in your own Chrome session, only the number, stays on your PC) | Gmail counted only while it is open in a Chrome window or tab |
+| [NexusWindows](https://julienpiron.fr/nexuswindows/) (desktop apps for AI agents) | Your agents also drive desktop apps in the background | The pad does not depend on it |
+| Codex LB (local Codex load balancer) | Codex quota across all your accounts; a quota key that opens its dashboard | The official Codex app, quota read from its own logs, usage page in the browser |
 
 ## How it works
 
@@ -117,8 +134,9 @@ flowchart LR
   or later.
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) and Python 3.11+ (hook writer and setup scripts).
 - Any of: **Claude Desktop** (Claude Code), **Codex** desktop app, **Antigravity**. A missing app just sleeps on its key.
-- Optional: an Android phone with USB or wireless debugging and `adb` on the `PATH` (photo key, Gmail and Messages
-  badges).
+- Optional: an Android phone with USB or wireless debugging and `adb` on the `PATH` (photo key, Messages badge), and
+  [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (Gmail badge with Gmail closed). See the table above for
+  what each one adds and what replaces it.
 
 ## Installation
 

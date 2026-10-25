@@ -68,6 +68,29 @@ namespace Loupedeck.TrinitePlugin
         private volatile String[] _titres = []; // titres des fenêtres de Chrome (non-lus de Gmail et Messages)
         private Double _titresLus = -99;
         private Int32 _titresEnCours;
+        private volatile Tuple<Int32> _gmailNexusBrowser; // non-lus Gmail donnés par NexusBrowser, null sans lui
+
+        // ~/.nexus/nexus-browser/compteurs.json, écrit chaque minute par NexusBrowser quand sa case est cochée : pris s'il
+        // a moins de 3 min ; null sinon (NexusBrowser absent, case décochée, Chrome fermé, session Gmail fermée).
+        private static Tuple<Int32> GmailNexusBrowser()
+        {
+            try
+            {
+                var fichier = Path.Combine(Environment.GetEnvironmentVariable("USERPROFILE") ?? "", ".nexus", "nexus-browser", "compteurs.json");
+                if (!File.Exists(fichier) || DateTime.UtcNow - File.GetLastWriteTimeUtc(fichier) > TimeSpan.FromMinutes(3))
+                {
+                    return null;
+                }
+
+                using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(fichier));
+                return doc.RootElement.TryGetProperty("gmail", out var g) && g.ValueKind == System.Text.Json.JsonValueKind.Number
+                    && g.TryGetInt32(out var n) && n >= 0 ? Tuple.Create(n) : null;
+            }
+            catch (Exception)
+            {
+                return null; // en cours d'écriture : relu dans 3 s
+            }
+        }
         private readonly Action<Int32> _redessiner;
         private readonly Object _envoi = new();
         private readonly BitmapImage[] _images = new BitmapImage[Touches];
@@ -619,6 +642,7 @@ namespace Loupedeck.TrinitePlugin
                     try
                     {
                         this._titres = Uia.Fenetres("chrome").Select(Uia.Titre).Concat(Uia.OngletsChrome()).ToArray();
+                        this._gmailNexusBrowser = GmailNexusBrowser();
                     }
                     catch (Exception e)
                     {
@@ -634,9 +658,10 @@ namespace Loupedeck.TrinitePlugin
             var titres = this._titres;
             return Releve.Lire() with
             {
-                // Gmail : seulement sa fenêtre sur le PC ; ses notifications restent sur le téléphone après une lecture sur le
+                // Gmail : sa fenêtre ou son onglet sur le PC, sinon NexusBrowser (case « Mails non lus de Gmail pour le pad »
+                // cochée : même Gmail fermé) ; jamais le téléphone, dont les notifications restent après une lecture sur le
                 // PC (2 en attente, boîte vide, 25/10).
-                Mails = AppliWeb.Gmail.NonLus(titres),
+                Mails = AppliWeb.Gmail.NonLus(titres) ?? this._gmailNexusBrowser?.Item1,
                 Messages = AppliWeb.Messages.NonLus(titres) ?? this._notifications?.Item2,
             };
         }

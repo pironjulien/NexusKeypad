@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Gmail unread count from [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (its opt-in "Gmail unread for the
+  pad" box) when Gmail is not open in Chrome: `~/.nexus/nexus-browser/compteurs.json`, used if under 3 minutes old.
+- README: "Better with the Nexus family, fine on its own", what each part adds and what replaces it when it is missing.
 - `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
 
 ### Fixed
