@@ -37,6 +37,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   of behind your windows, then minimized); up to date, each window closes by itself; installing or unproven, it stays.
 
 ### Fixed
+- Claude key, the view bounced (bottom, up, down…): the conversation already shown was reopened through its link and
+  Claude reloaded it; the 100 % fallback scroll then jumped to the middle of a loaded part. Already shown, it is only
+  brought to the front; only Claude's own "Scroll to bottom" button scrolls it down.
 - Claude key, conversation still in the middle (Antigravity then Claude): Claude keeps only part of the thread
   loaded and UI Automation reported 100 % at the end of that part. The pad first presses Claude's own "Scroll to
   bottom" button, which loads the real end.

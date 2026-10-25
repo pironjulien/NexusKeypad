@@ -46,6 +46,14 @@ namespace Loupedeck.TrinitePlugin
             switch (agent)
             {
                 case 0:
+                    // Déjà affichée : seulement ramenée devant. Rouverte par son lien, Claude la recharge et sa vue saute
+                    // (en bas, remontée, redescendue… : rejoué le 25/10).
+                    if (Uia.FenetrePrincipale(Observateur.Processus[0]) != IntPtr.Zero && Uia.TitreClaudeAffiche() == c.Titre)
+                    {
+                        Premier(agent);
+                        return true;
+                    }
+
                     if (Uia.FenetrePrincipale(Observateur.Processus[0]) == IntPtr.Zero)
                     {
                         Lances[0] = Environment.TickCount64; // Claude fermé : le lien le lance, Premier ne le relance pas

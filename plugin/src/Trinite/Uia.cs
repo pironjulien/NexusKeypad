@@ -318,9 +318,8 @@ namespace Loupedeck.TrinitePlugin
 
         // Conversation de Claude descendue jusqu'au dernier message. D'abord son propre bouton « Défiler vers le bas » : le
         // fil ne garde qu'une partie de la conversation (« Charger les messages suivants »), et le mettre à 100 % ne menait
-        // qu'à la fin de ce morceau, au milieu de la conversation (25/10) ; le bouton charge la vraie fin. Sinon (déjà en
-        // bas, ou bouton renommé) : sa plus grande zone qui défile verticalement (le fil ; la barre latérale et le panneau
-        // de droite sont plus petits), mise à 100 %. Vrai si quelque chose a été descendu.
+        // qu'à la fin de ce morceau, au milieu de la conversation, et faisait remonter la vue après le bouton (25/10). Le
+        // bouton seul : il charge la vraie fin ; sans lui, la conversation est déjà en bas. Vrai s'il a été pressé.
         // autorise : revérifié avec la fenêtre visée juste avant le défilement ; faux, rien ne défile.
         private static readonly String[] BasClaude = ["Défiler vers le bas", "Scroll to bottom"];
 
@@ -350,29 +349,6 @@ namespace Loupedeck.TrinitePlugin
                     }
                 }
 
-                var zones = uia.ElementFromHandle(fenetre)?.FindAll(TreeScopeDescendants,
-                    uia.CreateAndCondition(uia.CreatePropertyCondition(DefilementPossible, true), uia.CreatePropertyCondition(DefilementVertical, true)));
-                IUIAutomationElement fil = null;
-                var aire = 0.0;
-                for (var i = 0; i < (zones?.Length ?? 0); i++)
-                {
-                    var zone = zones.GetElement(i);
-                    if (zone.GetCurrentPropertyValue(Rectangle) is Double[] { Length: 4 } r && r[2] * r[3] > aire)
-                    {
-                        (fil, aire) = (zone, r[2] * r[3]);
-                    }
-                }
-
-                if (fil?.GetCurrentPattern(MotifDefilement) is IUIAutomationScrollPattern defilement)
-                {
-                    if (!autorise(fenetre))
-                    {
-                        return false;
-                    }
-
-                    defilement.SetScrollPercent(-1, 100); // -1 : UIA_ScrollPatternNoScroll, l'horizontale ne bouge pas
-                    return true;
-                }
             }
 
             return false;
