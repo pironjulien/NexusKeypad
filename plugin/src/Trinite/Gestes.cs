@@ -174,7 +174,13 @@ namespace Loupedeck.TrinitePlugin
                 return false;
             }
 
-            Cdp.Cliquer(Cdp.PortAntigravity, point[0].GetDouble(), point[1].GetDouble());
+            // Le menu était ouvert : l'appui est pris par la fermeture, réussie ou non (journalisée si le menu reste ouvert).
+            if (!Cdp.Cliquer(Cdp.PortAntigravity, point[0].GetDouble(), point[1].GetDouble())
+                || !Attendre(() => Cdp.Evaluer(Cdp.PortAntigravity, Js.MenuModelesAntigravity, attente: 1) is not { ValueKind: System.Text.Json.JsonValueKind.Array }, 1500))
+            {
+                PluginLog.Warning("Utilisation : la boîte des quotas d'Antigravity ne s'est pas refermée");
+            }
+
             return true;
         }
 
@@ -239,20 +245,30 @@ namespace Loupedeck.TrinitePlugin
 
         // Photo ou capture d'écran : déjà dans le presse-papiers, collée (Ctrl+V, sans envoyer) dans le champ de l'IA au
         // premier plan, à la suite de ce que l'utilisateur a pu écrire.
-        public static void Coller(String geste)
+        // cible : l'IA visée à l'appui ; vrai si l'image est partie dans son champ.
+        public static Boolean Coller(String geste, Int32 cible)
         {
+            AttendreClaude();
             var agent = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan());
-            if (agent >= 0 && Uia.Fenetres(Observateur.Processus[agent]).Count > 1)
+            if (agent != cible)
             {
-                PluginLog.Warning($"{geste} : plusieurs fenêtres de l'appli ouvertes, rien n'a été collé");
-                return;
+                PluginLog.Warning($"{geste} : l'appli devant n'est plus l'IA visée, rien n'a été collé");
+                return false;
             }
 
-            AttendreClaude();
+            if (Uia.Fenetres(Observateur.Processus[agent]).Count > 1)
+            {
+                PluginLog.Warning($"{geste} : plusieurs fenêtres de l'appli ouvertes, rien n'a été collé");
+                return false;
+            }
+
             if (Preparer(geste, vide: false) is IntPtr fenetre && Toujours(fenetre, geste))
             {
                 Touches(VK_CONTROL, 0x56);
+                return true;
             }
+
+            return false;
         }
 
         // Dictée : une seule à la fois. S'il y en a une en cours n'importe où (dictée ou chat vocal de Codex, dictée de
@@ -426,6 +442,7 @@ namespace Loupedeck.TrinitePlugin
         // appli UWP n'en publie plus aucun), sans rien cacher à Julien.
         public static void DerriereSansActiver(IntPtr fenetre)
         {
+            Paquets.Reprendre(fenetre); // réduite, l'appli du Store est suspendue : reprise, sinon aucun bouton
             if (IsIconic(fenetre))
             {
                 ShowWindow(fenetre, 4); // SW_SHOWNOACTIVATE
@@ -449,12 +466,20 @@ namespace Loupedeck.TrinitePlugin
                 return false;
             }
 
-            PostMessage(fenetre, 0x0010, IntPtr.Zero, IntPtr.Zero); // WM_CLOSE
+            // L'appui est pris par la fermeture ; un refus (fenêtre protégée) ou une fenêtre toujours là est journalisé.
+            if (!PostMessage(fenetre, 0x0010, IntPtr.Zero, IntPtr.Zero) || !Attendre(() => !IsWindowVisible(fenetre), 2000)) // WM_CLOSE
+            {
+                PluginLog.Warning($"fermeture de « {Uia.Titre(fenetre)} » non confirmée");
+            }
+
             return true;
         }
 
         [DllImport("user32.dll")]
         private static extern Boolean PostMessage(IntPtr h, UInt32 message, IntPtr w, IntPtr l);
+
+        [DllImport("user32.dll")]
+        private static extern Boolean IsWindowVisible(IntPtr h);
 
         // Gestionnaire des tâches (santé du PC), sans élévation : lancé en administrateur (son manifeste le demande), le
         // pad ne pouvait pas le fermer. Un deuxième appui le ferme : il refuse le message de fermeture même sans élévation

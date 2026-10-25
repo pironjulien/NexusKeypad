@@ -73,6 +73,22 @@ class Regles(unittest.TestCase):
         tiers = {"type": "command", "command": "pwsh -File audit.ps1 -Project NexusKeypad"}
         self.assertFalse(installer.du_pad(tiers))  # un autre outil qui cite le projet n'est pas retiré
 
+    def test_installateur_sans_reglages_claude_et_chemin_avec_espace(self):
+        import importlib.util as iu
+        chemin = Path(__file__).resolve().parents[1] / "outils" / "installer_hooks.py"
+        spec_i = iu.spec_from_file_location("installer_hooks", chemin)
+        installer = iu.module_from_spec(spec_i)
+        spec_i.loader.exec_module(installer)
+        with tempfile.TemporaryDirectory() as d:
+            reglages = Path(d) / "absent" / "settings.json"
+            installer.poser_claude(reglages)  # réglages de Claude absents : créés
+            self.assertIn("Stop", json.loads(reglages.read_text(encoding="utf-8"))["hooks"])
+        self.assertEqual(installer.chaine_powershell("C:/Mes documents/l'pad"), "'C:/Mes documents/l''pad'")
+        installer.ETAT, installer.sous_onedrive = Path("C:/Mes documents/l'pad/etat/etat.py"), lambda: None
+        commande = installer.commande_claude("Stop")["command"]
+        self.assertEqual(commande, "python -I 'C:\\Mes documents\\l''pad\\etat\\etat.py' claude Stop")
+        self.assertTrue(installer.du_pad({"command": commande}))
+
     def test_sous_agent_d_antigravity_encore_au_travail(self):
         self.assertEqual(etat.etat_pour("Stop", {"fullyIdle": False}, {}), "run")
 

@@ -224,6 +224,14 @@ namespace Loupedeck.TrinitePlugin
         private static void ToucheMisesAJour(BitmapBuilder b, Scene s)
         {
             var cherche = s.MiseAJour > s.MiseAJourFinie && s.Temps >= s.MiseAJour;
+            if (!cherche && !s.MiseAJourReussie && s.MiseAJourFinie >= s.MiseAJour && s.Temps - s.MiseAJourFinie is >= 0 and < 4)
+            {
+                // Rien de prouvé (introuvable, délai, erreur) : un « ! » ambre, jamais la coche du succès.
+                b.FillRectangle((T / 2) - 5, 26, 10, 40, Ambre);
+                b.FillRectangle((T / 2) - 5, 74, 10, 10, Ambre);
+                return;
+            }
+
             if (!cherche && s.MiseAJourFinie >= s.MiseAJour && s.Temps - s.MiseAJourFinie is >= 0 and < 2)
             {
                 Carte(b, Coche, (T / 2) - 18, (T / 2) - 14, 3, Vert);

@@ -22,8 +22,12 @@ namespace Loupedeck.TrinitePlugin
     }
 
     // Quota d'une IA : part utilisée (0 à 1) de la fenêtre de 5 h et de la semaine ; null quand elle n'a pas encore
-    // été lue.
-    public sealed record Quota(Double? Cinq, Double? Semaine);
+    // été lue. FinCinq, FinSemaine : heure (UTC) où la fenêtre repart à zéro, quand l'IA la donne.
+    public sealed record Quota(Double? Cinq, Double? Semaine)
+    {
+        public DateTime? FinCinq { get; init; }
+        public DateTime? FinSemaine { get; init; }
+    }
 
     // Conversations : la plus pressante d'abord. Ouvertes : nombre de conversations actives de chaque IA.
     // Devant : l'IA dont l'appli est au premier plan (celle que Capture, Photo et Dictée visent), -1 si aucune.

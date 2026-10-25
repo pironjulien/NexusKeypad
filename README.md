@@ -55,7 +55,8 @@ animated.
 - **Gmail, Calendar, Messages and the website** always open **in front**: their window if it is open, otherwise their
   Chrome-installed app (a Start menu or desktop shortcut with `--app-id`), otherwise a tabless Chrome app window
   (`--app=<url>`), otherwise the default browser.
-- **A second press closes** the window the key opened (Gmail, Calendar, Messages, website, Task Manager, Codex quota).
+- **A second press closes** the window the key opened (Gmail, Calendar, Messages, website, Task Manager, Codex quota),
+  except when it fell back to your default browser (that window is not recognised and stays open).
 - **Unread counts**: Gmail, from the title of its window or **tab** in Chrome (re-read every 3 s), otherwise from
   [NexusBrowser](https://github.com/pironjulien/NexusBrowser) when its "Gmail unread for the pad" box is ticked (works
   with Gmail closed); Messages, from its window or tab title, otherwise from the phone's pending notifications. No
@@ -63,7 +64,8 @@ animated.
 - **Updates**: one press installs everything, without bringing anything to the front. There is no update API without
   admin rights, so the Store's *Downloads and updates* page and Windows Update's Settings page are shown behind your
   windows (minimized, they expose no buttons), searched, then their *Update all* / *Download & install all* button is
-  pressed through UI Automation, and they are minimized again. Never a restart. The key spins until both are done.
+  pressed through UI Automation, and they are minimized again. The pad never presses *Restart*; Windows may still
+  restart on its own schedule, per its own settings. The key spins until both are done.
 - **Task Manager on Performance**: set `"DefaultStartPage": 1` in
   `%LOCALAPPDATA%\Microsoft\Windows\TaskManager\settings.json` while Task Manager is closed.
 

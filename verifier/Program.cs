@@ -72,6 +72,12 @@ var qa = QuotaAntigravity.Analyser(page);
 Vrai(Math.Abs((qa?.Cinq ?? -1) - 0.97) < 1e-9, "Antigravity 5 h : 3 % restants = 97 % utilisés");
 Vrai(Math.Abs((qa?.Semaine ?? -1) - 0.67) < 1e-9, "Antigravity semaine : 33 % restants = 67 % utilisés");
 Vrai(QuotaAntigravity.Analyser("autre dialogue") is null, "page illisible → rien");
+var finCinq = (qa?.FinCinq ?? DateTime.MinValue) - DateTime.UtcNow;
+Vrai(finCinq > TimeSpan.FromMinutes(13) && finCinq <= TimeSpan.FromMinutes(14), "Antigravity 5 h : remise à zéro dans 14 min");
+var finSemaine = (qa?.FinSemaine ?? DateTime.MinValue) - DateTime.UtcNow;
+Vrai(finSemaine > new TimeSpan(6, 8, 59, 0) && finSemaine <= new TimeSpan(6, 9, 0, 0), "Antigravity semaine : remise à zéro dans 6 j 9 h");
+Vrai(QuotaAntigravity.Delai("it will fully refresh in 4 days, 23 hours.") == new TimeSpan(4, 23, 0, 0)
+    && QuotaAntigravity.Delai("Weekly Limit Remaining") is null, "délai de remise à zéro lu en jours, heures, minutes");
 
 // Ouverture d'une conversation d'Antigravity : l'identifiant reste une chaîne JSON (pas d'injection dans le script).
 var js = Js.OuvrirAntigravity("abc'); alert(1); ('", route: true);
@@ -82,7 +88,9 @@ Vrai(!js.Contains("'); alert(1)", StringComparison.Ordinal) && js.Contains("abc"
 Vrai(AppliWeb.Gmail.NonLus(["Codex LB", "Boîte de réception (12) - a@example.com - Gmail"]) == 12, "Gmail : 12 non-lus dans le titre");
 Vrai(AppliWeb.Gmail.NonLus(["Boîte de réception - a@example.com - Gmail"]) == 0, "Gmail sans nombre : 0");
 Vrai(AppliWeb.Gmail.NonLus(["Boîte de réception (3) - Gmail - Google Chrome"]) is null, "onglet Gmail de Chrome : pas une fenêtre d'appli");
-Vrai(AppliWeb.Messages.NonLus(["(2) Google Messages"]) == 2 && AppliWeb.Messages.NonLus([]) is null, "Messages : titre, sinon rien");
+Vrai(AppliWeb.Messages.NonLus(["(2) Google Messages pour le Web"]) == 2 && AppliWeb.Messages.NonLus([]) is null, "Messages : titre, sinon rien");
+Vrai(AppliWeb.Gmail.NonLus(["(2) Issues · pironjulien/nexus-gmail", "Questions sur l'API Gmail (4)"]) is null
+    && AppliWeb.Messages.NonLus(["(3) Messages pour le Web - aide"]) is null, "onglets qui citent Gmail ou Messages : pas de fausse pastille");
 
 // Cache d'images : une scène identique donne des pixels identiques ; la photo ne bouge pas d'un instant à l'autre ;
 // sans téléphone, la touche Photo est une horloge animée.

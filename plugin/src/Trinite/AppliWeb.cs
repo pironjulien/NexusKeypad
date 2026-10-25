@@ -16,13 +16,16 @@ namespace Loupedeck.TrinitePlugin
     // Raccourcis : noms de son raccourci d'appli Chrome (« … --app-id=… », menu Démarrer ou Bureau), qui retrouve l'appli
     // installée sans en figer l'identifiant. (L'id « Gmail » des anciennes applis par défaut de Chrome ouvre un onglet, pas
     // une fenêtre d'appli, 24/10 : sans raccourci, une fenêtre --app.)
-    // AuDebut : le titre doit COMMENCER par un de ses mots (le site : « Exemple.org - … ») ; sinon il le contient. Le titre
-    // de Gmail contient l'adresse du compte (souvent faite du nom du site) : la touche du site ramenait Gmail.
+    // AuDebut : le titre doit COMMENCER par un de ses mots (le site : « JulienPiron.fr - … ») ; sinon il le contient. Le titre
+    // de Gmail contient l'adresse du compte, qui peut contenir le nom du site : la touche du site ramenait Gmail (25/10).
     public sealed record AppliWeb(String Url, String[] Titres, String[] Raccourcis, Boolean AuDebut = false)
     {
-        public static readonly AppliWeb Gmail = new("https://mail.google.com/mail/u/0/#inbox", ["Gmail"], ["Gmail"]);
+        // Titres stricts : « … - Gmail » (fenêtre, onglet) et le nom complet de Google Messages pour le Web ; un onglet
+        // « (2) Issues · …/nexus-gmail » ou « Questions sur l'API Gmail » allumait une fausse pastille (relecture
+        // d'Antigravity, 25/10).
+        public static readonly AppliWeb Gmail = new("https://mail.google.com/mail/u/0/#inbox", [" - Gmail"], ["Gmail"]);
         public static readonly AppliWeb Agenda = new("https://calendar.google.com/calendar/r", ["Google Agenda", "Google Calendar"], ["Google Agenda", "Google Calendar"]);
-        public static readonly AppliWeb Messages = new("https://messages.google.com/web/conversations", ["Google Messages", "Messages pour le Web", "Messages for web"],
+        public static readonly AppliWeb Messages = new("https://messages.google.com/web/conversations", ["Google Messages pour le Web", "Google Messages for web"],
             ["Messages", "Google Messages"]);
 
         public static AppliWeb Site => new(Signet.Reglage.Url, [Signet.Reglage.Titre], [Signet.Reglage.Titre], AuDebut: true);

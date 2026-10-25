@@ -58,7 +58,10 @@ namespace Loupedeck.TrinitePlugin
                 return null;
             }
 
-            this.Moteur.Demande(touche);
+            if (imageSize == PluginImageSize.Width116)
+            {
+                this.Moteur.Demande(touche); // le pad (Options+ demande d'autres tailles pour son propre affichage)
+            }
 
             // Le pad demande 116 px : l'image déjà dessinée et envoyée par le moteur ; une autre taille (Options+) à part.
             return imageSize == PluginImageSize.Width116 && this.Moteur.Image(touche) is { } image

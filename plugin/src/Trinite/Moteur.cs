@@ -24,6 +24,7 @@ namespace Loupedeck.TrinitePlugin
         public Poste Poste { get; init; }
         public Double MiseAJour { get; init; } = -99;
         public Double MiseAJourFinie { get; init; } = -99;
+        public Boolean MiseAJourReussie { get; init; } = true; // les deux pages lancées ou à jour
 
         public Boolean Appui(Int32 touche) => this.Temps - this.Appuis[touche] < 0.2;
     }
@@ -57,34 +58,60 @@ namespace Loupedeck.TrinitePlugin
         private readonly Observateur _observateur = new();
         private readonly Stopwatch _horloge = Stopwatch.StartNew();
         private readonly Double[] _appuis = Enumerable.Repeat(-9.0, Touches).ToArray();
-        private readonly Double[] _demandes = Enumerable.Repeat(-9.0, Touches).ToArray(); // dernière image demandée par le service
-        private readonly Double[] _avisees = Enumerable.Repeat(-9.0, Touches).ToArray(); // dernier avis de changement envoyé
+        private volatile Int32 _page = 1; // page que le pad affiche : celle de sa dernière demande d'image
         private Poste _poste;
         private volatile Tuple<Int32, Int32> _notifications; // mails, messages : objet entier, jamais lu à moitié écrit
         private Double _notificationsLues = -99;
         private Int32 _notificationsEnCours;
         private Double _miseAJour = -99; // dernier appui sur la touche des mises à jour (Windows Update et Store)
         private Double _miseAJourFinie = -99; // fin de ce qu'il a lancé
+        private Boolean _miseAJourReussie = true;
+        private Task _miseAJourTache = Task.CompletedTask;
+        private readonly CancellationTokenSource _arretMiseAJour = new(); // annule une mise à jour en cours à l'arrêt
         private volatile String[] _titres = []; // titres des fenêtres de Chrome (non-lus de Gmail et Messages)
         private Double _titresLus = -99;
         private Int32 _titresEnCours;
-        private volatile Tuple<Int32> _gmailNexusBrowser; // non-lus Gmail donnés par NexusBrowser, null sans lui
+        private volatile Tuple<Int32, DateTime> _gmailNexusBrowser; // non-lus Gmail donnés par NexusBrowser et leur date
 
-        // ~/.nexus/nexus-browser/compteurs.json, écrit chaque minute par NexusBrowser quand sa case est cochée : pris s'il
-        // a moins de 3 min ; null sinon (NexusBrowser absent, case décochée, Chrome fermé, session Gmail fermée).
-        private static Tuple<Int32> GmailNexusBrowser()
+        // Pris seulement s'il a moins de 3 min AU MOMENT de s'en servir (une relecture bloquée ne garde pas un vieux nombre).
+        private static Int32? NonPerime(Tuple<Int32, DateTime> compte) =>
+            compte is not null && DateTime.UtcNow - compte.Item2 < TimeSpan.FromMinutes(3) ? compte.Item1 : null;
+
+        // ~/.nexus/nexus-browser/compteurs.json, écrit chaque minute par NexusBrowser quand sa case est cochée : une entrée
+        // par profil Chrome (« sources »), la somme des comptes de moins de 3 min ; null sinon (NexusBrowser absent, case
+        // décochée, Chrome fermé, session Gmail fermée). L'ancien format (un seul « gmail ») est encore lu.
+        private static Tuple<Int32, DateTime> GmailNexusBrowser()
         {
             try
             {
                 var fichier = Path.Combine(Environment.GetEnvironmentVariable("USERPROFILE") ?? "", ".nexus", "nexus-browser", "compteurs.json");
-                if (!File.Exists(fichier) || DateTime.UtcNow - File.GetLastWriteTimeUtc(fichier) > TimeSpan.FromMinutes(3))
+                if (!File.Exists(fichier))
                 {
                     return null;
                 }
 
                 using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(fichier));
-                return doc.RootElement.TryGetProperty("gmail", out var g) && g.ValueKind == System.Text.Json.JsonValueKind.Number
-                    && g.TryGetInt32(out var n) && n >= 0 ? Tuple.Create(n) : null;
+                var entrees = doc.RootElement.TryGetProperty("sources", out var sources) && sources.ValueKind == System.Text.Json.JsonValueKind.Object
+                    ? sources.EnumerateObject().Select(p => p.Value).ToList()
+                    : [doc.RootElement];
+                Int32? somme = null;
+                var plusRecent = DateTime.MinValue;
+                foreach (var e in entrees)
+                {
+                    if (!e.TryGetProperty("at", out var at) || !DateTime.TryParse(at.GetString(), System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.AdjustToUniversal, out var quand) || DateTime.UtcNow - quand > TimeSpan.FromMinutes(3))
+                    {
+                        continue;
+                    }
+
+                    if (e.TryGetProperty("gmail", out var g) && g.ValueKind == System.Text.Json.JsonValueKind.Number && g.TryGetInt32(out var n) && n >= 0)
+                    {
+                        somme = (somme ?? 0) + n;
+                        plusRecent = quand > plusRecent ? quand : plusRecent;
+                    }
+                }
+
+                return somme is Int32 total ? Tuple.Create(total, plusRecent) : null;
             }
             catch (Exception)
             {
@@ -121,12 +148,12 @@ namespace Loupedeck.TrinitePlugin
         // Dernière image envoyée d'une touche (116 px), que le service redemande juste après l'avis de changement.
         public BitmapImage Image(Int32 touche) => this._images[touche];
 
-        // Le service demande l'image d'une touche : elle est affichée.
-        public void Demande(Int32 touche) => this._demandes[touche] = this._horloge.Elapsed.TotalSeconds;
-
-        // Touche de la page 2 affichée : le service a redemandé son image après le dernier avis (1,5 s de grâce). Une page
-        // cachée n'est ni relue ni dessinée ; affichée, le service demande ses images et elle repart.
-        private Boolean Affichee(Int32 touche) => this._avisees[touche] <= this._demandes[touche] + 1.5;
+        // Le pad demande l'image d'une touche (116 px) : sa page est celle qu'il affiche. Le service ne demande que les
+        // images des touches affichées, à chaque changement de page et après chaque avis : la page cachée n'est ni relue
+        // ni dessinée, et la page affichée l'est, même quand ses images ne changent pas (l'ancienne règle, fondée sur les
+        // avis de changement, laissait une page cachée « affichée » tant que son image restait identique, relecture de
+        // Codex, 25/10).
+        public void Demande(Int32 touche) => this._page = Place(touche) < 9 ? 1 : 2;
 
         // Relevé forcé du quota d'Antigravity (pilote) : rend ce qui a été lu.
         public String ReleverAntigravity()
@@ -174,10 +201,6 @@ namespace Loupedeck.TrinitePlugin
 
                 this._pixels[touche] = pixels;
                 this._images[touche] = image;
-                if (this._avisees[touche] <= this._demandes[touche])
-                {
-                    this._avisees[touche] = this._horloge.Elapsed.TotalSeconds; // premier avis sans réponse : le délai court
-                }
             }
 
             this._redessiner(touche);
@@ -256,6 +279,7 @@ namespace Loupedeck.TrinitePlugin
             Poste = this._poste,
             MiseAJour = this._miseAJour,
             MiseAJourFinie = this._miseAJourFinie,
+            MiseAJourReussie = this._miseAJourReussie,
         };
 
         // Un appui : action hors du fil du service (ouvrir une appli ou taper prend du temps).
@@ -455,28 +479,31 @@ namespace Loupedeck.TrinitePlugin
                     return; // écran éteint, pad éteint avec lui : rien à dessiner
                 }
 
-                // Têtes qui travaillent ou appellent l'utilisateur 8 fois par seconde, le reste 4 fois (sauf la photo ; sans
-                // téléphone, la touche est une horloge animée) : seules les images qui ont changé partent au pad, chacune
-                // coûte cher au service Logi.
+                // Seule la page affichée est relue et dessinée. Page 1 : têtes qui travaillent ou appellent l'utilisateur 8 fois
+                // par seconde, le reste 4 fois (sauf la photo ; sans téléphone, la touche est une horloge animée). Page 2 :
+                // le poste relu 8 fois par seconde (quelques appels locaux), le son à chaque tour, le reste 4 fois. Seules les
+                // images qui ont changé partent au pad, chacune coûte cher au service Logi.
+                if (this._page == 2)
+                {
+                    this.LireNotifications();
+                    this._poste = this.LirePoste();
+                    for (var t = VolumeMoins; t < Touches; t++)
+                    {
+                        if (t == Muet || this._tic % 2 == 0)
+                        {
+                            this.Envoyer(t);
+                        }
+                    }
+
+                    return;
+                }
+
                 var i = this._instantane;
                 var horloge = this._observateur.Telephone.Derniere is null;
                 for (var t = 0; t < 9; t++)
                 {
                     var vive = t < 3 && (i.EtatIA(t) is Etat.Travaille or Etat.Attend || i.Premiere(t)?.Alerte == true || i.PourClaude(1) || i.PourClaude(2));
                     if ((t != Photo || horloge) && (vive || this._tic % 2 == 0))
-                    {
-                        this.Envoyer(t);
-                    }
-                }
-
-                // Page 2, seulement affichée : le poste relu 8 fois par seconde (quelques appels locaux), les touches
-                // qui suivent le son à chaque tour, les autres 4 fois par seconde.
-                var page2 = Enumerable.Range(VolumeMoins, Touches - VolumeMoins).Where(this.Affichee).ToList();
-                if (page2.Count > 0)
-                {
-                    this.LireNotifications();
-                    this._poste = this.LirePoste();
-                    foreach (var t in page2.Where(t => t is Muet || this._tic % 2 == 0))
                     {
                         this.Envoyer(t);
                     }
@@ -590,8 +617,12 @@ namespace Loupedeck.TrinitePlugin
                 }
             }
 
-            collee();
-            Gestes.Coller(geste);
+            // Collé seulement dans l'IA visée au moment de l'appui : si l'utilisateur est passé sur une autre appli pendant
+            // la copie, rien n'est collé (relecture de Codex, 25/10).
+            if (Gestes.Coller(geste, cible))
+            {
+                collee();
+            }
         }
 
         // Page 2 : gestes immédiats sur le poste.
@@ -612,9 +643,11 @@ namespace Loupedeck.TrinitePlugin
                     if (this._miseAJourFinie >= this._miseAJour)
                     {
                         this._miseAJour = this._horloge.Elapsed.TotalSeconds;
-                        Task.Run(() =>
+                        this._miseAJourTache = Task.Run(() =>
                         {
-                            Releve.MettreAJour();
+                            var (store, windows) = Releve.MettreAJour(this._arretMiseAJour.Token);
+                            this._miseAJourReussie = store is Releve.IssueMiseAJour.Lancee or Releve.IssueMiseAJour.AJour
+                                && windows is Releve.IssueMiseAJour.Lancee or Releve.IssueMiseAJour.AJour;
                             this._miseAJourFinie = this._horloge.Elapsed.TotalSeconds;
                         });
                     }
@@ -641,8 +674,12 @@ namespace Loupedeck.TrinitePlugin
                 {
                     try
                     {
-                        this._titres = Uia.Fenetres("chrome").Select(Uia.Titre).Concat(Uia.OngletsChrome()).ToArray();
+                        // NexusBrowser d'abord, indépendamment de Chrome ; la barre d'onglets (UI Automation, coûteuse pour
+                        // Chrome) n'est lue que si elle sert : Gmail sans NexusBrowser, ou Messages sans téléphone.
                         this._gmailNexusBrowser = GmailNexusBrowser();
+                        var fenetres = Uia.Fenetres("chrome").Select(Uia.Titre);
+                        var onglets = this._gmailNexusBrowser is null || this._notifications is null;
+                        this._titres = (onglets ? fenetres.Concat(Uia.OngletsChrome()) : fenetres).ToArray();
                     }
                     catch (Exception e)
                     {
@@ -661,7 +698,7 @@ namespace Loupedeck.TrinitePlugin
                 // Gmail : sa fenêtre ou son onglet sur le PC, sinon NexusBrowser (case « Mails non lus de Gmail pour le pad »
                 // cochée : même Gmail fermé) ; jamais le téléphone, dont les notifications restent après une lecture sur le
                 // PC (2 en attente, boîte vide, 25/10).
-                Mails = AppliWeb.Gmail.NonLus(titres) ?? this._gmailNexusBrowser?.Item1,
+                Mails = AppliWeb.Gmail.NonLus(titres) ?? NonPerime(this._gmailNexusBrowser),
                 Messages = AppliWeb.Messages.NonLus(titres) ?? this._notifications?.Item2,
             };
         }
@@ -711,6 +748,8 @@ namespace Loupedeck.TrinitePlugin
         {
             // Plus aucun geste après l'arrêt : ceux en file sont abandonnés, celui en cours a 2 s pour finir.
             this._arret = true;
+            this._arretMiseAJour.Cancel(); // une mise à jour en cours s'interrompt avant sa prochaine action (5 s au plus)
+            this._miseAJourTache.Wait(5000);
             this._gestes.CompleteAdding();
             this._filGestes?.Join(2000);
             this._pilote?.Dispose();

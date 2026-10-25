@@ -17,6 +17,7 @@ namespace Loupedeck.TrinitePlugin
         private const Int32 TreeScopeDescendants = 4;
         private const Int32 NomPropriete = 30005; // UIA_NamePropertyId
         private const Int32 TypePropriete = 30003; // UIA_ControlTypePropertyId
+        private const Int32 ActifPropriete = 30010; // UIA_IsEnabledPropertyId
         private const Int32 ValeurPropriete = 30045; // UIA_ValueValuePropertyId
         private const Int32 FocusClavier = 30008; // UIA_HasKeyboardFocusPropertyId
         private const Int32 TypeEdit = 50004; // UIA_EditControlTypeId
@@ -112,14 +113,23 @@ namespace Loupedeck.TrinitePlugin
         {
             var uia = Nouveau();
             var racine = uia.ElementFromHandle(fenetre);
+            // Seulement un bouton actif : grisé (Windows Update pendant sa recherche), Invoke lève UIA_E_ELEMENTNOTENABLED.
+            var actif = uia.CreatePropertyCondition(ActifPropriete, true);
             foreach (var nom in noms)
             {
-                var bouton = racine?.FindFirst(TreeScopeDescendants,
-                    uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), uia.CreatePropertyCondition(NomPropriete, nom)));
+                var bouton = racine?.FindFirst(TreeScopeDescendants, uia.CreateAndCondition(actif,
+                    uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), uia.CreatePropertyCondition(NomPropriete, nom))));
                 if (bouton?.GetCurrentPattern(MotifInvoke) is IUIAutomationInvokePattern appui)
                 {
-                    appui.Invoke();
-                    return true;
+                    try
+                    {
+                        appui.Invoke();
+                        return true;
+                    }
+                    catch (COMException e) when ((UInt32)e.HResult is 0x80040200 or 0x80040201) // grisé ou disparu entre-temps
+                    {
+                        return false;
+                    }
                 }
             }
 

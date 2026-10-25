@@ -175,77 +175,116 @@ namespace Loupedeck.TrinitePlugin
         public const Byte VolumeMoins = 0xAE;
         public const Byte VolumePlus = 0xAF;
 
+        // Issue d'une page de mises à jour : installation lancée (bouton cliqué puis disparu), déjà à jour (texte « à jour »
+        // lu), inconnue (rien de prouvé dans le délai), échec (fenêtre ou bouton introuvable, erreur), annulée (plugin
+        // arrêté). Seules les deux premières valent un succès sur la touche (relecture de Codex, 25/10).
+        public enum IssueMiseAJour { Lancee, AJour, Inconnue, Echec, Annulee }
+
         // Touche des mises à jour : TOUT mettre à jour d'un appui, sans rien amener au premier plan. Rechercher seulement ne
         // suffisait pas : le Store et Windows Update proposaient ensuite leurs mises à jour sans les installer (25/10).
         // Aucune API sans droits d'administrateur (Store : E_ACCESSDENIED ; Windows Update : installation réservée aux
         // administrateurs) : leurs boutons sont cliqués par UI Automation, fenêtre derrière les autres (réduite, elle ne
-        // montre plus ses boutons : réaffichée sans activation), puis réduite. Jamais de redémarrage.
-        public static void MettreAJour()
+        // montre plus ses boutons : réaffichée sans activation), puis réduite. Le pad ne clique jamais « Redémarrer » ;
+        // Windows peut redémarrer de lui-même selon ses propres règles. arret : plugin en cours d'arrêt, tout s'interrompt.
+        public static (IssueMiseAJour Store, IssueMiseAJour Windows) MettreAJour(System.Threading.CancellationToken arret)
         {
             var store = System.Threading.Tasks.Task.Run(() => Page(
                 "Store", "ms-windows-store://downloadsandupdates", ["Microsoft Store"],
                 ["Rechercher les mises à jour", "Obtenir les mises à jour", "Get updates", "Check for updates"],
-                ["Tout mettre à jour", "Mettre à jour tout", "Update all"], [], 25));
+                ["Tout mettre à jour", "Mettre à jour tout", "Update all"], [], 25, arret,
+                ["Mises à jour disponibles", "Updates available", "Tout mettre à jour", "Mettre à jour tout", "Update all"]));
             var windows = System.Threading.Tasks.Task.Run(() => Page(
                 "Windows Update", "ms-settings:windowsupdate", ["Paramètres", "Settings"],
                 ["Rechercher des mises à jour", "Check for updates"],
                 ["Télécharger et installer tout", "Tout télécharger et installer", "Installer tout", "Télécharger et installer",
                     "Installer maintenant", "Download & install all", "Install all", "Download & install", "Install now"],
-                ["Vous êtes à jour", "You're up to date"], 150));
+                ["Vous êtes à jour", "You're up to date"], 150, arret, []));
             System.Threading.Tasks.Task.WaitAll(store, windows);
+            return (store.Result, windows.Result);
         }
 
         // Une page de mises à jour : ouverte derrière, son bouton de recherche cliqué (sauf si l'installation est déjà
-        // proposée), puis son bouton d'installation cliqué dès qu'il paraît, fenêtre réduite. Fin plus tôt, rien à
-        // installer : un texte « à jour » affiché 8 s après la recherche (Windows Update) ; sans ce texte (le Store n'en
-        // affiche pas), au bout d'attente secondes.
-        private static void Page(String nom, String adresse, String[] titres, String[] rechercher, String[] installer, String[] aJour, Int32 attente)
+        // proposée), puis son bouton d'installation cliqué dès qu'il paraît, et vérifié parti (il disparaît) ; fenêtre
+        // réduite. À jour : un texte « à jour » affiché 8 s après la recherche (Windows Update), ou, pour le Store qui n'en
+        // affiche pas, aucune mise à jour proposée 15 s après la recherche (proposees : ses textes quand il en a). Sondage toutes les 0,5 s les 10 premières secondes,
+        // puis toutes les 2 s (chaque sondage parcourt la fenêtre).
+        private static IssueMiseAJour Page(String nom, String adresse, String[] titres, String[] rechercher, String[] installer,
+            String[] aJour, Int32 attente, System.Threading.CancellationToken arret, String[] proposees)
         {
+            var issue = IssueMiseAJour.Inconnue;
             try
             {
                 Gestes.Lancer(adresse);
                 IntPtr fenetre = IntPtr.Zero;
-                for (var i = 0; i < 40 && fenetre == IntPtr.Zero; i++)
+                for (var i = 0; i < 40 && fenetre == IntPtr.Zero && !arret.IsCancellationRequested; i++)
                 {
-                    System.Threading.Thread.Sleep(500);
+                    arret.WaitHandle.WaitOne(500);
                     fenetre = Uia.Fenetres("ApplicationFrameHost").FirstOrDefault(h => titres.Contains(Uia.Titre(h)));
+                }
+
+                if (arret.IsCancellationRequested)
+                {
+                    return IssueMiseAJour.Annulee;
                 }
 
                 if (fenetre == IntPtr.Zero)
                 {
                     PluginLog.Warning($"mises à jour : fenêtre de {nom} introuvable en 20 s");
-                    return;
+                    return IssueMiseAJour.Echec;
                 }
 
                 Gestes.DerriereSansActiver(fenetre);
-                var installee = false;
                 var recherchee = false;
-                var depuisRecherche = 0;
-                for (var i = 0; i < attente * 2 && !installee; i++)
+                var debut = Environment.TickCount64;
+                Int64? recherche = null;
+                while (Environment.TickCount64 - debut < attente * 1000L && !arret.IsCancellationRequested)
                 {
-                    installee = Uia.CliquerDans(fenetre, installer);
-                    if (!installee && !recherchee)
+                    if (Uia.CliquerDans(fenetre, installer))
+                    {
+                        // Parti : le bouton disparaît (remplacé par la progression) ; encore là au bout de 10 s, inconnue.
+                        var parti = Enumerable.Range(0, 20).Any(_ => !arret.WaitHandle.WaitOne(500) && !Uia.Affiche(fenetre, installer));
+                        issue = parti ? IssueMiseAJour.Lancee : IssueMiseAJour.Inconnue;
+                        break;
+                    }
+
+                    if (!recherchee)
                     {
                         recherchee = Uia.CliquerDans(fenetre, rechercher);
+                        recherche = recherchee ? Environment.TickCount64 : null;
                     }
-                    else if (!installee && ++depuisRecherche > 16 && aJour.Length > 0 && Uia.Affiche(fenetre, aJour))
+                    else if (recherche is Int64 r && Environment.TickCount64 - r > 8000 && aJour.Length > 0 && Uia.Affiche(fenetre, aJour))
                     {
-                        break; // à jour : rien à installer
+                        issue = IssueMiseAJour.AJour;
+                        break;
+                    }
+                    else if (recherche is Int64 r2 && Environment.TickCount64 - r2 > 15000 && proposees.Length > 0 && !Uia.Affiche(fenetre, proposees))
+                    {
+                        issue = IssueMiseAJour.AJour; // Store : 15 s après la recherche, aucune mise à jour proposée
+                        break;
                     }
 
-                    if (!installee)
-                    {
-                        System.Threading.Thread.Sleep(500);
-                    }
+                    arret.WaitHandle.WaitOne(Environment.TickCount64 - debut < 10_000 ? 500 : 2000);
                 }
 
-                System.Threading.Thread.Sleep(2000); // l'installation part avant que la fenêtre ne soit rangée
+                if (arret.IsCancellationRequested)
+                {
+                    return IssueMiseAJour.Annulee;
+                }
+
+                arret.WaitHandle.WaitOne(1500);
                 Gestes.Reduire(fenetre);
-                PluginLog.Info($"mises à jour : {nom} {(installee ? "installe ses mises à jour" : recherchee ? "à jour (rien à installer)" : "bouton introuvable")}");
+                if (!recherchee && issue == IssueMiseAJour.Inconnue)
+                {
+                    issue = IssueMiseAJour.Echec; // ni recherche ni installation : boutons introuvables
+                }
+
+                PluginLog.Info($"mises à jour : {nom} → {issue}");
+                return issue;
             }
             catch (Exception e)
             {
                 PluginLog.Error(e, $"mises à jour : {nom}");
+                return IssueMiseAJour.Echec;
             }
         }
 

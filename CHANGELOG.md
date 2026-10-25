@@ -12,12 +12,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
 
 ### Fixed
+- Review by Codex and Antigravity (October 25):
+  - updates key: a real outcome (started, up to date, unknown, failed, cancelled); green check only when both are
+    started or up to date, otherwise an amber "!"; slower polling after 10 s; stopped with the plugin; a minimised
+    Store suspended by Windows is resumed (`IPackageDebugSettings.Resume`) before its buttons are read; a greyed-out
+    button (Windows Update while it searches) is no longer pressed (the press raised an error and stopped everything);
+  - shown page: the one whose images the keypad last asked for (116 px); the hidden page is no longer read;
+  - Capture and Photo are pasted only into the AI targeted at the press (nothing if you switched away);
+  - CDP clicks and window closes are checked (logged when they fail);
+  - Gmail and Messages are recognised by their exact title ("… - Gmail", "Google Messages for web"): a tab that
+    mentions Gmail no longer lights a false badge; Chrome's tab strip is read only when needed;
+  - NexusBrowser unread count: one entry per Chrome profile (added up), 3-minute expiry checked when used;
+  - Antigravity quota kept with its reset times ("refresh in 4 days, 23 hours"): each window goes back to 0 % at its
+    own time, no longer 5 h or 7 days after the reading;
+  - `installer_hooks.py`: Antigravity alone works (missing Claude settings are created); paths with spaces or
+    apostrophes (single-quoted for PowerShell, Windows short name for Antigravity);
+  - `essais_reels.py`: a Claude dictation started by a test is stopped during cleanup.
 - No Gmail badge when Gmail is open in a Chrome tab: tab titles (Chrome's tab strip, read through UI Automation even
   with the window behind) count like window titles; read every 3 s, off the animation thread.
 - Updates key: it only searched, then the Store and Windows Update offered their updates without installing them. It
   now installs everything: search, then "Update all" (Store) and "Download & install all" (Windows Update) pressed
   through UI Automation, windows shown behind the others (minimised, they expose no buttons) then minimised again;
-  never a restart; the key animates until it is done.
+  never presses *Restart*; the key animates until it is done.
 - PC health: the second press closes Task Manager (it refuses the close message even without elevation, so it is
   ended).
 - Second press on Gmail, Calendar, Messages, the site, PC health or the Codex quota key closes its window when it is in

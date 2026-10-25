@@ -47,12 +47,9 @@ namespace Loupedeck.TrinitePlugin
                     return false;
                 }
 
-                foreach (var type in new[] { "mousePressed", "mouseReleased" })
-                {
-                    session.Envoyer("Input.dispatchMouseEvent", new { type, x, y, button = "left", clickCount = 1 });
-                }
-
-                return true;
+                // Vrai seulement si les deux événements sont acceptés (une erreur CDP n'a pas de « result »).
+                return new[] { "mousePressed", "mouseReleased" }
+                    .All(type => session.Envoyer("Input.dispatchMouseEvent", new { type, x, y, button = "left", clickCount = 1 }) is not null);
             }
             catch (Exception)
             {

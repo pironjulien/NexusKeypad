@@ -76,7 +76,10 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Fichier));
-                System.IO.File.WriteAllText(Fichier + ".tmp", JsonSerializer.Serialize(new { cinq = quota.Cinq, semaine = quota.Semaine, lu = DateTime.UtcNow }));
+                System.IO.File.WriteAllText(Fichier + ".tmp", JsonSerializer.Serialize(new
+                {
+                    cinq = quota.Cinq, semaine = quota.Semaine, finCinq = quota.FinCinq, finSemaine = quota.FinSemaine, lu = DateTime.UtcNow,
+                }));
                 System.IO.File.Move(Fichier + ".tmp", Fichier, true);
             }
             catch (Exception e)
@@ -100,12 +103,20 @@ namespace Loupedeck.TrinitePlugin
                 var r = doc.RootElement;
                 lu = r.GetProperty("lu").GetDateTime().ToUniversalTime();
                 Double? Valeur(String nom) => r.GetProperty(nom).ValueKind == JsonValueKind.Number ? r.GetProperty(nom).GetDouble() : null;
-                // Au-delà de 5 h, la fenêtre courte est forcément repartie à zéro si Antigravity n'a pas servi (fermé) : 0 %
-                // utilisé ; la semaine reste juste jusqu'à 7 jours. Antigravity ouvert, l'appelant ne s'en sert pas.
-                var age = DateTime.UtcNow - lu;
-                return age < TimeSpan.FromHours(5) ? new(Valeur("cinq"), Valeur("semaine"))
-                    : age < TimeSpan.FromDays(7) ? new(0, Valeur("semaine"))
-                    : null;
+                DateTime? Fin(String nom) => r.TryGetProperty(nom, out var f) && f.ValueKind == JsonValueKind.String ? f.GetDateTime().ToUniversalTime() : null;
+                // Antigravity fermé ne consomme rien : une fenêtre passée son heure de remise à zéro (donnée par sa page) est
+                // à 0 % ; sans heure connue, au bout de sa durée (5 h, 7 jours) depuis la lecture. Antigravity ouvert,
+                // l'appelant ne s'en sert pas.
+                var maintenant = DateTime.UtcNow;
+                var limite = lu;
+                Double? Reste(Double? valeur, DateTime? fin, TimeSpan duree) => maintenant >= (fin ?? limite + duree) ? 0 : valeur;
+                var (finCinq, finSemaine) = (Fin("finCinq"), Fin("finSemaine"));
+                return maintenant - lu >= TimeSpan.FromDays(7) ? null
+                    : new(Reste(Valeur("cinq"), finCinq, TimeSpan.FromHours(5)), Reste(Valeur("semaine"), finSemaine, TimeSpan.FromDays(7)))
+                    {
+                        FinCinq = finCinq,
+                        FinSemaine = finSemaine,
+                    };
             }
             catch (Exception)
             {
@@ -115,11 +126,43 @@ namespace Loupedeck.TrinitePlugin
 
         private static readonly Regex Pourcentage = new(@"^(\d{1,3}(?:[.,]\d+)?)\s*%$");
 
-        // Texte de la page (« Gemini Models », « Five Hour Limit Remaining », « 34% »…) → part utilisée, groupe de modèles
-        // le plus entamé pour chaque fenêtre ; null si rien n'est lisible.
+        // « …, it will fully refresh in 4 days, 23 hours. » → délai avant la remise à zéro de la fenêtre.
+        private static readonly Regex Remise = new(@"refresh(?:es)? in (.+?)\.?$", RegexOptions.IgnoreCase);
+        private static readonly Regex Morceau = new(@"(\d+)\s*(day|hour|minute|second)s?", RegexOptions.IgnoreCase);
+
+        public static TimeSpan? Delai(String ligne)
+        {
+            if (Remise.Match(ligne) is not { Success: true } m)
+            {
+                return null;
+            }
+
+            var total = TimeSpan.Zero;
+            var lu = false;
+            foreach (Match p in Morceau.Matches(m.Groups[1].Value))
+            {
+                var n = Int32.Parse(p.Groups[1].Value, CultureInfo.InvariantCulture);
+                total += p.Groups[2].Value.ToLowerInvariant() switch
+                {
+                    "day" => TimeSpan.FromDays(n),
+                    "hour" => TimeSpan.FromHours(n),
+                    "minute" => TimeSpan.FromMinutes(n),
+                    _ => TimeSpan.FromSeconds(n),
+                };
+                lu = true;
+            }
+
+            return lu ? total : null;
+        }
+
+        // Texte de la page (« Gemini Models », « Five Hour Limit Remaining », « … refresh in 2 hours, 42 minutes. »,
+        // « 34% »…) → part utilisée du groupe de modèles le plus entamé pour chaque fenêtre, et l'heure où ce groupe
+        // repart à zéro ; null si rien n'est lisible.
         public static Quota Analyser(String texte)
         {
             Double? cinq = null, semaine = null;
+            DateTime? finCinq = null, finSemaine = null;
+            TimeSpan? delai = null;
             String fenetre = null;
             var groupe = false;
             foreach (var ligne in (texte ?? "").Split('\n').Select(l => l.Trim()))
@@ -132,24 +175,30 @@ namespace Loupedeck.TrinitePlugin
                 else if (groupe && ligne is "Five Hour Limit Remaining" or "Weekly Limit Remaining")
                 {
                     fenetre = ligne;
+                    delai = null;
+                }
+                else if (fenetre is not null && Delai(ligne) is TimeSpan d)
+                {
+                    delai = d;
                 }
                 else if (fenetre is not null && Pourcentage.Match(ligne) is { Success: true } m)
                 {
                     var utilise = 1 - (Double.Parse(m.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture) / 100);
+                    DateTime? fin = delai is TimeSpan attente ? DateTime.UtcNow + attente : null;
                     if (fenetre.StartsWith("Five", StringComparison.Ordinal))
                     {
-                        cinq = Math.Max(cinq ?? 0, utilise);
+                        (cinq, finCinq) = utilise >= (cinq ?? -1) ? (utilise, fin) : (cinq, finCinq);
                     }
                     else
                     {
-                        semaine = Math.Max(semaine ?? 0, utilise);
+                        (semaine, finSemaine) = utilise >= (semaine ?? -1) ? (utilise, fin) : (semaine, finSemaine);
                     }
 
                     fenetre = null;
                 }
             }
 
-            return cinq is null && semaine is null ? null : new(cinq, semaine);
+            return cinq is null && semaine is null ? null : new(cinq, semaine) { FinCinq = finCinq, FinSemaine = finSemaine };
         }
     }
 }
