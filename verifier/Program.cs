@@ -142,13 +142,13 @@ Vrai(AppliWeb.Messages.NonLus(["Messages - Google Messages pour le Web : conve
 Vrai(AppliWeb.Messages.NonLus(["(2) Google Messages pour le Web"]) == 2 && AppliWeb.Messages.NonLus([]) is null, "Messages : titre, sinon rien");
 // Touche du site sans titre : sa fenêtre est celle dont la page est sous l'adresse (origine, puis chemin au segment près).
 Boolean Sous(String page, String adresse) => AppliWeb.Sous(new Uri(page), new Uri(adresse));
-Vrai(Sous("https://github.com/pironjulien/mx-keypad-ai-agents/issues", "https://github.com/pironjulien/mx-keypad-ai-agents")
+Vrai(Sous("https://github.com/pironjulien/NexusKeypad/issues", "https://github.com/pironjulien/NexusKeypad")
     && Sous("https://www.example.org/a", "https://example.org/") && Sous("https://example.org/", "https://example.org"),
     "site : page sous l'adresse, www ignoré, racine");
 Vrai(!Sous("http://localhost:5173/", "http://localhost:3000/") && !Sous("http://example.org/", "https://example.org/"),
     "site : port ou schéma différents → autre site");
-Vrai(!Sous("https://github.com/pironjulien/NexusBrowser", "https://github.com/pironjulien/mx-keypad-ai-agents")
-    && !Sous("https://github.com/pironjulien/mx-keypad-ai-agents-fork", "https://github.com/pironjulien/mx-keypad-ai-agents"),
+Vrai(!Sous("https://github.com/pironjulien/NexusBrowser", "https://github.com/pironjulien/NexusKeypad")
+    && !Sous("https://github.com/pironjulien/NexusKeypad-fork", "https://github.com/pironjulien/NexusKeypad"),
     "site : autre dépôt GitHub, ou chemin qui ne s'arrête pas au segment → autre site");
 Vrai(Sous("https://example.org/view?id=alpha", "https://example.org/view?id=alpha") && !Sous("https://example.org/view?id=beta", "https://example.org/view?id=alpha")
     && !Sous("https://example.org/view", "https://example.org/view?id=alpha") && Sous("https://example.org/view?id=beta", "https://example.org/view"),

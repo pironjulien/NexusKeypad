@@ -7,7 +7,7 @@ to reach the local control pipe from another user or from the network, to make t
 `~/.nexus/trinite`.
 
 Please report such issues privately through
-[GitHub private vulnerability reporting](https://github.com/pironjulien/mx-keypad-ai-agents/security/advisories/new),
+[GitHub private vulnerability reporting](https://github.com/pironjulien/NexusKeypad/security/advisories/new),
 not in a public issue. Include the key pressed, the app involved and what happened. You will get an answer within a
 few days.
 

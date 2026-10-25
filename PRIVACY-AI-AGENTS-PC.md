@@ -10,10 +10,10 @@ exactly what the two single-page plugins describe, on your computer only:
 
 - page 1 (AI agents, quotas, screen capture, dictation, and the phone photo: with a phone reachable over adb, each new
   photo or screenshot is copied from the phone as soon as it is taken, to show it on the key): the
-  [AI Coding Agents Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY.md);
+  [AI Coding Agents Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY.md);
 - page 2 (sound, unread Gmail and Messages counts from Chrome window titles or phone notifications, PC health, Store
   and Windows Update): the
-  [PC Dashboard Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-PC-DASHBOARD.md).
+  [PC Dashboard Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-PC-DASHBOARD.md).
 
 Differences: at each press of its Website key, the addresses of the pages shown in Google Chrome app windows are read
 (Windows UI Automation) to find the window that key opened, neither kept nor logged; its log file is
@@ -24,5 +24,5 @@ The controller is **Julien Piron** ("the Developer"). Logitech's own processing 
 [Logitech's privacy policy](https://www.logitech.com/legal/product-privacy-policy.html). To remove all data: uninstall
 the Plugin from Logi Options+, then delete `~/.nexus/trinite`, `%LOCALAPPDATA%\NexusKeypad` and its log file.
 
-The current version is kept at https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-AI-AGENTS-PC.md.
-Questions: [GitHub issues](https://github.com/pironjulien/mx-keypad-ai-agents/issues).
+The current version is kept at https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-AI-AGENTS-PC.md.
+Questions: [GitHub issues](https://github.com/pironjulien/NexusKeypad/issues).

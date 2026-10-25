@@ -68,5 +68,5 @@ The Plugin is not directed at children.
 ## Changes and contact
 
 The current version of this policy is kept at
-https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-PC-DASHBOARD.md with its effective date.
-Questions: [GitHub issues](https://github.com/pironjulien/mx-keypad-ai-agents/issues).
+https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-PC-DASHBOARD.md with its effective date.
+Questions: [GitHub issues](https://github.com/pironjulien/NexusKeypad/issues).

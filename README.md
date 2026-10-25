@@ -1,9 +1,9 @@
 # MX Keypad AI Agents
 
-[![Tests](https://github.com/pironjulien/mx-keypad-ai-agents/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/mx-keypad-ai-agents/actions/workflows/tests.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pironjulien/mx-keypad-ai-agents/badge)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/mx-keypad-ai-agents)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/LICENSE)
-[![C# .NET 10](https://img.shields.io/badge/C%23-.NET%2010-512BD4)](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/plugin/src/TrinitePadPlugin.csproj)
+[![Tests](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pironjulien/NexusKeypad/badge)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusKeypad)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusKeypad/blob/main/LICENSE)
+[![C# .NET 10](https://img.shields.io/badge/C%23-.NET%2010-512BD4)](https://github.com/pironjulien/NexusKeypad/blob/main/plugin/src/TrinitePadPlugin.csproj)
 [![Windows 11](https://img.shields.io/badge/Windows-11-0078D4)](#requirements)
 
 **Claude, Codex and Antigravity as animated pixel-art characters on the Logitech MX Creative Keypad.** A Logi Plugin
@@ -12,8 +12,8 @@ done, asleep), how much of their usage quota is left, and lets you jump to the c
 key press.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pironjulien/mx-keypad-ai-agents/main/docs/page1.png" width="400" alt="Page 1: Codex, Claude and Antigravity heads on the top row, their quota gauges below, then Screen capture, clock and Dictation keys">
-  <img src="https://raw.githubusercontent.com/pironjulien/mx-keypad-ai-agents/main/docs/page2.png" width="400" alt="Page 2: volume down, mute and volume up; Gmail, Calendar and Messages; PC health, Store and Windows Update, and a website key">
+  <img src="https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/docs/page1.png" width="400" alt="Page 1: Codex, Claude and Antigravity heads on the top row, their quota gauges below, then Screen capture, clock and Dictation keys">
+  <img src="https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/docs/page2.png" width="400" alt="Page 2: volume down, mute and volume up; Gmail, Calendar and Messages; PC health, Store and Windows Update, and a website key">
 </p>
 
 Rendered with the plugin's own drawing code (`apercu`, see [Development](#development)); on the device every key is
@@ -163,8 +163,8 @@ from their own usage displays. Two optional extras make it livelier:
 - **Debugging ports** for opening Codex and Antigravity conversations and dictating into them (see below).
 
 Package it yourself with `pwsh -File outils\paquet_marketplace.ps1` (builds the Marketplace edition, packs it and
-checks it with the official Logi Plugin Tool). License terms: [EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA.md);
-data: [Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY.md).
+checks it with the official Logi Plugin Tool). License terms: [EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA.md);
+data: [Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY.md).
 
 ### From the Logitech Marketplace: PC Dashboard (page 2 only)
 
@@ -175,8 +175,8 @@ opens in its settings (no website is set by default; you can add several Website
 Gmail and Messages badges come from their Chrome windows or tabs, then from an Android phone over adb if any.
 
 Package it yourself with `pwsh -File outils\paquet_marketplace.ps1 -Edition Poste`. License terms:
-[EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA-PC-DASHBOARD.md); data:
-[Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-PC-DASHBOARD.md).
+[EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-PC-DASHBOARD.md); data:
+[Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-PC-DASHBOARD.md).
 
 ### From the Logitech Marketplace: AI Coding Agents + PC (both pages)
 
@@ -184,14 +184,14 @@ Package it yourself with `pwsh -File outils\paquet_marketplace.ps1 -Edition Post
 install it instead of the two plugins above, then drag **Key 1** to **Key 9** of the *AI agents* group onto page 1 and
 **Key 10** to **Key 18** onto page 2. Its website key opens this project page. Package it yourself with
 `pwsh -File outils\paquet_marketplace.ps1 -Edition Complete`. Terms:
-[EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA-AI-AGENTS-PC.md); data:
-[Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-AI-AGENTS-PC.md).
+[EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-AI-AGENTS-PC.md); data:
+[Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-AI-AGENTS-PC.md).
 
 ### From source (both pages)
 
 ```powershell
-git clone https://github.com/pironjulien/mx-keypad-ai-agents
-cd mx-keypad-ai-agents
+git clone https://github.com/pironjulien/NexusKeypad
+cd NexusKeypad
 dotnet build -c Debug plugin\src        # builds to %LOCALAPPDATA%\NexusKeypad and installs the plugin package
 python -I outils\installer_hooks.py $env:USERPROFILE\.claude\settings.json   # Claude and Antigravity hooks
 ```
@@ -258,10 +258,10 @@ build uses the [LogiPluginApi](https://www.nuget.org/packages/LogiPluginApi) pac
 
 ## License
 
-[MIT](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/LICENSE), with an
-[EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA.md) and a
-[Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY.md) for the Marketplace edition
-(no data collected), and their [EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA-PC-DASHBOARD.md)
-and [Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-PC-DASHBOARD.md) for PC
+[MIT](https://github.com/pironjulien/NexusKeypad/blob/main/LICENSE), with an
+[EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA.md) and a
+[Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY.md) for the Marketplace edition
+(no data collected), and their [EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-PC-DASHBOARD.md)
+and [Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-PC-DASHBOARD.md) for PC
 Dashboard. Claude, Codex, Antigravity, Gmail, Logitech
 and MX are trademarks of their owners; this project is not affiliated with them.

@@ -4,7 +4,7 @@
 
 This End User License Agreement ("EULA") is between you and **Julien Piron** ("the Developer"), the author and licensor
 of the PC Dashboard plugin for the Logi Plugin Service ("the Plugin"), whether you obtain it from the Logitech
-Marketplace, from [GitHub](https://github.com/pironjulien/mx-keypad-ai-agents) or elsewhere. By installing or using
+Marketplace, from [GitHub](https://github.com/pironjulien/NexusKeypad) or elsewhere. By installing or using
 the Plugin you accept this EULA. If you do not accept it, do not install or use the Plugin.
 
 ## 1. Licensor and Logitech
@@ -15,7 +15,7 @@ your use of it. Any claim about the Plugin is to be made to the Developer only.
 
 ## 2. License
 
-The Plugin is open source software, licensed under the [MIT License](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/LICENSE),
+The Plugin is open source software, licensed under the [MIT License](https://github.com/pironjulien/NexusKeypad/blob/main/LICENSE),
 reproduced below. You may use, copy, modify and redistribute it under the terms of that license. Nothing in this EULA
 restricts the rights the MIT License gives you.
 
@@ -54,7 +54,7 @@ counts, the date and time, the processor and memory load, and does only what the
 
 The Plugin **never sends a message, makes a purchase, installs software of its own or submits anything on your
 behalf**. What it reads and writes is described in the
-[Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-PC-DASHBOARD.md).
+[Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-PC-DASHBOARD.md).
 
 ## 4. Third-party products and trademarks
 
@@ -80,8 +80,8 @@ this EULA limits liability that cannot be limited under applicable law, includin
 ## 7. Updates and support
 
 Updates are published on the Logitech Marketplace and on GitHub. Support and bug reports:
-[GitHub issues](https://github.com/pironjulien/mx-keypad-ai-agents/issues). Security issues: see the
-[security policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/SECURITY.md). Support is offered on a
+[GitHub issues](https://github.com/pironjulien/NexusKeypad/issues). Security issues: see the
+[security policy](https://github.com/pironjulien/NexusKeypad/blob/main/SECURITY.md). Support is offered on a
 best-effort basis, without any guaranteed response time.
 
 ## 8. Termination
@@ -96,4 +96,4 @@ you live.
 ## 10. Changes
 
 The Developer may update this EULA; the current version is kept at
-https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA-PC-DASHBOARD.md with its effective date.
+https://github.com/pironjulien/NexusKeypad/blob/main/EULA-PC-DASHBOARD.md with its effective date.

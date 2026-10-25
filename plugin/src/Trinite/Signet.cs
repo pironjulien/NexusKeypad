@@ -16,7 +16,7 @@ namespace Loupedeck.TrinitePlugin
         // Nom du site : le titre donné, sinon l'hôte (« exemple.org ») ; nom de son raccourci d'appli Chrome.
         public String Nom => this.Titre ?? Hote(this.Url);
 
-        public const String Projet = "https://github.com/pironjulien/mx-keypad-ai-agents";
+        public const String Projet = "https://github.com/pironjulien/NexusKeypad";
 
         private static readonly String Fichier = Path.Combine(Environment.GetEnvironmentVariable("USERPROFILE") ?? "", ".nexus", "trinite", "site.json");
 

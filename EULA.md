@@ -4,7 +4,7 @@
 
 This End User License Agreement ("EULA") is between you and **Julien Piron** ("the Developer"), the author and licensor
 of the AI Coding Agents plugin for the Logi Plugin Service ("the Plugin"), whether you obtain it from the Logitech
-Marketplace, from [GitHub](https://github.com/pironjulien/mx-keypad-ai-agents) or elsewhere. By installing or using
+Marketplace, from [GitHub](https://github.com/pironjulien/NexusKeypad) or elsewhere. By installing or using
 the Plugin you accept this EULA. If you do not accept it, do not install or use the Plugin.
 
 ## 1. Licensor and Logitech
@@ -15,7 +15,7 @@ your use of it. Any claim about the Plugin is to be made to the Developer only.
 
 ## 2. License
 
-The Plugin is open source software, licensed under the [MIT License](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/LICENSE),
+The Plugin is open source software, licensed under the [MIT License](https://github.com/pironjulien/NexusKeypad/blob/main/LICENSE),
 reproduced below. You may use, copy, modify and redistribute it under the terms of that license. Nothing in this EULA
 restricts the rights the MIT License gives you.
 
@@ -41,7 +41,7 @@ the AI desktop apps you use (Claude, Codex, Antigravity), and, on a key press, o
 panel, pastes a screen capture or a phone photo into the field of the app in front, or starts dictation. **It never
 sends a message, approves an action or submits anything on your behalf**: pasted images and dictated text always stay
 unsent in the field. What it reads and writes is described in the
-[Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY.md).
+[Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY.md).
 
 Some features use a local debugging port of the Codex and Antigravity apps (on `127.0.0.1` only). Any program on your
 computer can use such a port while it is open; do not enable it on a shared computer.
@@ -70,8 +70,8 @@ statutory rights as a consumer.
 ## 7. Updates and support
 
 Updates are published on the Logitech Marketplace and on GitHub. Support and bug reports:
-[GitHub issues](https://github.com/pironjulien/mx-keypad-ai-agents/issues). Security issues: see the
-[security policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/SECURITY.md). Support is offered on a
+[GitHub issues](https://github.com/pironjulien/NexusKeypad/issues). Security issues: see the
+[security policy](https://github.com/pironjulien/NexusKeypad/blob/main/SECURITY.md). Support is offered on a
 best-effort basis, without any guaranteed response time.
 
 ## 8. Termination
@@ -86,4 +86,4 @@ you live.
 ## 10. Changes
 
 The Developer may update this EULA; the current version is kept at
-https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA.md with its effective date.
+https://github.com/pironjulien/NexusKeypad/blob/main/EULA.md with its effective date.
