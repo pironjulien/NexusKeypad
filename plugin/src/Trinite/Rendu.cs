@@ -109,7 +109,7 @@ namespace Loupedeck.TrinitePlugin
 
                 b.FillRectangle(0, 0, T, T, Fond);
                 // Les touches du haut à gauche et à droite ont un coin très arrondi : anneau plus rond pour elles.
-                var rayon = Moteur.Place(touche) % 9 is 0 or 2 ? RayonCoin : Rayon;
+                var rayon = CoinsDe(touche);
                 if (touche < 3)
                 {
                     Signal(b, touche, scene.Instantane.Premiere(touche), scene.Temps, rayon);
@@ -178,6 +178,47 @@ namespace Loupedeck.TrinitePlugin
             foreach (var (cx, cy) in new[] { (x + r, y + r), (x + l - r - 1, y + r), (x + r, y + h - r - 1), (x + l - r - 1, y + h - r - 1) })
             {
                 b.FillCircle(cx, cy, r, c);
+            }
+        }
+
+        // Rayons des quatre coins (haut gauche, haut droit, bas gauche, bas droit).
+        private readonly record struct Arrondis(Int32 HautGauche, Int32 HautDroit, Int32 BasGauche, Int32 BasDroit)
+        {
+            public Arrondis Moins(Int32 d) => new(this.HautGauche - d, this.HautDroit - d, this.BasGauche - d, this.BasDroit - d);
+        }
+
+        // Coins d'une touche : l'arrondi normal partout, sauf le coin extérieur du pad, très arrondi (en haut à gauche pour
+        // la touche du haut à gauche, en haut à droite pour celle du haut à droite).
+        private static Arrondis CoinsDe(Int32 touche) => (Moteur.Place(touche) % 9) switch
+        {
+            0 => new(RayonCoin, Rayon, Rayon, Rayon),
+            2 => new(Rayon, RayonCoin, Rayon, Rayon),
+            _ => new(Rayon, Rayon, Rayon, Rayon),
+        };
+
+        // Rectangle à coins arrondis chacun à son rayon, rangée par rangée (aplats opaques, sans recouvrement).
+        private static void Rond(BitmapBuilder b, Int32 x, Int32 y, Int32 l, Int32 h, Arrondis r, BitmapColor c)
+        {
+            static Int32 Retrait(Int32 rayon, Int32 i)
+            {
+                if (rayon <= 0 || i >= rayon)
+                {
+                    return 0;
+                }
+
+                var dy = rayon - i - 0.5;
+                return (Int32)Math.Round(rayon - Math.Sqrt((rayon * rayon) - (dy * dy)));
+            }
+
+            for (var i = 0; i < h; i++)
+            {
+                var j = h - 1 - i;
+                var gauche = Math.Max(Retrait(r.HautGauche, i), Retrait(r.BasGauche, j));
+                var droite = Math.Max(Retrait(r.HautDroit, i), Retrait(r.BasDroit, j));
+                if (l - gauche - droite > 0)
+                {
+                    b.FillRectangle(x + gauche, y + i, l - gauche - droite, 1, c);
+                }
             }
         }
 

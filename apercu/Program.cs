@@ -53,6 +53,59 @@ if (args is ["icone-poste", var iconePoste])
     return;
 }
 
+// Images successives (8 par seconde comme sur le pad, 4 s) de la ligne du haut dans chaque état, puis pendant un relais :
+// <dossier>/<nom>/000.png… à assembler en animations. Usage : dotnet run -- animations <dossier>
+if (args is ["animations", var dossierAnim])
+{
+    var d = DateTime.UtcNow;
+    Conversation E(Int32 a, Etat e, Boolean relaisChat = false) => new(a, "id", "anim", e, d, d, false, relaisChat); // état qui vient de changer : célébration et secousse visibles
+    var lignes = new (String Nom, Etat Etat, Boolean Ouverte, Int32 Dictee, Double Lance)[]
+    {
+        ("repos", Etat.Repos, true, -1, 99), ("travaille", Etat.Travaille, true, -1, 99), ("question", Etat.Attend, true, -1, 99),
+        ("autorisation", Etat.Autorisation, true, -1, 99), ("fini", Etat.Fini, true, -1, 99), ("erreur", Etat.Erreur, true, -1, 99),
+        ("limite", Etat.Limite, true, -1, 99), ("ferme", Etat.Ferme, false, -1, 99), ("ecoute", Etat.Repos, true, 0, 99),
+        ("reveil", Etat.Ferme, false, -1, 0), ("relais", Etat.Travaille, true, -1, 99),
+    };
+    const Int32 Cote = 232, Ecart = 72; // touches × 2, écart entre touches à la même échelle
+    foreach (var (nom, etat, ouverte, dictee, lance) in lignes)
+    {
+        var estRelais = nom == "relais";
+
+        var dossier = Path.Combine(dossierAnim, nom);
+        Directory.CreateDirectory(dossier);
+        for (var f = 0; f < (estRelais ? 58 : 32); f++) // le relais : un aller-retour complet (3,6 s)
+        {
+            using var image = new BitmapBuilder((3 * Cote) + (2 * Ecart) + 48, Cote + 48);
+            image.Clear(new BitmapColor(24, 24, 28));
+            for (var k = 0; k < 3; k++)
+            {
+                var agent = Moteur.Disposition[k];
+                Conversation[][] conversations = estRelais
+                    ? [[E(0, Etat.Travaille)], [E(1, Etat.Travaille, true)], [E(2, Etat.Travaille, true)]]
+                    : [.. Enumerable.Range(0, 3).Select(a => etat is Etat.Repos or Etat.Ferme ? Array.Empty<Conversation>() : [E(a, etat)])];
+                var jauges = etat == Etat.Limite ? new Quota[] { new(1, 0.5), new(1, 0.5), new(1, 0.5) } : [null, null, null];
+                var i = new Instantane(conversations, [1, 1, 1], jauges, Enumerable.Repeat(ouverte, 3).ToArray(), false, null, -1)
+                {
+                    Dictee = dictee >= 0, DicteeIa = dictee >= 0 ? agent : -1,
+                };
+                var scene = new Scene
+                {
+                    Instantane = i, Temps = 10 + (f / 8.0), Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9,
+                    CaptureCollee = -9, Maintenant = d.AddSeconds(f / 8.0).ToLocalTime(),
+                    Lancements = Enumerable.Repeat(lance + (f / 8.0), 3).ToArray(),
+                };
+                image.DrawImage(BitmapImage.FromArray(Rendu.Png(agent, scene, Cote)), 24 + (k * (Cote + Ecart)), 24, Cote, Cote, BitmapRotation.None);
+            }
+
+            File.WriteAllBytes(Path.Combine(dossier, $"{f:D3}.png"), image.ToArray(BitmapImageFormat.Png));
+        }
+
+        Console.WriteLine(nom);
+    }
+
+    return;
+}
+
 var sortie = args.Length > 0 ? args[0] : ".";
 Directory.CreateDirectory(sortie);
 var maintenant = DateTime.UtcNow;

@@ -298,7 +298,13 @@ namespace Loupedeck.TrinitePlugin
                 {
                     (this.Etat, this.Depuis, this._accord) = (Etat.Attend, quand, true);
                 }
-                else if (ligne.Contains("\"type\":\"task_complete\"", StringComparison.Ordinal) || ligne.Contains("\"type\":\"turn_aborted\"", StringComparison.Ordinal))
+                else if (ligne.Contains("\"type\":\"turn_aborted\"", StringComparison.Ordinal))
+                {
+                    // Tour interrompu : ni réussite ni question, il retourne au repos (une annulation affichait la coche de
+                    // fin, relecture de Codex, 25/10).
+                    (this.Etat, this.Depuis, this._accord) = (Etat.Repos, quand, false);
+                }
+                else if (ligne.Contains("\"type\":\"task_complete\"", StringComparison.Ordinal))
                 {
                     // Un tour qui finit sur une question attend l'utilisateur.
                     var question = Regex.Match(ligne, "\"last_agent_message\":\"((?:[^\"\\\\]|\\\\.)*)\"");

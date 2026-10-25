@@ -39,10 +39,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
 
 ### Changed
+- Agent heads: one persistent state sign above the head, the same for all three (working: cyan spinner; question:
+  amber "?"; permission: padlock; done: green check; error: red triangle; usage limit: empty barred gauge; closed: grey
+  silhouette and a switched-off power sign; waking up: grey spinner; listening: microphone, red recording dot and cyan
+  waves). Working: stars in each agent's colour rise behind it; done: sunglasses and fireworks
+  for all three. Celebrations and shakes play only when the state starts. The relay: messengers go back and forth; a tiny
+  Clawd walks to the agent working for Claude and gives it an electric shock, then a tiny Codex or Antigravity walks
+  back and shocks Claude. `apercu animations <folder>` renders every state frame by frame.
 - Updates key: Windows Update opens on the left half of the screen and the Store on the right half, in view (instead
   of behind your windows, then minimized); up to date, each window closes by itself; installing or unproven, it stays.
 
 ### Fixed
+- Head ring: only the keypad's outer corner is strongly rounded (top left of the left key, top right of the right
+  key); every other corner shares the common radius. Clawd's done hop now lifts its legs too.
 - Quota gauges sat 1 to 2 px above their icons (the calendar ended below its bar): centred.
 - Hooks: `PostToolUseFailure` and `StopFailure` (official `error` field); a denied permission no longer leaves the
   padlock stuck.

@@ -3,18 +3,25 @@ namespace Loupedeck.TrinitePlugin
     using System;
 
     // Personnages de la Trinité : Clawd, le nuage de Codex, l'arche d'Antigravity, leurs états et leurs signaux.
+    //
+    // Grammaire commune (relectures de Codex et d'Antigravity, 25/10) : une silhouette reconnaissable sur chaque image,
+    // un signe d'état persistant au-dessus de la tête, le même pour les trois, puis le mouvement propre à chaque IA qui
+    // précise l'état. Signes : travaille = des étoiles à sa couleur qui montent derrière lui, et son geste propre (Clawd
+    // trotte, yeux qui moulinent ; Codex tape sur son terminal ; Antigravity vole réacteurs allumés) ; question = « ? » ambre ; autorisation = cadenas
+    // ambre ; fini = coche verte ; erreur = triangle rouge « ! » ; limite = jauge vide barrée ; écoute (dictée) = micro
+    // et point rouge d'enregistrement ; réveil = roue grise ; fermé = silhouette grise et bouton éteint. Le signe pulse
+    // ou flotte, il ne disparaît jamais : une image isolée suffit à lire l'état.
     public static partial class Rendu
     {
-        // Une IA : seulement son personnage, en grand et centré ; son animation dit son état (il travaille, attend une
-        // réponse ou une autorisation, a fini, s'est arrêté sur une erreur, a atteint sa limite, est au repos). Appli
-        // fermée : il dort, des « z » montent ; lancée par le pad, il se réveille pendant le démarrage. Pendant une dictée
-        // dans son appli, il écoute. Il clignote seulement quand il appelle l'utilisateur ; jamais pour le relais, qui
-        // se dessine en bulles de discussion entre Claude et les deux autres.
+        // Une IA : son personnage, en grand et centré, son signe d'état et son mouvement. Appli fermée : grise, endormie ;
+        // lancée par le pad, elle se réveille pendant le démarrage. Pendant une dictée dans son appli, elle écoute. Elle
+        // clignote seulement quand elle appelle l'utilisateur ; jamais pour le relais, qui se dessine en fil de données
+        // entre Claude et les deux autres.
         private static void ToucheIA(BitmapBuilder b, Int32 agent, Scene s)
         {
             var c = s.Instantane.Premiere(agent);
             var ferme = !s.Instantane.Ouverte[agent];
-            var etat = ferme ? Etat.Repos : c?.Etat ?? Etat.Repos;
+            var etat = ferme ? Etat.Ferme : c?.Etat ?? Etat.Repos;
             // Limite d'usage atteinte (jauge pleine) : il ne peut plus travailler, sauf s'il travaille encore (la jauge
             // est lue toutes les quelques secondes, le travail en cours fait foi).
             if (!ferme && etat is Etat.Repos or Etat.Fini && QuotaPlein(s.Instantane.Quotas[agent]))
@@ -22,28 +29,60 @@ namespace Loupedeck.TrinitePlugin
                 etat = Etat.Limite;
             }
 
+            // Secondes depuis le changement d'état : les célébrations et les secousses ne jouent qu'à l'arrivée.
+            var depuis = c is null ? 99 : Math.Max(0, (s.Maintenant.ToUniversalTime() - c.Depuis).TotalSeconds);
             var hauteur = agent switch { 0 => 10, 1 => 12, _ => 14 } * 5; // en pixels du dessin, avec les jambes ou les réacteurs
             var (x0, y0) = ((T - 80) / 2, (T - hauteur) / 2);
-            var reveil = ferme && s.Lancements[agent] < 15;
-            if (reveil)
+            var ecoute = !ferme && s.Instantane.DicteeIa == agent;
+            if (etat == Etat.Travaille)
+            {
+                Etoiles(b, agent, s.Temps); // derrière lui : dessinées avant
+            }
+
+            if (ferme && s.Lancements[agent] < 15)
             {
                 Reveil(b, agent, x0, y0, 5, s.Lancements[agent], s.Temps);
             }
             else
             {
-                Personnage(b, agent, x0, y0, 5, etat, s.Temps, dort: ferme);
+                Personnage(b, agent, x0, y0, 5, etat, s.Temps, depuis: depuis, signe: !ecoute);
                 if (ferme)
                 {
                     Zzz(b, T - 30, T / 2, 56, s.Temps, agent * 0.2);
                 }
             }
 
-            if (!ferme && s.Instantane.DicteeIa == agent)
+            if (ecoute)
             {
-                Ecoute(b, T / 2, y0 + (agent == 0 ? 15 : 22), s.Temps);
+                Ecoute(b, T / 2, y0, agent == 0 ? 15 : 22, s.Temps);
             }
 
-            Discussion(b, agent, s);
+            Liaison(b, agent, s);
+        }
+
+        // Étoiles qui montent derrière une IA qui travaille (idée de Julien, 25/10) : six petites étoiles à quatre branches,
+        // à sa couleur (Claude pêche, Codex lavande, Antigravity or), qui montent en ondulant et scintillent avant de
+        // s'effacer, chacune à son rythme.
+        private static void Etoiles(BitmapBuilder b, Int32 agent, Double t)
+        {
+            var c = agent switch { 0 => new BitmapColor(255, 190, 150), 1 => new BitmapColor(190, 180, 255), _ => new BitmapColor(255, 214, 102) };
+            for (var k = 0; k < 6; k++)
+            {
+                var montee = ((t * 0.32) + (k / 6.0) + (agent * 0.11)) % 1;
+                var x = 12 + (k * 18) + (Int32)(Math.Sin((t * 1.7) + (k * 2.3)) * 5);
+                var y = T - 6 - (Int32)(montee * (T - 4));
+                var alpha = (Int32)(255 * Math.Min(1, (1 - montee) * 1.8) * (0.75 + (0.25 * Math.Sin((t * 6) + k))));
+                if (alpha <= 10)
+                {
+                    continue;
+                }
+
+                var e = new BitmapColor(c, alpha);
+                var bras = k % 2 == 0 ? 5 : 4;
+                b.FillRectangle(x - bras, y - 1, (2 * bras) + 1, 3, e);
+                b.FillRectangle(x - 1, y - bras, 3, (2 * bras) + 1, e);
+                b.FillRectangle(x, y, 1, 1, new BitmapColor(255, 255, 255, alpha));
+            }
         }
 
         // Une fenêtre de quota pleine (99,5 % ou plus utilisés).
@@ -52,11 +91,12 @@ namespace Loupedeck.TrinitePlugin
         // Écart entre deux touches voisines, en pixels du contenu (marges des deux touches et bord du pad entre elles).
         private const Int32 EcartTouches = 36;
 
-        // Relais : entre Claude et Codex ou Antigravity, à mi-hauteur des personnages, deux voies de chevrons qui passent
-        // d'une touche à l'autre tant que le pair travaille pour Claude : en haut, orange, de Claude vers le pair ; en bas,
-        // aux couleurs du pair (Codex bleu, Antigravity cyan), du pair vers Claude. Le sens se lit d'un coup d'œil (choix
-        // de Julien, 25/10, après les petits Clawd, les bulles et un fil sous les personnages).
-        private static void Discussion(BitmapBuilder b, Int32 agent, Scene s)
+        // Relais (choix de Julien, 25/10) : des messagers font le va-et-vient du tout premier relais. Un mini-Clawd part du
+        // flanc de Claude, traverse les touches jusqu'au flanc du pair qui travaille pour lui (Codex ou Antigravity) et lui
+        // envoie une décharge électrique ; puis un mini-pair repart vers Claude et le secoue d'une décharge à son tour. En
+        // boucle, 3,6 s : aller (40 %), décharge sur le pair (10 %), retour (40 %), décharge sur Claude (10 %). Avec les deux
+        // pairs, les cycles sont décalés d'une demi-période.
+        private static void Liaison(BitmapBuilder b, Int32 agent, Scene s)
         {
             var claude = Moteur.Place(0) % 3;
             foreach (var pair in new[] { 1, 2 })
@@ -69,47 +109,103 @@ namespace Loupedeck.TrinitePlugin
                 var ecart = (Moteur.Place(pair) % 3) - claude;
                 var sens = Math.Sign(ecart);
                 var distance = Math.Abs(ecart) * (T + EcartTouches); // de centre à centre
-                const Int32 Bord = 41; // juste au flanc des personnages (80 px de large, centrés)
+                const Int32 Flanc = 46; // le messager s'arrête au flanc du personnage visité (80 px de large, centrés)
                 Int32 Local(Double g) => (Int32)(agent == 0 ? (T / 2) + (sens * g) : (T / 2) - (sens * (distance - g)));
-                var retour = pair == 1 ? new BitmapColor(122, 157, 255) : new BitmapColor(125, 211, 252);
-                var milieu = (T / 2) + 2;
-                foreach (var (aller, y, c) in new[] { (true, milieu - 7, Orange), (false, milieu + 7, retour) })
+                var phase = ((s.Temps / 3.6) + (pair == 2 ? 0.5 : 0)) % 1;
+                var (aller, k, decharge) = phase switch
                 {
-                    // La voie : pointillés discrets.
-                    for (var g = (Double)Bord; g <= distance - Bord; g += 4)
+                    < 0.4 => (true, Lisse(phase / 0.4), false),
+                    < 0.5 => (true, 1.0, true),
+                    < 0.9 => (false, Lisse((phase - 0.5) / 0.4), false),
+                    _ => (false, 1.0, true),
+                };
+                var g = Flanc + ((aller ? k : 1 - k) * (distance - (2 * Flanc)));
+                var x = Local(g);
+                var y = T - 22;
+                if (x > -24 && x < T + 24)
+                {
+                    if (aller)
                     {
-                        var x = Local(g);
-                        if (x >= 0 && x <= T - 2)
-                        {
-                            b.FillRectangle(x, y, 2, 2, new BitmapColor(c, 70));
-                        }
+                        PetitClawd(b, x, y, decharge ? 0 : s.Temps);
                     }
+                    else
+                    {
+                        PetitPair(b, pair, x, y - 2, decharge ? 0 : s.Temps);
+                    }
+                }
 
-                    // Trois chevrons qui avancent ; vers le pair à l'aller, vers Claude au retour.
-                    var versDroite = (aller ? sens : -sens) > 0;
-                    for (var k = 0; k < 3; k++)
-                    {
-                        var phase = ((s.Temps * 0.7) + (k / 3.0) + (aller ? 0 : 1 / 6.0)) % 1;
-                        var g = Bord + ((aller ? phase : 1 - phase) * (distance - (2 * Bord)));
-                        Chevron(b, Local(g), y + 1, versDroite, c);
-                    }
+                // La décharge, sur la touche du visité : un éclair du messager jusqu'au personnage, des étincelles autour.
+                var visite = aller ? pair : 0;
+                if (decharge && agent == visite)
+                {
+                    var versCentre = x < T / 2 ? 1 : -1;
+                    Decharge(b, x + (versCentre * 6), y - 4, (T / 2) - (versCentre * 18), (T / 2) - 4, s.Temps);
                 }
             }
         }
 
-        // Chevron de 4 px d'épaisseur centré en (x, y), pointe à droite ou à gauche.
-        private static void Chevron(BitmapBuilder b, Int32 x, Int32 y, Boolean versDroite, BitmapColor c)
+        // Accélère puis ralentit (0 → 1).
+        private static Double Lisse(Double k) => k * k * (3 - (2 * k));
+
+        // Éclair jaune-blanc qui crépite de (x1, y1) à (x2, y2), et quatre étincelles autour du point d'arrivée ; il se
+        // redessine 16 fois par seconde.
+        private static void Decharge(BitmapBuilder b, Int32 x1, Int32 y1, Int32 x2, Int32 y2, Double t)
         {
-            if (x < -6 || x > T + 6)
+            var tirage = (Int32)(t * 16);
+            var eclat = new BitmapColor(255, 236, 140);
+            const Int32 Morceaux = 7;
+            var (px, py) = (x1, y1);
+            for (var i = 1; i <= Morceaux; i++)
             {
-                return;
+                var k = i / (Double)Morceaux;
+                var nx = x1 + (Int32)((x2 - x1) * k);
+                var ny = y1 + (Int32)((y2 - y1) * k) + (i == Morceaux ? 0 : (((tirage * 7) + (i * 13)) % 9) - 4);
+                for (var j = 0; j <= 4; j++)
+                {
+                    var ix = px + ((nx - px) * j / 4);
+                    var iy = py + ((ny - py) * j / 4);
+                    b.FillRectangle(ix - 2, iy - 2, 5, 5, new BitmapColor(eclat, 90));
+                    b.FillRectangle(ix - 1, iy - 1, 3, 3, BitmapColor.White);
+                }
+
+                (px, py) = (nx, ny);
             }
 
-            for (var k = 0; k < 4; k++)
+            for (var e = 0; e < 4; e++)
             {
-                var dx = versDroite ? k * 2 : -k * 2;
-                b.FillRectangle(x - 3 + dx, y - 7 + (k * 2), 3, 2, c);
-                b.FillRectangle(x - 3 + dx, y + 5 - (k * 2), 3, 2, c);
+                var angle = (e * Math.PI / 2) + (tirage * 0.7);
+                var r = 8 + ((tirage + e) % 3 * 3);
+                b.FillRectangle(x2 + (Int32)(Math.Cos(angle) * r) - 1, y2 + (Int32)(Math.Sin(angle) * r) - 1, 3, 3, eclat);
+            }
+        }
+
+        // Clawd en petit (2 px par case), qui trotte : centré en cx, posé en y.
+        private static void PetitClawd(BitmapBuilder b, Int32 cx, Int32 y, Double t)
+        {
+            const Int32 P = 2;
+            var x0 = cx - (8 * P);
+            var y1 = y + (Math.Floor(t * 8) % 2 == 0 ? 0 : -1);
+            Pixels(b, Clawd, x0, y1, P, (ch, _, _) => ch == 'o' ? Orange : Encre);
+            var pas = Math.Floor(t * 8) % 2 == 1 ? 1 : 0;
+            foreach (var lx in new[] { 3 + pas, 5 + pas, 10 - pas, 12 - pas })
+            {
+                b.FillRectangle(x0 + (lx * P), y + (8 * P), P, 2 * P, Orange);
+            }
+        }
+
+        // Codex ou Antigravity en petit (2 px par case), qui sautille : centré en cx, haut en y.
+        private static void PetitPair(BitmapBuilder b, Int32 pair, Int32 cx, Int32 y, Double t)
+        {
+            const Int32 P = 2;
+            var x0 = cx - (8 * P);
+            var y1 = y + (Math.Floor(t * 8) % 2 == 0 ? 0 : -1);
+            if (pair == 1)
+            {
+                Pixels(b, Nuage, x0, y1, P, (_, _, ry) => Melange(new BitmapColor(177, 167, 255), new BitmapColor(57, 65, 255), ry / 11.0));
+            }
+            else
+            {
+                Pixels(b, Arche, x0, y1, P, (_, cx2, ry) => CouleurArche(cx2, ry));
             }
         }
 
@@ -124,49 +220,49 @@ namespace Loupedeck.TrinitePlugin
                 var zy = y - (Int32)(k * montee);
                 if (zx > -20 && zx < T && zy > -20 && zy < T)
                 {
-                    b.DrawText("z", zx, zy, 24, 24, new BitmapColor(210, 220, 255, (Int32)(255 * (1 - k))), 12 + (Int32)(k * 12));
+                    b.DrawText("z", zx, zy, 24, 24, new BitmapColor(170, 170, 178, (Int32)(255 * (1 - k))), 12 + (Int32)(k * 12));
                 }
             }
         }
 
-        // Réveil pendant le démarrage de son appli (lancée par le pad il y a ecoule secondes) : il ouvre les yeux, ses
-        // couleurs reviennent, il s'étire d'un bond et un « ! » saute au-dessus de lui.
+        // Réveil pendant le démarrage de son appli (lancée par le pad il y a ecoule secondes) : ses couleurs reviennent
+        // du gris, il ouvre les yeux et s'étire une fois ; une roue grise de chargement tourne au-dessus de lui.
         private static void Reveil(BitmapBuilder b, Int32 agent, Int32 x0, Int32 y0, Int32 p, Double ecoule, Double t)
         {
             var eveille = ecoule > 0.8 || Math.Floor(ecoule * 6) % 2 == 1; // un battement de paupières, puis éveillé
-            var bond = ecoule < 2.5 ? -(Int32)(Math.Abs(Math.Sin(ecoule * 3.2)) * 2 * p) : 0;
-            Personnage(b, agent, x0, y0 + bond, p, Etat.Repos, t, dort: !eveille);
-            if (eveille)
-            {
-                var saut = (Int32)(Math.Abs(Math.Sin(t * 5)) * p);
-                Carte(b, Exclamation, (T / 2) - 3, Math.Max(0, y0 - (4 * p) - saut + bond), 3, Ambre);
-            }
+            var etire = ecoule < 1.6 ? -(Int32)(Math.Sin(ecoule / 1.6 * Math.PI) * 2 * p) : 0; // un seul étirement
+            Personnage(b, agent, x0, y0 + etire, p, eveille ? Etat.Repos : Etat.Ferme, t, signe: false);
+            Roue(b, x0 + (8 * p), Math.Max(2 * p, y0 - (3 * p)), p, t, new BitmapColor(200, 200, 206), 3);
         }
 
-        private static readonly String[] Exclamation = ["##", "##", "##", "##", "..", "##"];
-
-        // Ondes de part et d'autre de sa tête pendant une dictée : il écoute (rouge, la couleur de la touche Dictée).
-        private static void Ecoute(BitmapBuilder b, Int32 cx, Int32 cy, Double t)
+        // Écoute pendant une dictée dans son appli : un micro blanc et un point rouge d'enregistrement au-dessus de lui,
+        // des ondes cyan régulières de part et d'autre de sa tête (le rouge seul faisait penser à une erreur).
+        private static void Ecoute(BitmapBuilder b, Int32 cx, Int32 y0, Int32 tete, Double t)
         {
+            var haut = Math.Max(0, y0 - 29);
+            Carte(b, Micro, cx - 12, haut, 2, BitmapColor.White);
+            var rec = 0.5 + (0.5 * Math.Sin(t * 4));
+            Rond(b, cx + 12, haut + 2, 8, 8, 4, Melange(new BitmapColor(120, 20, 20), Rouge, rec));
+            var cy = y0 + tete;
             for (var k = 0; k < 2; k++)
             {
-                var onde = ((t * 1.6) + (k * 0.5)) % 1;
+                var onde = ((t * 1.2) + (k * 0.5)) % 1;
                 var ecart = 44 + (Int32)(onde * 10);
                 var alpha = (Int32)(255 * (1 - onde));
                 foreach (var cote in new[] { -1, 1 })
                 {
                     var x = cx + (cote * ecart);
-                    b.FillRectangle(x - 1, cy - 6, 3, 12, new BitmapColor(Rouge, alpha));
-                    b.FillRectangle(x - 1 - (cote * 3), cy - 10, 3, 4, new BitmapColor(Rouge, alpha));
-                    b.FillRectangle(x - 1 - (cote * 3), cy + 6, 3, 4, new BitmapColor(Rouge, alpha));
+                    b.FillRectangle(x - 1, cy - 6, 3, 12, new BitmapColor(Cyan, alpha));
+                    b.FillRectangle(x - 1 - (cote * 3), cy - 10, 3, 4, new BitmapColor(Cyan, alpha));
+                    b.FillRectangle(x - 1 - (cote * 3), cy + 6, 3, 4, new BitmapColor(Cyan, alpha));
                 }
             }
         }
 
         // Clignotement d'une IA qui appelle l'utilisateur, sous le contenu, en anneau arrondi : jusqu'à ce qu'il ouvre la
-        // conversation. Claude, le métronome de la Trinité, a ses propres couleurs (rose pour une question ou une
-        // autorisation, cyan pour une fin) ; une erreur clignote rouge, vite.
-        private static void Signal(BitmapBuilder b, Int32 agent, Conversation c, Double t, Int32 rayon)
+        // conversation. Claude, le métronome de la Trinité, garde ses propres couleurs (rose pour une question ou une
+        // autorisation, cyan pour une fin : choix de Julien) ; une erreur pulse rouge, doucement.
+        private static void Signal(BitmapBuilder b, Int32 agent, Conversation c, Double t, Arrondis rayon)
         {
             if (c?.Alerte != true)
             {
@@ -183,50 +279,66 @@ namespace Loupedeck.TrinitePlugin
                 (_, true) => Ambre,
                 _ => Vert,
             };
-            var force = erreur ? (t * 3 % 1 < 0.5 ? 1.0 : 0.2)
-                : question ? (t * 2 % 1 < 0.5 ? 1.0 : 0.25) // question : franc, deux fois par seconde
-                : 0.35 + (0.65 * (0.5 + (0.5 * Math.Sin(t * 2.2)))); // fin : respiration lente
+            var force = question
+                ? (t * 2 % 1 < 0.5 ? 1.0 : 0.25) // question : franc, deux fois par seconde
+                : 0.35 + (0.65 * (0.5 + (0.5 * Math.Sin(t * (erreur ? 3.5 : 2.2))))); // fin, erreur : respiration
             Rond(b, 0, 0, T, T, rayon, Melange(Fond, teinte, force));
-            Rond(b, 5, 5, T - 10, T - 10, rayon - 5, Melange(Fond, teinte, force * 0.22));
+            Rond(b, 5, 5, T - 10, T - 10, rayon.Moins(5), Melange(Fond, teinte, force * 0.22));
         }
 
-        public static void Personnage(BitmapBuilder b, Int32 i, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Boolean dort = false)
+        // Une IA dessinée dans l'état donné ; depuis : secondes depuis le changement d'état (célébration, secousse à
+        // l'arrivée) ; signe : son signe d'état au-dessus de la tête (pas pendant l'écoute ni le réveil, qui ont le leur).
+        public static void Personnage(BitmapBuilder b, Int32 i, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Boolean dort = false, Double depuis = 99, Boolean signe = true)
         {
             var teinte = etat == Etat.Ferme ? Teinte.Eteinte : dort ? Teinte.Dort : etat == Etat.Limite ? Teinte.Lasse : Teinte.Vive;
-            if (teinte is Teinte.Dort or Teinte.Eteinte)
-            {
-                etat = Etat.Repos;
-            }
-
+            var dessin = teinte is Teinte.Dort or Teinte.Eteinte ? Etat.Repos : etat;
             switch (i)
             {
-                case 0: DessinerClawd(b, x0, y0, p, etat, t, teinte); break;
-                case 1: DessinerCodex(b, x0, y0, p, etat, t, teinte); break;
-                default: DessinerArche(b, x0, y0, p, etat, t, teinte); break;
+                case 0: DessinerClawd(b, x0, y0, p, dessin, t, teinte, depuis); break;
+                case 1: DessinerCodex(b, x0, y0, p, dessin, t, teinte, depuis); break;
+                default: DessinerArche(b, x0, y0, p, dessin, t, teinte, depuis); break;
             }
 
-            if (teinte is Teinte.Dort or Teinte.Eteinte)
+            // Fini : deux feux d'artifice éclatent de part et d'autre, pour les trois (idée de Julien, 25/10), à l'arrivée.
+            if (etat == Etat.Fini && depuis < 4 && teinte is Teinte.Vive or Teinte.Lasse)
             {
-                return;
+                Feux(b, x0, y0, p, t);
             }
 
-            // Signes communs au-dessus de la tête : cadenas (autorisation), éclair (erreur), batterie vide (limite).
-            var cx = x0 + (8 * p);
-            var haut = y0 - (4 * p);
+            if (signe)
+            {
+                Signe(b, x0 + (8 * p), y0 - (4 * p), p, etat, t);
+            }
+        }
+
+        // Signe d'état au-dessus de la tête, centré en cx, haut en y ; il pulse ou flotte, sans jamais disparaître.
+        private static void Signe(BitmapBuilder b, Int32 cx, Int32 y, Int32 p, Etat etat, Double t)
+        {
+            var flotte = (Int32)Math.Round(Math.Sin(t * 3) * p / 3);
+            y = Math.Max(0, y);
             switch (etat)
             {
-                case Etat.Autorisation:
-                    Cadenas(b, cx, haut - (Int32)(Math.Abs(Math.Sin(t * 4)) * p), p, t);
+                case Etat.Attend:
+                    var q = Math.Max(2, p * 4 / 5);
+                    Carte(b, Question, cx - (3 * q / 2), y + flotte, q, Ambre);
                     break;
-                case Etat.Erreur:
-                    if (t * 3 % 1 < 0.7)
-                    {
-                        Carte(b, Eclair, cx - (2 * Math.Max(2, p * 3 / 5)), haut, Math.Max(2, p * 3 / 5), Rouge);
-                    }
-
+                case Etat.Autorisation:
+                    Cadenas(b, cx, y + flotte, p, t);
+                    break;
+                case Etat.Fini:
+                    Carte(b, Coche, cx - 12, y + p + flotte, 2, Vert);
+                    break;
+                case Etat.Erreur: // un peu plus haut : il touchait la tête (remarque de Julien, 25/10)
+                    var haut = Math.Max(0, y - 3);
+                    Carte(b, Triangle, cx - 10, haut, 2, Rouge);
+                    b.FillRectangle(cx - 1, haut + 5, 2, 6, BitmapColor.White);
+                    b.FillRectangle(cx - 1, haut + 13, 2, 2, BitmapColor.White);
                     break;
                 case Etat.Limite:
-                    Batterie(b, cx, haut + p, p, t);
+                    JaugeVide(b, cx, Math.Max(3, y - 3));
+                    break;
+                case Etat.Ferme:
+                    Arret(b, cx, Math.Max(0, y - 3));
                     break;
             }
         }
@@ -240,11 +352,31 @@ namespace Loupedeck.TrinitePlugin
             _ => c,
         };
 
-        private static readonly String[] Eclair = ["...##", "..##.", ".##..", "#####", "..##.", ".##..", ".#...", "#...."];
+        private static readonly String[] Question = ["###", "..#", ".##", "...", ".#."];
+
+        private static readonly String[] Triangle =
+        [
+            "....##....", "...####...", "...####...", "..######..", "..######..", ".########.", ".########.", "##########",
+            "##########",
+        ];
 
         private static readonly String[] Anse = [".###.", "#...#", "#...#"];
 
-        // Cadenas ambre centré en cx : son anse, le corps et un trou de serrure qui brille.
+        // Roue de chargement : huit cases en cercle, une tête vive et sa traîne qui tournent ; traine : cases allumées.
+        private static void Roue(BitmapBuilder b, Int32 cx, Int32 cy, Int32 p, Double t, BitmapColor c, Int32 traine)
+        {
+            var tete = (Int32)(t * 10) % 8;
+            var e = Math.Max(4, p * 4 / 5);
+            for (var k = 0; k < 8; k++)
+            {
+                var retard = (tete - k + 8) % 8;
+                var alpha = retard < traine ? 255 - (retard * 50) : 80;
+                var angle = k * Math.PI / 4;
+                b.FillRectangle(cx + (Int32)(Math.Cos(angle) * 2 * p) - (e / 2), cy + (Int32)(Math.Sin(angle) * 2 * p) - (e / 2), e, e, new BitmapColor(c, alpha));
+            }
+        }
+
+        // Cadenas ambre centré en cx : son anse, le corps et un trou de serrure.
         private static void Cadenas(BitmapBuilder b, Int32 cx, Int32 y, Int32 p, Double t)
         {
             var q = Math.Max(2, p * 3 / 5);
@@ -254,41 +386,65 @@ namespace Loupedeck.TrinitePlugin
             b.FillRectangle(cx - (q / 2), y + (4 * q), q, 2 * q, serrure);
         }
 
-        // Batterie vide : contour gris, un dernier trait rouge qui clignote.
-        private static void Batterie(BitmapBuilder b, Int32 cx, Int32 y, Int32 p, Double t)
+        // Jauge de quota vide, barrée : le langage des jauges de la ligne du milieu (pas une batterie, qui évoquait une
+        // panne de courant) ; capsule large à contour franc, vide, barrée d'un trait épais, ambre sourd, sans clignoter.
+        private static void JaugeVide(BitmapBuilder b, Int32 cx, Int32 y)
         {
-            var q = Math.Max(2, p / 2);
-            var (l, h) = (12 * q, 6 * q);
-            var x = cx - (l / 2);
-            var contour = new BitmapColor(200, 200, 205);
-            b.FillRectangle(x, y, l, q, contour);
-            b.FillRectangle(x, y + h - q, l, q, contour);
-            b.FillRectangle(x, y, q, h, contour);
-            b.FillRectangle(x + l - q, y, q, h, contour);
-            b.FillRectangle(x + l, y + (2 * q), q, 2 * q, contour);
-            if (t * 1.5 % 1 < 0.5)
+            var sourd = new BitmapColor(214, 158, 46);
+            Rond(b, cx - 20, y, 40, 16, 8, sourd);
+            Rond(b, cx - 16, y + 4, 32, 8, 4, Fond);
+            for (var k = 0; k < 9; k++)
             {
-                b.FillRectangle(x + (2 * q), y + (2 * q), 2 * q, 2 * q, Rouge);
+                b.FillRectangle(cx + 12 - (k * 3), y - 3 + (k * 3), 5, 5, sourd); // barre épaisse en travers
             }
         }
 
-        // Clawd : yeux qui tournent quand il travaille, lunettes noires quand il a fini, bras levé quand il attend ou
-        // demande une autorisation, yeux en croix et secousse sur une erreur, affaissé et paupières lourdes à sa limite.
-        private static void DessinerClawd(BitmapBuilder b, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Teinte teinte)
+        // Bouton marche/arrêt éteint, gris : l'appli est fermée.
+        private static void Arret(BitmapBuilder b, Int32 cx, Int32 y)
+        {
+            var gris = new BitmapColor(120, 120, 126);
+            for (var k = 0; k < 12; k++)
+            {
+                var angle = (-Math.PI / 2) + 0.55 + (k * ((2 * Math.PI) - 1.1) / 11);
+                b.FillRectangle(cx + (Int32)(Math.Cos(angle) * 7) - 1, y + 8 + (Int32)(Math.Sin(angle) * 7) - 1, 3, 3, gris);
+            }
+
+            b.FillRectangle(cx - 1, y, 3, 8, gris);
+        }
+
+        // Clawd sans ses bras (colonnes 0-1 et 14-15 des rangées 4-5), dessinés à part selon l'état.
+        private static readonly String[] ClawdCorps =
+        [
+            "..oooooooooooo..", "..oooooooooooo..", "..ooEEooooEEoo..", "..ooEEooooEEoo..",
+            "..oooooooooooo..", "..oooooooooooo..", "..oooooooooooo..", "..oooooooooooo..",
+        ];
+
+        // Clawd : il respire au repos ; au travail, ses yeux moulinent et il trotte ;
+        // en question, il lève un bras ; en autorisation, il tend les deux bras ouverts ; fini, lunettes noires (petit bond
+        // à l'arrivée, un reflet passe sur les verres) ; erreur, yeux en croix et une secousse à l'arrivée ; limite,
+        // affaissé, paupières lourdes.
+        private static void DessinerClawd(BitmapBuilder b, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Teinte teinte, Double depuis)
         {
             var corps = Ton(Orange, teinte);
             var encre = Ton(Encre, teinte);
-            var secousse = etat == Etat.Erreur && t * 3 % 1 < 0.3 ? (Int32)(Math.Sin(t * 60) * p / 2) : 0;
-            x0 += secousse;
-            var y = y0 + etat switch
+            var vive = teinte is Teinte.Vive or Teinte.Lasse;
+            x0 += vive && etat == Etat.Erreur && depuis < 1 ? (Int32)(Math.Sin(t * 60) * p / 2) : 0;
+            var y = y0 + (!vive ? 0 : etat switch
             {
                 Etat.Travaille => (Int32)Math.Round(Math.Sin(t * 10)) * p / 2,
                 Etat.Limite => p / 2,
+                Etat.Fini when depuis < 4 => -(Int32)(Math.Max(0, Math.Sin(t * 6)) * p),
+                Etat.Repos => (Int32)Math.Round(Math.Sin(t * 1.6)) * p / 3, // respiration, comme les deux autres
                 _ => 0,
-            };
-            Pixels(b, Clawd, x0, y, p, (ch, _, _) => ch == 'o' ? corps : encre);
+            });
+            Pixels(b, ClawdCorps, x0, y, p, (ch, _, _) => ch == 'o' ? corps : encre);
 
-            if (teinte is Teinte.Dort or Teinte.Eteinte)
+            // Les bras : à l'horizontale ; en autorisation, tendus et ouverts.
+            var tendus = vive && etat == Etat.Autorisation ? p : 0;
+            b.FillRectangle(x0 - tendus, y + (4 * p), 2 * p, 2 * p, corps);
+            b.FillRectangle(x0 + (14 * p) + tendus, y + (4 * p), 2 * p, 2 * p, corps);
+
+            if (!vive)
             {
                 foreach (var ex in new[] { 4, 10 })
                 {
@@ -304,6 +460,10 @@ namespace Loupedeck.TrinitePlugin
                 b.FillRectangle(x0 + (7 * p), y + (2 * p), 2 * p, Math.Max(2, p / 2), verre);
                 b.FillRectangle(x0 + (3 * p) + (p / 2), y + (2 * p) + (p / 3), p, Math.Max(2, p / 2), BitmapColor.White);
                 b.FillRectangle(x0 + (9 * p) + (p / 2), y + (2 * p) + (p / 3), p, Math.Max(2, p / 2), BitmapColor.White);
+                if (t % 2 < 0.3)
+                {
+                    b.FillRectangle(x0 + (12 * p), y + (2 * p), Math.Max(2, p / 2), Math.Max(2, p / 2), BitmapColor.White); // reflet
+                }
             }
             else if (etat == Etat.Erreur)
             {
@@ -339,16 +499,17 @@ namespace Loupedeck.TrinitePlugin
                 b.FillRectangle(x0 + (10 * p), y + (2 * p), 2 * p, p + (p / 2), corps);
             }
 
-            var pas = etat == Etat.Travaille && Math.Floor(t * 4) % 2 == 1 ? 1 : 0;
+            var pas = vive && etat == Etat.Travaille && Math.Floor(t * 4) % 2 == 1 ? 1 : 0; // il trotte
+            var sol = vive && etat == Etat.Fini ? y : y0; // un bond emporte les jambes (relecture de Codex, 25/10)
             foreach (var lx in new[] { 3 + pas, 5 + pas, 10 - pas, 12 - pas })
             {
-                b.FillRectangle(x0 + (lx * p), y0 + (8 * p), p, 2 * p, corps);
+                b.FillRectangle(x0 + (lx * p), sol + (8 * p), p, 2 * p, corps);
             }
 
-            if (etat is Etat.Attend or Etat.Autorisation)
+            if (vive && etat == Etat.Attend)
             {
                 var h = (Int32)(Math.Abs(Math.Sin(t * 5)) * p * 2);
-                b.FillRectangle(x0, y + (2 * p) - h, p, (2 * p) + h, corps);
+                b.FillRectangle(x0, y + (2 * p) - h, p, (2 * p) + h, corps); // un bras levé
             }
         }
 
@@ -381,11 +542,7 @@ namespace Loupedeck.TrinitePlugin
 
                 if (etat == Etat.Fini)
                 {
-                    b.FillRectangle(x0 + (ex * p), y, 2 * p, 2 * p, peau(ex));
-                    b.FillRectangle(x0 + (ex * p), y + p, p, p, blanc); // « ^ » content
-                    b.FillRectangle(x0 + ((ex + 1) * p), y, p, p, blanc);
-                    b.FillRectangle(x0 + ((ex + 1) * p) + (p / 2), y + p, p / 2, p, blanc);
-                    continue;
+                    continue; // lunettes noires, dessinées après la boucle
                 }
 
                 if (etat == Etat.Erreur)
@@ -398,7 +555,7 @@ namespace Loupedeck.TrinitePlugin
                 b.FillRectangle(x0 + (ex * p), y, 2 * p, 2 * p, blanc);
                 var (dx, dy) = etat switch
                 {
-                    Etat.Travaille => (Math.Sin(t * 3) > 0 ? 1 : 0, 1),
+                    Etat.Travaille => (Math.Sin(t * 3) > 0 ? 1 : 0, 1), // vers la feuille, le terminal, le code
                     Etat.Attend or Etat.Autorisation => (Math.Floor(t * 1.5) % 2 == 0 ? 0 : 1, 0),
                     Etat.Limite => (0, 1),
                     _ => ((Int32)(t / 2.5) % 3 == 0 ? 0 : 1, 1),
@@ -409,55 +566,52 @@ namespace Loupedeck.TrinitePlugin
                     b.FillRectangle(x0 + (ex * p), y, 2 * p, p, peau(ex)); // paupières lourdes
                 }
             }
-        }
 
-        // Point d'interrogation (petit, pour le terminal de Codex).
-        private static readonly String[] Question = ["###", "..#", ".##", "...", ".#."];
-
-        // Étincelles autour d'une IA qui a fini : trois croix qui scintillent tour à tour (positions en cases du dessin).
-        private static void Etincelles(BitmapBuilder b, Int32 x0, Int32 y, Int32 p, Double t, BitmapColor c)
-        {
-            (Double X, Double Y)[] places = [(-1, 1), (16, 3), (15.5, 10)];
-            for (var k = 0; k < places.Length; k++)
+            // Fini : lunettes noires pour les trois, comme Clawd (idée de Julien, 25/10) ; verres de 4 cases si les yeux sont
+            // écartés (Codex), de 3 sinon (Antigravity), un pont entre les deux, un reflet qui passe.
+            if (etat == Etat.Fini && teinte is Teinte.Vive or Teinte.Lasse)
             {
-                var eclat = Math.Sin((t * 3) + (k * 2.1));
-                if (eclat < 0)
+                var verre = new BitmapColor(17, 17, 17);
+                var largeur = colonnes[1] - colonnes[0] >= 6 ? 4 : 3;
+                var (g1, g2) = (colonnes[0] - 1, colonnes[1] - 1);
+                b.FillRectangle(x0 + (g1 * p), y, largeur * p, 2 * p, verre);
+                b.FillRectangle(x0 + (g2 * p), y, largeur * p, 2 * p, verre);
+                b.FillRectangle(x0 + ((g1 + largeur) * p), y, (g2 - g1 - largeur) * p, Math.Max(2, p / 2), verre);
+                foreach (var g in new[] { g1, g2 })
                 {
-                    continue;
+                    b.FillRectangle(x0 + (g * p) + (p / 2), y + (p / 3), p, Math.Max(2, p / 2), BitmapColor.White);
                 }
 
-                var cx = x0 + (Int32)(places[k].X * p);
-                var cy = y + (Int32)(places[k].Y * p);
-                var bras = Math.Max(2, (Int32)(eclat * p));
-                var e = Math.Max(2, p / 2);
-                b.FillRectangle(cx - bras, cy, (2 * bras) + e, e, c);
-                b.FillRectangle(cx, cy - bras, e, (2 * bras) + e, c);
+                if (t % 2 < 0.3)
+                {
+                    b.FillRectangle(x0 + ((g2 + largeur - 1) * p), y, Math.Max(2, p / 2), Math.Max(2, p / 2), BitmapColor.White); // reflet
+                }
             }
         }
 
-        // Codex : son logo-nuage prend des yeux. Au repos, il respire et flâne du regard ; au travail, il sautille, tape
-        // du code après son « > » (le curseur avance) et des bits montent. En attente, il penche la tête de côté et son
-        // terminal tape une question (« ? » qui clignote, trois points qui s'écrivent au-dessus). Quand il a fini, son
-        // terminal affiche une coche, il fait des petits bonds de joie et des confettis à ses couleurs tombent.
-        private static void DessinerCodex(BitmapBuilder b, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Teinte teinte)
+        // Codex : son logo-nuage prend des yeux. Au repos, il respire et flâne du regard ; au travail, il sautille et tape
+        // une ligne de code bien visible après son « > » (le curseur avance), des bits montent. En question, il penche la
+        // tête et son terminal affiche un « ? » ; en autorisation, son terminal attend, curseur plein bloqué. Fini : coche
+        // dans le terminal, petits bonds à l'arrivée. Erreur : yeux en croix, une secousse à l'arrivée.
+        private static void DessinerCodex(BitmapBuilder b, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Teinte teinte, Double depuis)
         {
             var haut = new BitmapColor(177, 167, 255);
             var milieu = new BitmapColor(122, 157, 255);
             var bas = new BitmapColor(57, 65, 255);
             BitmapColor Rangee(Int32 y) => Ton(y < 6 ? Melange(haut, milieu, y / 5.5) : Melange(milieu, bas, (y - 5.5) / 5.5), teinte);
             var vive = teinte is Teinte.Vive or Teinte.Lasse;
-            var attend = etat is Etat.Attend or Etat.Autorisation;
+            var fete = etat == Etat.Fini && depuis < 4;
 
             var saut = !vive ? 0 : etat switch
             {
-                Etat.Travaille => (Int32)Math.Round(Math.Sin(t * 8)) * p / 2,
-                Etat.Fini => -(Int32)(Math.Max(0, Math.Sin(t * 5)) * 1.5 * p), // petits bonds de joie
+                Etat.Travaille => -p, // penché sur son terminal
+                Etat.Fini when fete => -(Int32)(Math.Max(0, Math.Sin(t * 5)) * 1.5 * p), // petits bonds de joie
                 Etat.Limite => p / 2,
-                _ when attend => 0,
+                Etat.Attend or Etat.Autorisation or Etat.Fini or Etat.Erreur => 0,
                 _ => (Int32)Math.Round(Math.Sin(t * 1.6)) * p / 3, // respiration
             };
-            var penche = vive && attend ? (Int32)Math.Round(Math.Sin(t * 2.5) * p) : 0; // tête penchée, d'un côté puis de l'autre
-            var secousse = etat == Etat.Erreur && t * 3 % 1 < 0.3 ? (Int32)(Math.Sin(t * 60) * p / 2) : 0;
+            var penche = vive && etat == Etat.Attend ? (Int32)Math.Round(Math.Sin(t * 2.5) * p) : 0;
+            var secousse = vive && etat == Etat.Erreur && depuis < 1 ? (Int32)(Math.Sin(t * 60) * p / 2) : 0;
             var x = x0 + penche + secousse;
             var y = y0 + saut;
             Pixels(b, Nuage, x, y, p, (_, _, ry) => Rangee(ry));
@@ -470,64 +624,57 @@ namespace Loupedeck.TrinitePlugin
                 b.FillRectangle(x + (cx * p), y + (cy * p), p, p, trait);
             }
 
-            var q = Math.Max(2, p * 3 / 5);
             if (vive && etat == Etat.Travaille)
             {
-                // Le code s'écrit : jusqu'à 4 caractères, puis la ligne repart ; le curseur suit.
-                var n = (Int32)(t * 5) % 5;
-                for (var k = 0; k < n; k++)
-                {
-                    b.FillRectangle(x + ((8 + k) * p), y + (8 * p) + (p / 3), p - 1, p - (p / 3), trait);
-                }
-
-                if (Math.Floor(t * 6) % 2 == 0)
-                {
-                    b.FillRectangle(x + ((8 + n) * p), y + (8 * p), Math.Max(2, p / 2), p, trait);
-                }
-
-                // Bits qui s'échappent du haut du nuage.
-                var bit = new BitmapColor(125, 211, 252);
-                for (var j = 0; j < 3; j++)
-                {
-                    var k = ((t * 0.9) + (j / 3.0)) % 1;
-                    var taille = Math.Max(3, p * 4 / 5);
-                    b.FillRectangle(x + ((3 + (j * 5)) * p), y - (Int32)(k * 3 * p) - (p / 2), taille, taille, new BitmapColor(bit, (Int32)(255 * (1 - k))));
-                }
+                Terminal(b, x + (4 * p), y + (9 * p), p, t);
             }
-            else if (vive && attend)
+            else if (vive && etat == Etat.Attend)
             {
-                // Le terminal pose sa question : « ? » qui clignote après le « > ».
-                if (t * 2 % 1 < 0.6)
-                {
-                    Carte(b, Question, x + (8 * p), y + (6 * p) + (p / 2), q, trait);
-                }
-
-                // Trois points qui s'écrivent au-dessus de lui (sauf pour une autorisation : le cadenas y est).
-                if (etat == Etat.Attend)
-                {
-                    var n = (Int32)(t * 3) % 4;
-                    for (var k = 0; k < n; k++)
-                    {
-                        b.FillRectangle(x + ((5 + (k * 3)) * p), y - (2 * p), p, p, Ambre);
-                    }
-                }
+                Carte(b, Question, x + (8 * p), y + (6 * p) + (p / 2), Math.Max(2, p * 3 / 5), trait); // le terminal demande
+            }
+            else if (vive && etat == Etat.Autorisation)
+            {
+                b.FillRectangle(x + (8 * p), y + (6 * p) + (p / 2), p + (p / 2), (2 * p) + (p / 2), trait); // curseur bloqué
             }
             else if (vive && etat == Etat.Fini)
             {
                 Carte(b, Coche, x + (8 * p), y + (6 * p) + (p / 2), Math.Max(1, p * 2 / 5), Vert); // « ✓ » dans le terminal
-                BitmapColor[] teintes = [haut, milieu, Vert, Ambre];
-                for (var j = 0; j < 6; j++)
-                {
-                    var k = ((t * 0.6) + (j / 6.0)) % 1;
-                    var cx = x0 + (Int32)(((j * 3.1) - 1) * p) + (Int32)(Math.Sin((t * 3) + j) * p);
-                    var cy = y0 - (3 * p) + (Int32)(k * 16 * p);
-                    b.FillRectangle(cx, cy, Math.Max(3, p * 3 / 5), Math.Max(3, p * 3 / 5), new BitmapColor(teintes[j % 4], (Int32)(255 * (1 - (k * 0.7)))));
-                }
             }
             else if (!vive || Math.Floor(t * 2) % 2 == 0)
             {
                 b.FillRectangle(x + (8 * p), y + (8 * p), 3 * p, p, trait); // « _ » qui clignote doucement
             }
+        }
+
+        // Codex au travail : un petit terminal posé devant lui (plaque sombre, contour cyan), un gros « > » et une ligne
+        // qui s'écrit, curseur qui avance ; deux pattes tapent à tour de rôle sur son bord.
+        private static void Terminal(BitmapBuilder b, Int32 x, Int32 y, Int32 p, Double t)
+        {
+            var (l, h) = (8 * p, 4 * p);
+            var cyan = new BitmapColor(125, 211, 252);
+            b.FillRectangle(x - 2, y - 2, l + 4, h + 4, cyan);
+            b.FillRectangle(x, y, l, h, new BitmapColor(14, 18, 32));
+            foreach (var (cx, cy) in new[] { (1, 1), (2, 2), (1, 3) })
+            {
+                b.FillRectangle(x + (cx * p / 2) + p / 2, y + (cy * p * 3 / 4), Math.Max(2, p * 3 / 5), Math.Max(2, p * 3 / 5), cyan); // « > »
+            }
+
+            var n = 1 + ((Int32)(t * 5) % 4);
+            for (var k = 0; k < n; k++)
+            {
+                b.FillRectangle(x + (3 * p) + (k * p), y + (h / 2) - 1, p - 2, Math.Max(2, p / 2), BitmapColor.White);
+            }
+
+            if (Math.Floor(t * 6) % 2 == 0)
+            {
+                b.FillRectangle(x + (3 * p) + (n * p), y + (h / 2) - p / 2, Math.Max(2, p / 3), p, BitmapColor.White);
+            }
+
+            // Les pattes : deux ronds clairs sur le bord haut, qui tapent l'un après l'autre.
+            var tape = Math.Floor(t * 8) % 2 == 0;
+            var patte = new BitmapColor(200, 200, 255);
+            b.FillRectangle(x + p, y - p + (tape ? p / 2 : 0), 2 * p, p, patte);
+            b.FillRectangle(x + l - (3 * p), y - p + (tape ? 0 : p / 2), 2 * p, p, patte);
         }
 
         // Dégradé du logo : crête jaune → orange → rouge de gauche à droite, qui fond vers le bleu en descendant,
@@ -548,17 +695,17 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Antigravity : son logo-arche prend des yeux et flotte sur deux réacteurs. Au repos, elle plane doucement ; au
-        // travail, ses réacteurs crachent bleu, elle vole plus vite et un satellite gravite autour d'elle. En attente, elle
-        // se balance et son antenne appelle : des ondes radar montent au-dessus d'elle. Quand elle a fini, elle se pose,
-        // réacteurs coupés, et deux feux d'artifice éclatent de part et d'autre. Limite : posée, réacteurs éteints.
-        private static void DessinerArche(BitmapBuilder b, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Teinte teinte)
+        // travail, ses réacteurs crachent bleu, elle vole plus vite et un satellite gravite autour d'elle. En question,
+        // elle se balance en regardant l'utilisateur ; en autorisation, elle reste en vol stationnaire. Fini : elle se
+        // pose, réacteurs coupés. Erreur et limite : posée.
+        private static void DessinerArche(BitmapBuilder b, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Teinte teinte, Double depuis)
         {
             var vive = teinte is Teinte.Vive or Teinte.Lasse;
             var posee = etat is Etat.Fini or Etat.Limite or Etat.Erreur;
-            var attend = etat is Etat.Attend or Etat.Autorisation;
-            var vol = !vive || posee ? 0 : (Int32)Math.Round(Math.Sin(t * (etat == Etat.Travaille ? 6 : 2)) * (etat == Etat.Travaille ? 1.5 : 1));
-            var secousse = etat == Etat.Erreur && t * 3 % 1 < 0.3 ? (Int32)(Math.Sin(t * 60) * p / 2) : 0;
-            var x = x0 + secousse + (vive && attend ? (Int32)Math.Round(Math.Sin(t * 3) * p / 2) : 0);
+            var vol = !vive || posee || etat == Etat.Autorisation ? 0
+                : (Int32)Math.Round(Math.Sin(t * (etat == Etat.Travaille ? 6 : 2)) * (etat == Etat.Travaille ? 1.5 : 1));
+            var secousse = vive && etat == Etat.Erreur && depuis < 1 ? (Int32)(Math.Sin(t * 60) * p / 2) : 0;
+            var x = x0 + secousse + (vive && etat == Etat.Attend ? (Int32)Math.Round(Math.Sin(t * 3) * p / 2) : 0);
             var y = y0 + (vol * p / 2) + (posee ? p : 0);
             var orbite = vive && etat == Etat.Travaille ? t * 3.2 : Double.NaN;
             var satellite = new BitmapColor(125, 211, 252);
@@ -596,39 +743,12 @@ namespace Loupedeck.TrinitePlugin
                 }
             }
 
-            if (etat == Etat.Attend)
-            {
-                Radar(b, x + (8 * p), y - p, p, t);
-            }
-            else if (etat == Etat.Fini)
-            {
-                Feux(b, x, y, p, t);
-            }
-        }
-
-        // Ondes radar : trois chevrons ambre qui montent de la crête et s'effacent.
-        private static void Radar(BitmapBuilder b, Int32 cx, Int32 y, Int32 p, Double t)
-        {
-            var e = Math.Max(2, p / 2);
-            for (var k = 0; k < 3; k++)
-            {
-                var onde = ((t * 1.2) + (k / 3.0)) % 1;
-                var demi = (Int32)((1.5 + (onde * 4)) * p);
-                var oy = y - (Int32)(onde * 4 * p);
-                var c = new BitmapColor(Ambre, (Int32)(255 * (1 - onde)));
-                for (var i = 0; i <= demi; i += e)
-                {
-                    var dy = i / 2;
-                    b.FillRectangle(cx - i, oy + dy, e, e, c);
-                    b.FillRectangle(cx + i, oy + dy, e, e, c);
-                }
-            }
         }
 
         // Deux feux d'artifice de part et d'autre : une fusée monte, puis éclate en huit points qui s'écartent.
         private static void Feux(BitmapBuilder b, Int32 x0, Int32 y, Int32 p, Double t)
         {
-            BitmapColor[] teintes = [Vert, Ambre, Rose];
+            BitmapColor[] teintes = [new(150, 255, 180), new(255, 225, 90), new(255, 150, 210)]; // couleurs franches, lisibles sur l'anneau
             foreach (var (j, fx) in new[] { (0, -1.0), (1, 17.0) })
             {
                 var k = ((t * 0.55) + (j * 0.5)) % 1;
@@ -642,7 +762,7 @@ namespace Loupedeck.TrinitePlugin
 
                 var r = (k - 0.35) / 0.65;
                 var cy = y + p;
-                var c = new BitmapColor(teintes[((Int32)(t * 0.55) + j) % 3], (Int32)(255 * (1 - r)));
+                var c = new BitmapColor(teintes[((Int32)(t * 0.55) + j) % 3], (Int32)(255 * (1 - (r * r * r)))); // vive jusqu'au bout
                 for (var a = 0; a < 8; a++)
                 {
                     var angle = a * Math.PI / 4;
