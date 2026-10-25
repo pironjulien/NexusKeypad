@@ -192,24 +192,29 @@ namespace Loupedeck.TrinitePlugin
                 "Store", "ms-windows-store://downloadsandupdates", ["Microsoft Store"],
                 ["Rechercher les mises à jour", "Obtenir les mises à jour", "Get updates", "Check for updates"],
                 ["Tout mettre à jour", "Mettre à jour tout", "Update all"], [], 25, arret,
-                ["Mises à jour disponibles", "Updates available", "Tout mettre à jour", "Mettre à jour tout", "Update all"]));
+                ["Mises à jour disponibles", "Updates available", "Tout mettre à jour", "Mettre à jour tout", "Update all"],
+                ["Réessayer", "Try again", "erreur", "error", "Something went wrong", "hors connexion", "offline"]));
             var windows = System.Threading.Tasks.Task.Run(() => Page(
                 "Windows Update", "ms-settings:windowsupdate", ["Paramètres", "Settings"],
                 ["Rechercher des mises à jour", "Check for updates"],
                 ["Télécharger et installer tout", "Tout télécharger et installer", "Installer tout", "Télécharger et installer",
                     "Installer maintenant", "Download & install all", "Install all", "Download & install", "Install now"],
-                ["Vous êtes à jour", "You're up to date"], 150, arret, []));
+                ["Vous êtes à jour", "You're up to date"], 150, arret, [], []));
             System.Threading.Tasks.Task.WaitAll(store, windows);
             return (store.Result, windows.Result);
         }
 
         // Une page de mises à jour : ouverte derrière, son bouton de recherche cliqué (sauf si l'installation est déjà
         // proposée), puis son bouton d'installation cliqué dès qu'il paraît, et vérifié parti (il disparaît) ; fenêtre
-        // réduite. À jour : un texte « à jour » affiché 8 s après la recherche (Windows Update), ou, pour le Store qui n'en
-        // affiche pas, aucune mise à jour proposée 15 s après la recherche (proposees : ses textes quand il en a). Sondage toutes les 0,5 s les 10 premières secondes,
-        // puis toutes les 2 s (chaque sondage parcourt la fenêtre).
+        // réduite. À jour : un texte « à jour » affiché 8 s après la recherche (Windows Update). Le Store n'en affiche
+        // aucun (une recherche vide finit en une seconde, sans trace) : à jour quand, 15 s après la recherche, son bouton
+        // de recherche est de nouveau actif (grisé tant qu'elle tourne), sans mise à jour proposée (proposees) ni message
+        // d'erreur (erreurs) ; sinon inconnue (relecture de Codex, 25/10). Appli encore suspendue (démarrage à froid lent :
+        // ses processus pas encore créés à la première reprise), reprise de nouveau toutes les 2 s tant qu'aucun bouton
+        // n'a répondu. Sondage toutes les 0,5 s les 10 premières secondes, puis toutes les 2 s (chaque sondage parcourt la
+        // fenêtre).
         private static IssueMiseAJour Page(String nom, String adresse, String[] titres, String[] rechercher, String[] installer,
-            String[] aJour, Int32 attente, System.Threading.CancellationToken arret, String[] proposees)
+            String[] aJour, Int32 attente, System.Threading.CancellationToken arret, String[] proposees, String[] erreurs)
         {
             var issue = IssueMiseAJour.Inconnue;
             try
@@ -251,15 +256,20 @@ namespace Loupedeck.TrinitePlugin
                     {
                         recherchee = Uia.CliquerDans(fenetre, rechercher);
                         recherche = recherchee ? Environment.TickCount64 : null;
+                        if (!recherchee && (Environment.TickCount64 - debut) % 2000 < 600)
+                        {
+                            Paquets.Reprendre(fenetre);
+                        }
                     }
                     else if (recherche is Int64 r && Environment.TickCount64 - r > 8000 && aJour.Length > 0 && Uia.Affiche(fenetre, aJour))
                     {
                         issue = IssueMiseAJour.AJour;
                         break;
                     }
-                    else if (recherche is Int64 r2 && Environment.TickCount64 - r2 > 15000 && proposees.Length > 0 && !Uia.Affiche(fenetre, proposees))
+                    else if (recherche is Int64 r2 && Environment.TickCount64 - r2 > 15000 && proposees.Length > 0
+                        && Uia.BoutonActif(fenetre, rechercher) && !Uia.Affiche(fenetre, proposees) && !Uia.Affiche(fenetre, erreurs))
                     {
-                        issue = IssueMiseAJour.AJour; // Store : 15 s après la recherche, aucune mise à jour proposée
+                        issue = IssueMiseAJour.AJour; // Store : recherche finie (bouton actif), rien de proposé, pas d'erreur
                         break;
                     }
 

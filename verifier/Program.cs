@@ -1,4 +1,5 @@
 // Usage : dotnet run --project verifier   →   code 0 si toutes les règles tiennent, sinon la liste des échecs.
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Text.Json;
 using Loupedeck;
@@ -18,6 +19,28 @@ void Vrai(Boolean condition, String regle)
     {
         echecs.Add(regle);
     }
+}
+
+// Essai réel du presse-papiers (écrase son contenu : jamais dans test.ps1) : dotnet run --project verifier -- presse-papiers
+if (args.Contains("presse-papiers"))
+{
+    var dossier = Directory.CreateTempSubdirectory("nexus-presse").FullName;
+    var png = Path.Combine(dossier, "essai.png");
+    var webp = Path.Combine(dossier, "essai.webp");
+    using (var image = new SkiaSharp.SKBitmap(7, 3))
+    {
+        image.Erase(SkiaSharp.SKColors.Red);
+        File.WriteAllBytes(png, image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100).ToArray());
+        File.WriteAllBytes(webp, image.Encode(SkiaSharp.SKEncodedImageFormat.Webp, 100).ToArray());
+    }
+
+    Vrai(PressePapiers.Poser(png, webp), "presse-papiers : trois formats posés");
+    Vrai(Essai.Formats().SetEquals([8u, 15u, Essai.Png]), "presse-papiers : PNG, CF_DIB et CF_HDROP lisibles");
+    Vrai(Essai.Fichier() == webp, "presse-papiers : fichier joint = le WebP");
+    Vrai(Essai.Dib() == (7, 3, 32), "presse-papiers : DIB 7×3 en 32 bits");
+    Directory.Delete(dossier, true);
+    Console.WriteLine(echecs.Count == 0 ? "presse-papiers : essai réussi." : String.Join("\n", echecs));
+    return echecs.Count == 0 ? 0 : 1;
 }
 
 var maintenant = DateTime.UtcNow;
@@ -72,10 +95,19 @@ var qa = QuotaAntigravity.Analyser(page);
 Vrai(Math.Abs((qa?.Cinq ?? -1) - 0.97) < 1e-9, "Antigravity 5 h : 3 % restants = 97 % utilisés");
 Vrai(Math.Abs((qa?.Semaine ?? -1) - 0.67) < 1e-9, "Antigravity semaine : 33 % restants = 67 % utilisés");
 Vrai(QuotaAntigravity.Analyser("autre dialogue") is null, "page illisible → rien");
-var finCinq = (qa?.FinCinq ?? DateTime.MinValue) - DateTime.UtcNow;
+var finCinq = (qa?.Groupes.Single(g => g.Cinq && g.Utilise > 0.9).Fin ?? DateTime.MinValue) - DateTime.UtcNow;
 Vrai(finCinq > TimeSpan.FromMinutes(13) && finCinq <= TimeSpan.FromMinutes(14), "Antigravity 5 h : remise à zéro dans 14 min");
-var finSemaine = (qa?.FinSemaine ?? DateTime.MinValue) - DateTime.UtcNow;
+var finSemaine = (qa?.Groupes.Single(g => !g.Cinq && g.Utilise > 0.6).Fin ?? DateTime.MinValue) - DateTime.UtcNow;
 Vrai(finSemaine > new TimeSpan(6, 8, 59, 0) && finSemaine <= new TimeSpan(6, 9, 0, 0), "Antigravity semaine : remise à zéro dans 6 j 9 h");
+// Groupe le plus entamé remis à zéro : le suivant prend la jauge (Gemini 80 % fini, Claude et GPT 50 % encore 4 h).
+var instant = DateTime.UtcNow;
+var groupes = new Quota(null, null)
+{
+    Groupes = [new(true, 0.8, instant.AddMinutes(-1)), new(true, 0.5, instant.AddHours(4)), new(false, 0.6, null)],
+};
+var actuel = QuotaAntigravity.Actuel(groupes, instant.AddDays(-8));
+Vrai(actuel.Cinq == 0.5 && actuel.Semaine == 0, "remise à zéro par groupe ; sans heure, au bout de sa durée");
+Vrai(QuotaAntigravity.Actuel(groupes, instant).Semaine == 0.6, "semaine sans heure, lue à l'instant : gardée");
 Vrai(QuotaAntigravity.Delai("it will fully refresh in 4 days, 23 hours.") == new TimeSpan(4, 23, 0, 0)
     && QuotaAntigravity.Delai("Weekly Limit Remaining") is null, "délai de remise à zéro lu en jours, heures, minutes");
 
@@ -118,3 +150,74 @@ foreach (var e in echecs)
 
 Console.WriteLine(echecs.Count == 0 ? "verifier : toutes les règles tiennent." : $"verifier : {echecs.Count} échec(s).");
 return echecs.Count == 0 ? 0 : 1;
+
+// Relecture du presse-papiers pour l'essai réel (API Win32, comme les applis qui collent).
+static class Essai
+{
+    public static readonly UInt32 Png = RegisterClipboardFormat("PNG");
+
+    public static HashSet<UInt32> Formats()
+    {
+        var formats = new HashSet<UInt32>();
+        if (OpenClipboard(IntPtr.Zero))
+        {
+            for (var f = EnumClipboardFormats(0); f != 0; f = EnumClipboardFormats(f))
+            {
+                formats.Add(f);
+            }
+
+            CloseClipboard();
+        }
+
+        formats.IntersectWith([8u, 15u, Png]);
+        return formats;
+    }
+
+    public static String Fichier()
+    {
+        if (!OpenClipboard(IntPtr.Zero))
+        {
+            return null;
+        }
+
+        try
+        {
+            var depot = GetClipboardData(15);
+            var nom = new System.Text.StringBuilder(1024);
+            return DragQueryFile(depot, 0, nom, nom.Capacity) > 0 ? nom.ToString() : null;
+        }
+        finally
+        {
+            CloseClipboard();
+        }
+    }
+
+    public static (Int32, Int32, Int16) Dib()
+    {
+        if (!OpenClipboard(IntPtr.Zero))
+        {
+            return default;
+        }
+
+        try
+        {
+            var adresse = GlobalLock(GetClipboardData(8));
+            var resultat = (Marshal.ReadInt32(adresse, 4), Marshal.ReadInt32(adresse, 8), Marshal.ReadInt16(adresse, 14));
+            GlobalUnlock(GetClipboardData(8));
+            return resultat;
+        }
+        finally
+        {
+            CloseClipboard();
+        }
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern UInt32 RegisterClipboardFormat(String nom);
+    [DllImport("user32.dll")] private static extern Boolean OpenClipboard(IntPtr h);
+    [DllImport("user32.dll")] private static extern Boolean CloseClipboard();
+    [DllImport("user32.dll")] private static extern UInt32 EnumClipboardFormats(UInt32 format);
+    [DllImport("user32.dll")] private static extern IntPtr GetClipboardData(UInt32 format);
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)] private static extern UInt32 DragQueryFile(IntPtr depot, UInt32 i, System.Text.StringBuilder nom, Int32 max);
+    [DllImport("kernel32.dll")] private static extern IntPtr GlobalLock(IntPtr m);
+    [DllImport("kernel32.dll")] private static extern Boolean GlobalUnlock(IntPtr m);
+}

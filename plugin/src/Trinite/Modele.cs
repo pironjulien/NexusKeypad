@@ -22,12 +22,16 @@ namespace Loupedeck.TrinitePlugin
     }
 
     // Quota d'une IA : part utilisée (0 à 1) de la fenêtre de 5 h et de la semaine ; null quand elle n'a pas encore
-    // été lue. FinCinq, FinSemaine : heure (UTC) où la fenêtre repart à zéro, quand l'IA la donne.
+    // été lue. Groupes (Antigravity) : le détail par groupe de modèles et par fenêtre, pour recalculer la jauge quand une
+    // fenêtre repart à zéro.
     public sealed record Quota(Double? Cinq, Double? Semaine)
     {
-        public DateTime? FinCinq { get; init; }
-        public DateTime? FinSemaine { get; init; }
+        public System.Collections.Generic.IReadOnlyList<GroupeQuota> Groupes { get; init; } = [];
     }
+
+    // Une fenêtre d'un groupe de modèles : 5 h (Cinq) ou semaine, part utilisée, heure (UTC) de sa remise à zéro si l'IA
+    // la donne.
+    public sealed record GroupeQuota(Boolean Cinq, Double Utilise, DateTime? Fin);
 
     // Conversations : la plus pressante d'abord. Ouvertes : nombre de conversations actives de chaque IA.
     // Devant : l'IA dont l'appli est au premier plan (celle que Capture, Photo et Dictée visent), -1 si aucune.

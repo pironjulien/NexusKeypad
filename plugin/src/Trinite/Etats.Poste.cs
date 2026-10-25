@@ -183,11 +183,14 @@ namespace Loupedeck.TrinitePlugin
         [DllImport("kernel32.dll")]
         private static extern IntPtr LocalFree(IntPtr mem);
 
-        public static String PremierPlan()
+        public static String PremierPlan() => PremierPlan(GetForegroundWindow());
+
+        // Processus d'une fenêtre donnée ("" si inconnue).
+        public static String PremierPlan(IntPtr fenetre)
         {
             try
             {
-                GetWindowThreadProcessId(GetForegroundWindow(), out var pid);
+                GetWindowThreadProcessId(fenetre, out var pid);
                 return pid == 0 ? "" : Process.GetProcessById((Int32)pid).ProcessName;
             }
             catch (Exception)

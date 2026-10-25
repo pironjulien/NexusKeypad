@@ -262,7 +262,7 @@ namespace Loupedeck.TrinitePlugin
                 return false;
             }
 
-            if (Preparer(geste, vide: false) is IntPtr fenetre && Toujours(fenetre, geste))
+            if (Preparer(geste, vide: false, cible) is IntPtr fenetre && Toujours(fenetre, geste))
             {
                 Touches(VK_CONTROL, 0x56);
                 return true;
@@ -336,11 +336,14 @@ namespace Loupedeck.TrinitePlugin
             return null;
         }
 
-        // Focus sur le champ de l'IA au premier plan ; sa fenêtre si c'est prêt, sinon null (raison au journal).
-        private static IntPtr? Preparer(String geste, Boolean vide)
+        // Focus sur le champ de l'IA au premier plan, qui doit être l'IA visée (cible) ; sa fenêtre si c'est prêt, sinon
+        // null (raison au journal). L'IA est lue sur la fenêtre même qui sera vérifiée devant avant la touche (Toujours) :
+        // passée sur une autre IA entre-temps, rien n'est préparé ni collé (relecture de Codex, 25/10).
+        private static IntPtr? Preparer(String geste, Boolean vide, Int32 cible)
         {
             var fenetre = GetForegroundWindow();
-            var probleme = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan()) switch
+            var agent = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan(fenetre));
+            var probleme = agent != cible ? "l'appli devant n'est plus l'IA visée" : agent switch
             {
                 0 => AttendreEt(() => Uia.PreparerSaisieClaude(fenetre, vide)),
                 1 => Saisie(Cdp.PortCodex, Js.PreparerSaisie(vide)),

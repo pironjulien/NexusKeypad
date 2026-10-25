@@ -131,9 +131,13 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+        // Sans Codex LB (Codex tel qu'installé) : les journaux les plus récents, chats archivés compris (l'archivage les sort
+        // de sessions\) et sans limite d'âge (une semaine entamée vaut encore ; une fenêtre passée se lit à 0 %).
         private Quota QuotaCodexJournaux()
         {
-            var fichiers = this.JournauxCodex().OrderByDescending(f => f.LastWriteTimeUtc).Take(6).Select(f => f.FullName);
+            var fichiers = new[] { "sessions", "archived_sessions" }.Select(d => Path.Combine(DossierCodex, d)).Where(Directory.Exists)
+                .SelectMany(d => new DirectoryInfo(d).EnumerateFiles("rollout-*.jsonl", SearchOption.AllDirectories))
+                .OrderByDescending(f => f.LastWriteTimeUtc).Take(6).Select(f => f.FullName);
             (DateTime Quand, JsonElement Limites)? meilleur = null;
             foreach (var f in fichiers)
             {
@@ -160,19 +164,30 @@ namespace Loupedeck.TrinitePlugin
                 return null;
             }
 
-            static Double? Fenetre(JsonElement limites, String nom)
+            // Chaque fenêtre reconnue à sa durée (window_minutes) : « primary » n'est pas toujours celle de 5 h (vue seule, d'une
+            // semaine, 25/10). Sans part lue : inconnue, jamais 0 %.
+            static Double? Fenetre(JsonElement limites, String nom, Int32 minutes, Boolean seule)
             {
                 if (!limites.TryGetProperty(nom, out var f) || f.ValueKind != JsonValueKind.Object)
                 {
                     return null;
                 }
 
+                var duree = f.TryGetProperty("window_minutes", out var w) && w.ValueKind == JsonValueKind.Number ? w.GetInt32() : (Int32?)null;
+                if (duree is { } d ? d != minutes : !seule)
+                {
+                    return null;
+                }
+
                 var remise = f.TryGetProperty("resets_at", out var r) && r.ValueKind == JsonValueKind.Number ? DateTimeOffset.FromUnixTimeSeconds(r.GetInt64()).UtcDateTime : (DateTime?)null;
-                var part = f.TryGetProperty("used_percent", out var u) && u.ValueKind == JsonValueKind.Number ? u.GetDouble() / 100 : 0;
-                return remise < DateTime.UtcNow ? 0 : part; // fenêtre passée depuis : remise à zéro
+                var part = f.TryGetProperty("used_percent", out var u) && u.ValueKind == JsonValueKind.Number ? u.GetDouble() / 100 : (Double?)null;
+                return part is null ? null : remise < DateTime.UtcNow ? 0 : part; // fenêtre passée depuis : remise à zéro
             }
 
-            return new(Fenetre(lu.Limites, "primary"), Fenetre(lu.Limites, "secondary"));
+            Double? Duree(Int32 minutes, String parDefaut) =>
+                Fenetre(lu.Limites, "primary", minutes, parDefaut == "primary") ?? Fenetre(lu.Limites, "secondary", minutes, parDefaut == "secondary");
+
+            return new(Duree(300, "primary"), Duree(10080, "secondary"));
         }
 
         // État d'un chat Codex, suivi pas à pas dans son journal : seules les lignes ajoutées depuis la lecture précédente sont

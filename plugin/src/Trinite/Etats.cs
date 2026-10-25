@@ -228,12 +228,12 @@ namespace Loupedeck.TrinitePlugin
             Quota(1, this._tour % 10 == 1, this.QuotaCodex);
             // Antigravity : sa page Settings › Models, comme un humain (fenêtre ouverte seulement : sans elle, rien à lire).
             // Lue sans rien toucher si l'utilisateur l'a ouverte (toutes les 20 s) ; ouverte un instant au plus tous les quarts
-            // d'heure (nouvel essai 2 min après un échec), poste déverrouillé. Antigravity devant : l'utilisateur sans rien toucher
+            // d'heure, échecs compris (un essai toutes les 2 min refaisait l'appel de quota à Google, 25/10), poste déverrouillé. Antigravity devant : l'utilisateur sans rien toucher
             // depuis 30 s ; derrière, sa page ne gêne personne et s'ouvre aussitôt (attendre 1 min d'inactivité ailleurs ne
             // passait presque jamais en journée : quota de plus de 5 h, jauge vide, 24/10).
             var agyDevant = premier == Processus[2];
             var ouvrirAgy = !Verrouille() && this.SansGesteRecent() && (!agyDevant || Inactif() > TimeSpan.FromSeconds(30))
-                && DateTime.UtcNow - this._quotaAgyLu > TimeSpan.FromMinutes(15) && DateTime.UtcNow - this._quotaAgyEssai > TimeSpan.FromMinutes(2);
+                && DateTime.UtcNow - this._quotaAgyLu > TimeSpan.FromMinutes(15) && DateTime.UtcNow - this._quotaAgyEssai > TimeSpan.FromMinutes(15);
             Quota(2, ouverte[2] && (ouvrirAgy || this._tour % 20 == 7), () =>
             {
                 if (ouvrirAgy)
@@ -261,12 +261,10 @@ namespace Loupedeck.TrinitePlugin
                     }
                 }
             });
-            // Plus de 5 h sans relevé : Antigravity ouvert (il a pu servir), la valeur gardée ne dit plus rien ; fermé, rien n'a
-            // été consommé : fenêtre de 5 h repartie à zéro, semaine inchangée (sa jauge vide le matin, 25/10).
-            if (DateTime.UtcNow - this._quotaAgyLu > TimeSpan.FromHours(5))
-            {
-                this._quotas[2] = ouverte[2] ? null : QuotaAntigravity.Garde(out _);
-            }
+            // Chaque groupe repart à zéro à son heure, même sans nouveau relevé (Antigravity fermé, ou relevé suivant dans un
+            // quart d'heure) ; plus de 5 h sans relevé avec Antigravity ouvert (il a pu servir) : la valeur ne dit plus rien.
+            this._quotas[2] = ouverte[2] && DateTime.UtcNow - this._quotaAgyLu > TimeSpan.FromHours(5) ? null
+                : QuotaAntigravity.Actuel(this._quotas[2], this._quotaAgyLu);
 
             return new(conversations, ouvertes, [.. this._quotas], ouverte, eteint, this.Telephone.Derniere, Array.IndexOf(Processus, premier))
             {

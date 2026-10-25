@@ -28,6 +28,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `installer_hooks.py`: Antigravity alone works (missing Claude settings are created); paths with spaces or
     apostrophes (single-quoted for PowerShell, Windows short name for Antigravity);
   - `essais_reels.py`: a Claude dictation started by a test is stopped during cleanup.
+- Second review (October 25):
+  - paste: the AI is read from the very window checked in front before Ctrl+V (switch to another AI between two checks
+    and nothing is pasted);
+  - Store "up to date" only with proof: its search button enabled again, nothing offered, no error message (otherwise
+    unknown); resuming the suspended app is retried until a button answers;
+  - Antigravity quota kept per model group: a group that resets leaves the gauge to the next one, and resets also apply
+    in memory, without waiting 5 h or a new reading;
+  - NexusBrowser Gmail total dated by its oldest source (no count kept past 3 minutes);
+  - native clipboard (Win32 API: PNG, CF_DIB, CF_HDROP) instead of a PowerShell kept open (60 to 80 MB); live test:
+    `dotnet run --project verifier -- presse-papiers`;
+  - plugin shutdown: an error in the updates task is logged, never thrown.
 - No Gmail badge when Gmail is open in a Chrome tab: tab titles (Chrome's tab strip, read through UI Automation even
   with the window behind) count like window titles; read every 3 s, off the animation thread.
 - Updates key: it only searched, then the Store and Windows Update offered their updates without installing them. It

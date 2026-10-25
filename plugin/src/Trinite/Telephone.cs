@@ -36,7 +36,6 @@ namespace Loupedeck.TrinitePlugin
         private DateTime _absentJusque = DateTime.MinValue;
         private String _reconnue; // liaison Wi-Fi reconnue à son numéro de série, sur un port autre que celui noté
         private Process _veilleur;
-        private Process _presse;
         private volatile Boolean _fini;
 
         public Photo Derniere { get; private set; }
@@ -206,8 +205,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        // Image et fichier dans le presse-papiers : PowerShell en STA, le seul à porter les deux formats sans dépendance.
-        // Gardé prêt en arrière-plan (assemblées chargées) : l'appui colle sans attendre son démarrage.
+        // Image et fichier dans le presse-papiers (PressePapiers : API Win32, sans processus).
         private String _copiee; // fichier publié dans le presse-papiers : jamais élagué
 
         public Boolean Copier()
@@ -246,123 +244,19 @@ namespace Loupedeck.TrinitePlugin
             }
 
             this._copiee = reduite;
-            var png = (base_ + ".png").Replace("'", "''", StringComparison.Ordinal);
-            var r = reduite.Replace("'", "''", StringComparison.Ordinal);
-            // Le fichier WebP pour les IA (elles le joignent par son nom), l'image pour les autres applis (lue sur le PNG).
-            var script =
-                $"try {{ $i = [System.Drawing.Image]::FromFile('{png}'); " +
-                "$d = New-Object System.Windows.Forms.DataObject; $d.SetImage($i); " +
-                "$f = New-Object System.Collections.Specialized.StringCollection; " +
-                $"[void]$f.Add('{r}'); $d.SetFileDropList($f); [System.Windows.Forms.Clipboard]::SetDataObject($d, $true); 'NEXUS_OK' }} catch {{ 'NEXUS_KO' }}" +
-                // Image libérée : le PowerShell reste ouvert, il verrouillerait le fichier (et sa mémoire).
-                " finally { if ($i) { $i.Dispose() }; $i = $null; $d = $null }";
             lock (this._copie)
             {
-                for (var essai = 0; essai < 2; essai++)
-                {
-                    try
-                    {
-                        var presse = this.Presse();
-                        presse.StandardInput.WriteLine(script);
-                        presse.StandardInput.Flush();
-                        var lecture = presse.StandardOutput.ReadLineAsync();
-                        if (lecture.Wait(20000))
-                        {
-                            return lecture.Result == "NEXUS_OK";
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        // PowerShell sorti : relancé au second essai
-                    }
-
-                    this.FermerPresse();
-                }
-
-                return false;
-            }
-        }
-
-        // Lance le PowerShell prêt dès le démarrage, pour que le premier appui soit aussi rapide que les suivants.
-        public void PreparerCopie()
-        {
-            lock (this._copie)
-            {
-                if (this._fini)
-                {
-                    return; // plugin arrêté avant que cette préparation ne passe : pas de PowerShell orphelin
-                }
-
                 try
                 {
-                    this.Presse();
+                    // Le fichier WebP pour les IA (elles le joignent par son nom), l'image pour les autres applis (le PNG).
+                    return PressePapiers.Poser(base_ + ".png", reduite);
                 }
                 catch (Exception e)
                 {
-                    PluginLog.Error(e, "PowerShell du presse-papiers");
+                    PluginLog.Error(e, $"{geste} : presse-papiers");
+                    return false;
                 }
             }
-        }
-
-        private Process Presse()
-        {
-            if (this._fini)
-            {
-                throw new ObjectDisposedException(nameof(Telephone)); // plugin arrêté : aucun PowerShell relancé
-            }
-
-            if (this._presse is { HasExited: false })
-            {
-                return this._presse;
-            }
-
-            var p = Process.Start(new ProcessStartInfo("powershell.exe", "-NoProfile -STA -NonInteractive -Command -")
-            {
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            });
-            p.StandardInput.WriteLine("Add-Type -AssemblyName System.Windows.Forms, System.Drawing; 'NEXUS_PRET'");
-            p.StandardInput.Flush();
-            var limite = DateTime.UtcNow.AddSeconds(15);
-            while (true)
-            {
-                var ligne = p.StandardOutput.ReadLineAsync();
-                if (!ligne.Wait(limite - DateTime.UtcNow > TimeSpan.Zero ? limite - DateTime.UtcNow : TimeSpan.Zero) || ligne.Result is null)
-                {
-                    p.Kill(true);
-                    p.Dispose();
-                    throw new TimeoutException("PowerShell du presse-papiers muet");
-                }
-
-                if (ligne.Result == "NEXUS_PRET")
-                {
-                    if (this._fini)
-                    {
-                        p.Kill(true); // arrêté pendant son démarrage : pas d'orphelin
-                        p.Dispose();
-                        throw new ObjectDisposedException(nameof(Telephone));
-                    }
-
-                    return this._presse = p;
-                }
-            }
-        }
-
-        private void FermerPresse()
-        {
-            try
-            {
-                this._presse?.Kill(true);
-            }
-            catch (Exception)
-            {
-                // déjà sorti
-            }
-
-            this._presse?.Dispose();
-            this._presse = null;
         }
 
         public void Dispose()
@@ -377,19 +271,6 @@ namespace Loupedeck.TrinitePlugin
                 // déjà sorti
             }
 
-            // Une copie en cours peut tenir 55 s : 2 s au plus, puis PowerShell est fermé quand même (la copie échoue vite).
-            var tenu = System.Threading.Monitor.TryEnter(this._copie, 2000);
-            try
-            {
-                this.FermerPresse();
-            }
-            finally
-            {
-                if (tenu)
-                {
-                    System.Threading.Monitor.Exit(this._copie);
-                }
-            }
         }
 
         // Miniature carrée 116 px, recadrée au centre et redressée selon l'orientation EXIF.

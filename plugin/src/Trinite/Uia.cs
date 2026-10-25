@@ -136,6 +136,15 @@ namespace Loupedeck.TrinitePlugin
             return false;
         }
 
+        // Un de ces boutons est affiché et actif (pas grisé).
+        public static Boolean BoutonActif(IntPtr fenetre, params String[] noms)
+        {
+            var uia = Nouveau();
+            var racine = uia.ElementFromHandle(fenetre);
+            var actif = uia.CreateAndCondition(uia.CreatePropertyCondition(ActifPropriete, true), uia.CreatePropertyCondition(TypePropriete, TypeBouton));
+            return noms.Any(nom => racine?.FindFirst(TreeScopeDescendants, uia.CreateAndCondition(actif, uia.CreatePropertyCondition(NomPropriete, nom))) is not null);
+        }
+
         // Titre d'une fenêtre (vide si elle n'en a pas).
         public static String Titre(IntPtr h)
         {

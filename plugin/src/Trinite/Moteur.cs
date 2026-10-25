@@ -94,8 +94,10 @@ namespace Loupedeck.TrinitePlugin
                 var entrees = doc.RootElement.TryGetProperty("sources", out var sources) && sources.ValueKind == System.Text.Json.JsonValueKind.Object
                     ? sources.EnumerateObject().Select(p => p.Value).ToList()
                     : [doc.RootElement];
+                // Somme datée par sa source la PLUS ANCIENNE : elle périme quand la première de ses sources périme (datée par
+                // la plus récente, un vieux compte restait compté jusqu'à 6 min, relecture de Codex, 25/10).
                 Int32? somme = null;
-                var plusRecent = DateTime.MinValue;
+                var plusAncienne = DateTime.MaxValue;
                 foreach (var e in entrees)
                 {
                     if (!e.TryGetProperty("at", out var at) || !DateTime.TryParse(at.GetString(), System.Globalization.CultureInfo.InvariantCulture,
@@ -107,11 +109,11 @@ namespace Loupedeck.TrinitePlugin
                     if (e.TryGetProperty("gmail", out var g) && g.ValueKind == System.Text.Json.JsonValueKind.Number && g.TryGetInt32(out var n) && n >= 0)
                     {
                         somme = (somme ?? 0) + n;
-                        plusRecent = quand > plusRecent ? quand : plusRecent;
+                        plusAncienne = quand < plusAncienne ? quand : plusAncienne;
                     }
                 }
 
-                return somme is Int32 total ? Tuple.Create(total, plusRecent) : null;
+                return somme is Int32 total ? Tuple.Create(total, plusAncienne) : null;
             }
             catch (Exception)
             {
@@ -265,7 +267,6 @@ namespace Loupedeck.TrinitePlugin
             this._animation = new Timer(_ => this.Animer(), null, 500, 125);
             this._telephone = new Timer(_ => this.Telephone(), null, 1000, 3000);
             this._observateur.Telephone.Veiller(() => Task.Run(this.Telephone));
-            Task.Run(this._observateur.Telephone.PreparerCopie);
         }
 
         // Photo toujours la plus récente (sans attendre la lecture suivante).
@@ -749,7 +750,14 @@ namespace Loupedeck.TrinitePlugin
             // Plus aucun geste après l'arrêt : ceux en file sont abandonnés, celui en cours a 2 s pour finir.
             this._arret = true;
             this._arretMiseAJour.Cancel(); // une mise à jour en cours s'interrompt avant sa prochaine action (5 s au plus)
-            this._miseAJourTache.Wait(5000);
+            try
+            {
+                this._miseAJourTache.Wait(5000);
+            }
+            catch (AggregateException e)
+            {
+                PluginLog.Error(e, "mises à jour à l'arrêt"); // jamais d'exception sur le fil de déchargement du service
+            }
             this._gestes.CompleteAdding();
             this._filGestes?.Join(2000);
             this._pilote?.Dispose();
