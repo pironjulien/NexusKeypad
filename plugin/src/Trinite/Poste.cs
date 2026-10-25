@@ -8,7 +8,8 @@ namespace Loupedeck.TrinitePlugin
     // Page 2 du pad : l'état du poste, lu sur place (aucun réseau, aucun processus lancé) et seulement quand la page est
     // affichée. Volume par l'API audio de Windows, processeur et mémoire par le noyau.
     // Volume : niveau réglé (0 à 1) ; Son : crête du signal en ce moment (0 à 1) ; null : pas de périphérique.
-    // Mails, Messages : notifications en attente sur le téléphone (null : pas de téléphone).
+    // Mails, Messages : non-lus lus dans le titre de la fenêtre Gmail ou Messages du PC si elle est ouverte (ils font foi),
+    // sinon notifications en attente sur le téléphone (null : ni fenêtre ni téléphone, pas de pastille).
     public sealed record Poste(Double? Volume, Boolean SonCoupe, Double Son, Double Processeur, Double Memoire)
     {
         public Int32? Mails { get; init; }

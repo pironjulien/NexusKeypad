@@ -121,11 +121,7 @@ namespace Loupedeck.TrinitePlugin
         private static extern Boolean GetWindowRect(IntPtr h, out RECT r);
 
         // Fenêtre visible d'un processus au titre exact (une appli web installée : « Codex LB » dans chrome) ; zéro si aucune.
-        public static IntPtr FenetreTitree(String processus, String titre) => Fenetres(processus).FirstOrDefault(h =>
-        {
-            var texte = new System.Text.StringBuilder(GetWindowTextLength(h) + 1);
-            return GetWindowText(h, texte, texte.Capacity) > 0 && texte.ToString() == titre;
-        });
+        public static IntPtr FenetreTitree(String processus, String titre) => Fenetres(processus).FirstOrDefault(h => Titre(h) == titre);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern Int32 GetWindowText(IntPtr h, System.Text.StringBuilder texte, Int32 max);

@@ -10,7 +10,9 @@ $logiDir = 'C:\Program Files\Logi\LogiPluginService'
 if (Test-Path $logiDir) { $env:PATH = "$logiDir;$env:PATH" }
 $sortie = Join-Path $env:LOCALAPPDATA 'NexusKeypad\test\'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
-$env:PYTHONDONTWRITEBYTECODE = '1'  # aucun __pycache__ dans OneDrive (python -B ci-dessous aussi)
+# Sans effet sur les python -I ci-dessous (-I ignore les variables PYTHON*) : c'est leur -B qui évite tout
+# __pycache__ dans OneDrive. Gardé pour un python lancé sans -I.
+$env:PYTHONDONTWRITEBYTECODE = '1'
 
 dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Debug -nologo -v q -p:NexusTest=true -p:NexusBuild=$sortie
 if ($LASTEXITCODE) { throw 'Le plugin ne compile pas.' }

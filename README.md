@@ -152,10 +152,12 @@ Everything stays on the PC. The plugin makes no network request except to `127.0
 when present) and, on a key press, to the page you asked for.
 
 - **Read**: the agents' local session files and logs, their windows (UI Automation) and pages (debugging ports), the
-  Windows audio, CPU and memory state; with a phone, its latest photo and its notification list over adb.
+  Windows audio, CPU and memory state; with a phone, its latest photo and its notification list over adb; the site
+  key setting `~/.nexus/trinite/site.json` (and its image); the phone's Wi-Fi pairing note
+  `~/.nexus/nexus-android/wifi.json`.
 - **Written**: `~/.nexus/trinite` (hook states, the last 5 screen captures, the last 5 phone photos and their reduced
-  copies), the plugin log in `%LOCALAPPDATA%\Logi\LogiPluginService\Logs\plugin_logs\TrinitePad.log`, build output in
-  `%LOCALAPPDATA%\NexusKeypad`.
+  copies), the plugin log in `%LOCALAPPDATA%\Logi\LogiPluginService\Logs\plugin_logs\TrinitePad.log`, build output and the last
+  Antigravity quota read (`quota-antigravity.json`) in `%LOCALAPPDATA%\NexusKeypad`.
 - **Clipboard**: Screen capture and Photo put the image in the clipboard before pasting it; nothing is ever sent.
 - **Remove everything**: `python -I outils\placer_touches.py --retour`, delete
   `%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\TrinitePad`, `%LOCALAPPDATA%\NexusKeypad` and `~/.nexus/trinite`, and
@@ -183,7 +185,7 @@ Builds the plugin aside (no install, no reload), draws every key in every situat
 build uses the [LogiPluginApi](https://www.nuget.org/packages/LogiPluginApi) package.
 
 - `dotnet run --project apercu -- <folder> [photo.jpg]` draws PNG boards of all keys with the real rendering code.
-- `python -I outils\pad.py capture|appui <1-9>|etat` talks to the running plugin through a local pipe reserved to
+- `python -I outils\pad.py capture|appui <1-18>|etat` talks to the running plugin through a local pipe reserved to
   the current user: the 9 keys as sent to the keypad, a simulated press, the last state read.
 
 ## License
