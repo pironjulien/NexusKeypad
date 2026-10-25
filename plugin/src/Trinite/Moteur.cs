@@ -23,6 +23,7 @@ namespace Loupedeck.TrinitePlugin
         // Page 2 : état du poste (null tant que la page n'a pas été affichée) ; dernier appui sur la touche des mises à jour.
         public Poste Poste { get; init; }
         public Double MiseAJour { get; init; } = -99;
+        public Double MiseAJourFinie { get; init; } = -99;
 
         public Boolean Appui(Int32 touche) => this.Temps - this.Appuis[touche] < 0.2;
     }
@@ -63,6 +64,7 @@ namespace Loupedeck.TrinitePlugin
         private Double _notificationsLues = -99;
         private Int32 _notificationsEnCours;
         private Double _miseAJour = -99; // dernier appui sur la touche des mises à jour (Windows Update et Store)
+        private Double _miseAJourFinie = -99; // fin de ce qu'il a lancé
         private volatile String[] _titres = []; // titres des fenêtres de Chrome (non-lus de Gmail et Messages)
         private Double _titresLus = -99;
         private readonly Action<Int32> _redessiner;
@@ -229,6 +231,7 @@ namespace Loupedeck.TrinitePlugin
             CaptureCollee = this._captureCollee,
             Poste = this._poste,
             MiseAJour = this._miseAJour,
+            MiseAJourFinie = this._miseAJourFinie,
         };
 
         // Un appui : action hors du fil du service (ouvrir une appli ou taper prend du temps).
@@ -580,10 +583,18 @@ namespace Loupedeck.TrinitePlugin
                 case Messages: AppliWeb.Messages.Ouvrir(); break;
                 case Sante: Gestes.GestionnaireDesTaches(); break;
                 case MisesAJour:
-                    // Les deux recherches, hors de la file des gestes (le Store met quelques secondes à s'ouvrir) et sans
-                    // rien amener au premier plan ; la touche s'anime pendant ce temps.
-                    this._miseAJour = this._horloge.Elapsed.TotalSeconds;
-                    Task.Run(Releve.RechercherMisesAJour);
+                    // Tout mettre à jour, hors de la file des gestes (jusqu'à 2 min et demie pour Windows Update) et sans rien
+                    // amener au premier plan ; la touche s'anime jusqu'à la fin. Un appui pendant ce temps ne relance rien.
+                    if (this._miseAJourFinie >= this._miseAJour)
+                    {
+                        this._miseAJour = this._horloge.Elapsed.TotalSeconds;
+                        Task.Run(() =>
+                        {
+                            Releve.MettreAJour();
+                            this._miseAJourFinie = this._horloge.Elapsed.TotalSeconds;
+                        });
+                    }
+
                     break;
                 default: AppliWeb.Site.Ouvrir(); break;
             }

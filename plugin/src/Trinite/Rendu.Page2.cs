@@ -219,13 +219,12 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Store et Windows Update sur la même touche, tous deux vifs : le sac du Store à gauche, les flèches de Windows
-        // Update à droite. Au repos, les flèches tournent doucement ; un appui lance les deux recherches : pendant 30 s
-        // les flèches tournent vite et le sac sautille, puis une coche verte 2 s.
+        // Update à droite. Au repos, les flèches tournent doucement ; un appui met tout à jour : tant que ça tourne, les
+        // flèches tournent vite et le sac sautille, puis une coche verte 2 s.
         private static void ToucheMisesAJour(BitmapBuilder b, Scene s)
         {
-            var depuis = s.Temps - s.MiseAJour;
-            var cherche = depuis is >= 0 and < 30;
-            if (depuis is >= 30 and < 32)
+            var cherche = s.MiseAJour > s.MiseAJourFinie && s.Temps >= s.MiseAJour;
+            if (!cherche && s.MiseAJourFinie >= s.MiseAJour && s.Temps - s.MiseAJourFinie is >= 0 and < 2)
             {
                 Carte(b, Coche, (T / 2) - 18, (T / 2) - 14, 3, Vert);
                 return;

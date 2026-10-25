@@ -187,38 +187,78 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        // Touche des mises à jour : les deux recherches d'un appui, sans rien amener au premier plan.
-        // Windows Update : UsoClient StartInteractiveScan (sans droits d'administrateur). Microsoft Store : son API de
-        // recherche est refusée aux applis de bureau (E_ACCESSDENIED) et winget ne voit pas ses applis ; sa page
-        // « Téléchargements et mises à jour » est ouverte (elle s'ouvre derrière), son bouton cliqué par UI Automation
-        // (Invoke, fenêtre derrière), puis la fenêtre réduite.
-        public static void RechercherMisesAJour()
+        // Touche des mises à jour : TOUT mettre à jour d'un appui, sans rien amener au premier plan. Rechercher seulement ne
+        // suffisait pas : le Store et Windows Update proposaient ensuite leurs mises à jour sans les installer (25/10).
+        // Aucune API sans droits d'administrateur (Store : E_ACCESSDENIED ; Windows Update : installation réservée aux
+        // administrateurs) : leurs boutons sont cliqués par UI Automation, fenêtre derrière les autres (réduite, elle ne
+        // montre plus ses boutons : réaffichée sans activation), puis réduite. Jamais de redémarrage.
+        public static void MettreAJour()
+        {
+            var store = System.Threading.Tasks.Task.Run(() => Page(
+                "Store", "ms-windows-store://downloadsandupdates", ["Microsoft Store"],
+                ["Rechercher les mises à jour", "Obtenir les mises à jour", "Get updates", "Check for updates"],
+                ["Tout mettre à jour", "Mettre à jour tout", "Update all"], [], 25));
+            var windows = System.Threading.Tasks.Task.Run(() => Page(
+                "Windows Update", "ms-settings:windowsupdate", ["Paramètres", "Settings"],
+                ["Rechercher des mises à jour", "Check for updates"],
+                ["Télécharger et installer tout", "Tout télécharger et installer", "Installer tout", "Télécharger et installer",
+                    "Installer maintenant", "Download & install all", "Install all", "Download & install", "Install now"],
+                ["Vous êtes à jour", "You're up to date"], 150));
+            System.Threading.Tasks.Task.WaitAll(store, windows);
+        }
+
+        // Une page de mises à jour : ouverte derrière, son bouton de recherche cliqué (sauf si l'installation est déjà
+        // proposée), puis son bouton d'installation cliqué dès qu'il paraît, fenêtre réduite. Fin plus tôt, rien à
+        // installer : un texte « à jour » affiché 8 s après la recherche (Windows Update) ; sans ce texte (le Store n'en
+        // affiche pas), au bout d'attente secondes.
+        private static void Page(String nom, String adresse, String[] titres, String[] rechercher, String[] installer, String[] aJour, Int32 attente)
         {
             try
             {
-                using var uso = Process.Start(new ProcessStartInfo("UsoClient.exe", "StartInteractiveScan") { UseShellExecute = false, CreateNoWindow = true });
+                Lancer(adresse);
+                IntPtr fenetre = IntPtr.Zero;
+                for (var i = 0; i < 40 && fenetre == IntPtr.Zero; i++)
+                {
+                    System.Threading.Thread.Sleep(500);
+                    fenetre = Uia.Fenetres("ApplicationFrameHost").FirstOrDefault(h => titres.Contains(Uia.Titre(h)));
+                }
+
+                if (fenetre == IntPtr.Zero)
+                {
+                    PluginLog.Warning($"mises à jour : fenêtre de {nom} introuvable en 20 s");
+                    return;
+                }
+
+                Gestes.DerriereSansActiver(fenetre);
+                var installee = false;
+                var recherchee = false;
+                var depuisRecherche = 0;
+                for (var i = 0; i < attente * 2 && !installee; i++)
+                {
+                    installee = Uia.CliquerDans(fenetre, installer);
+                    if (!installee && !recherchee)
+                    {
+                        recherchee = Uia.CliquerDans(fenetre, rechercher);
+                    }
+                    else if (!installee && ++depuisRecherche > 16 && aJour.Length > 0 && Uia.Affiche(fenetre, aJour))
+                    {
+                        break; // à jour : rien à installer
+                    }
+
+                    if (!installee)
+                    {
+                        System.Threading.Thread.Sleep(500);
+                    }
+                }
+
+                System.Threading.Thread.Sleep(2000); // l'installation part avant que la fenêtre ne soit rangée
+                Gestes.Reduire(fenetre);
+                PluginLog.Info($"mises à jour : {nom} {(installee ? "installe ses mises à jour" : recherchee ? "à jour (rien à installer)" : "bouton introuvable")}");
             }
             catch (Exception e)
             {
-                PluginLog.Error(e, "recherche Windows Update");
+                PluginLog.Error(e, $"mises à jour : {nom}");
             }
-
-            Lancer("ms-windows-store://downloadsandupdates");
-            String[] boutons = ["Rechercher les mises à jour", "Obtenir les mises à jour", "Get updates", "Check for updates"];
-            for (var i = 0; i < 40; i++) // la page arrive en quelques secondes, son bouton après elle
-            {
-                System.Threading.Thread.Sleep(500);
-                var store = Uia.Fenetres("ApplicationFrameHost").FirstOrDefault(h => Uia.Titre(h) == "Microsoft Store");
-                if (store != IntPtr.Zero && Uia.CliquerDans(store, boutons))
-                {
-                    System.Threading.Thread.Sleep(1500); // la recherche part avant que la fenêtre ne soit rangée
-                    Gestes.Reduire(store);
-                    PluginLog.Info("mises à jour : Windows Update et Store lancés");
-                    return;
-                }
-            }
-
-            PluginLog.Warning("mises à jour : bouton du Store introuvable en 20 s (Windows Update lancé)");
         }
 
         [DllImport("user32.dll")]

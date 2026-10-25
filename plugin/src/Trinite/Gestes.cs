@@ -422,6 +422,25 @@ namespace Loupedeck.TrinitePlugin
         // Une fenêtre réduite dans la barre des tâches, sans prendre le premier plan.
         public static void Reduire(IntPtr fenetre) => ShowWindow(fenetre, SW_MINIMIZE);
 
+        // Fenêtre réaffichée sans être activée, tout en dessous des autres : ses boutons redeviennent lisibles (réduite, une
+        // appli UWP n'en publie plus aucun), sans rien cacher à Julien.
+        public static void DerriereSansActiver(IntPtr fenetre)
+        {
+            if (IsIconic(fenetre))
+            {
+                ShowWindow(fenetre, 4); // SW_SHOWNOACTIVATE
+            }
+
+            SetWindowPos(fenetre, new IntPtr(1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); // HWND_BOTTOM ; NOSIZE | NOMOVE | NOACTIVATE
+            System.Threading.Thread.Sleep(800); // le temps qu'elle redessine ses boutons
+        }
+
+        [DllImport("user32.dll")]
+        private static extern Boolean IsIconic(IntPtr h);
+
+        [DllImport("user32.dll")]
+        private static extern Boolean SetWindowPos(IntPtr h, IntPtr apres, Int32 x, Int32 y, Int32 l, Int32 ht, UInt32 drapeaux);
+
         // Deuxième appui d'une touche qui ouvre une fenêtre : elle est devant, elle se ferme (vrai si c'est fait).
         public static Boolean FermerSiDevant(IntPtr fenetre)
         {
@@ -438,12 +457,29 @@ namespace Loupedeck.TrinitePlugin
         private static extern Boolean PostMessage(IntPtr h, UInt32 message, IntPtr w, IntPtr l);
 
         // Gestionnaire des tâches (santé du PC), sans élévation : lancé en administrateur (son manifeste le demande), le
-        // pad ne pouvait ni le fermer ni le réduire (Windows protège une fenêtre élevée). Un deuxième appui le ferme.
+        // pad ne pouvait pas le fermer. Un deuxième appui le ferme : il refuse le message de fermeture même sans élévation
+        // (accès refusé, 25/10), il est donc terminé (il ne garde aucun travail ouvert ; élevé, rien n'est possible).
         public static void GestionnaireDesTaches()
         {
             var fenetre = Uia.FenetrePrincipale("Taskmgr");
-            if (FermerSiDevant(fenetre))
+            if (fenetre != IntPtr.Zero && fenetre == GetForegroundWindow())
             {
+                foreach (var processus in Process.GetProcessesByName("Taskmgr"))
+                {
+                    try
+                    {
+                        processus.Kill();
+                    }
+                    catch (Exception)
+                    {
+                        // lancé en administrateur par quelqu'un d'autre : Windows le protège
+                    }
+                    finally
+                    {
+                        processus.Dispose();
+                    }
+                }
+
                 return;
             }
 

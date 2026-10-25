@@ -79,6 +79,14 @@ namespace Loupedeck.TrinitePlugin
         // (un element.click() ou un clic simulé par son port de débogage restent sans effet, 23/10).
         public static Boolean Cliquer(String processus, params String[] noms) => Fenetres(processus).Any(f => CliquerDans(f, noms));
 
+        // Un élément de la fenêtre dont le nom contient un de ces textes (« Vous êtes à jour »…), rien n'est cliqué.
+        public static Boolean Affiche(IntPtr fenetre, params String[] textes)
+        {
+            var uia = Nouveau();
+            var racine = uia.ElementFromHandle(fenetre);
+            return textes.Any(t => racine?.FindFirst(TreeScopeDescendants, uia.CreatePropertyConditionEx(NomPropriete, t, SousChaine)) is not null);
+        }
+
         // Même clic, dans une seule fenêtre (le Store, derrière : Invoke n'a pas besoin du premier plan).
         public static Boolean CliquerDans(IntPtr fenetre, params String[] noms)
         {

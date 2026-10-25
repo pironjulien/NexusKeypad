@@ -9,6 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
 
 ### Fixed
+- Updates key: it only searched, then the Store and Windows Update offered their updates without installing them. It
+  now installs everything: search, then "Update all" (Store) and "Download & install all" (Windows Update) pressed
+  through UI Automation, windows shown behind the others (minimised, they expose no buttons) then minimised again;
+  never a restart; the key animates until it is done.
+- PC health: the second press closes Task Manager (it refuses the close message even without elevation, so it is
+  ended).
 - Second press on Gmail, Calendar, Messages, the site, PC health or the Codex quota key closes its window when it is in
   front. Task Manager is started without elevation (`__COMPAT_LAYER=RunAsInvoker`): elevated, Windows would not let
   the pad close or minimise it.
