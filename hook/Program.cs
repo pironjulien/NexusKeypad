@@ -37,6 +37,9 @@ public static class Program
                     return Touches.Executer(profil, plugin, retirer: false);
                 case ["keys", var profil, var plugin, "--remove"]:
                     return Touches.Executer(profil, plugin, retirer: true);
+                case ["swap", var nouveau, var cible, var ancien, var etat, var version]:
+                    // échange des dossiers d'une mise à jour, lancé détaché par le plugin
+                    return Echange.Executer(nouveau, cible, ancien, etat, version);
             }
 
             var debut = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;

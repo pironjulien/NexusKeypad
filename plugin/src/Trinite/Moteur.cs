@@ -314,6 +314,9 @@ namespace Loupedeck.TrinitePlugin
 #endif
         }
 
+        // Pad au repos (mise à jour de l'édition complète) : aucun appui depuis 60 s et aucun geste en file.
+        public Boolean Repos => this._gestes.Count == 0 && this._horloge.Elapsed.TotalSeconds - this._appuis.Max() > 60;
+
         // Photo toujours la plus récente (sans attendre la lecture suivante).
         public Scene Scene => new()
         {

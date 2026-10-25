@@ -238,6 +238,39 @@ class Parite(unittest.TestCase):
             self.assertEqual(json.loads((Path(d) / ".nexus" / "trinite" / "claude" / "defaut.json").read_text(encoding="utf-8"))["state"], "done")
 
 
+@unittest.skipUnless(HOOK and Path(HOOK).exists(), "nexuskeypad-hook.exe non compilé (lancer test.ps1)")
+class Echange(unittest.TestCase):
+    """Mise à jour de l'édition complète : l'exécutable échange le dossier du plugin, détaché du plugin ; un échec remet
+    l'ancien. Dossiers temporaires seulement (jamais le vrai dossier des plugins)."""
+
+    def echanger(self, d, nouveau_present=True):
+        racine = Path(d)
+        cible, nouveau, ancien = racine / "Plugins" / "NexusKeypad", racine / "maj" / "nouveau", racine / "maj" / "ancien"
+        cible.mkdir(parents=True)
+        (cible / "version.txt").write_text("1.3.0", encoding="utf-8")
+        if nouveau_present:
+            nouveau.mkdir(parents=True)
+            (nouveau / "version.txt").write_text("1.3.1", encoding="utf-8")
+        etat = racine / "status" / "keypad.json"
+        sortie = subprocess.run([HOOK, "swap", str(nouveau), str(cible), str(ancien), str(etat), "1.3.1"], capture_output=True, timeout=60)
+        return sortie.returncode, cible, ancien, json.loads(etat.read_text(encoding="utf-8"))
+
+    def test_reussi(self):
+        with tempfile.TemporaryDirectory() as d:
+            code, cible, ancien, etat_ = self.echanger(d)
+            self.assertEqual(code, 0)
+            self.assertEqual((cible / "version.txt").read_text(encoding="utf-8"), "1.3.1")
+            self.assertFalse(ancien.exists(), "sauvegarde effacée")
+            self.assertEqual((etat_["state"], etat_["version"], etat_["product"]), ("done", "1.3.1", "keypad"))
+
+    def test_echec_remet_l_ancien(self):
+        with tempfile.TemporaryDirectory() as d:
+            code, cible, ancien, etat_ = self.echanger(d, nouveau_present=False)
+            self.assertEqual(code, 1)
+            self.assertEqual((cible / "version.txt").read_text(encoding="utf-8"), "1.3.0", "ancienne version remise")
+            self.assertEqual(etat_["state"], "failed")
+
+
 def installer_claude_evenements():
     import importlib.util as iu
     chemin = Path(__file__).resolve().parents[1] / "outils" / "installer_hooks.py"

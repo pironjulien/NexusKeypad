@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- The complete edition updates itself once a day (SHA-256 checked against the release, swapped in only while the
+  keypad is idle, previous version put back on failure); `{"miseAJourAuto": false}` turns it off. State for the Nexus
+  app in `~/.nexus/status/keypad.json`, also written by the Marketplace editions.
+
 ### Security
 - Safety catches against touching a real setup by mistake: `get.ps1` refuses a local test package without a test
   folder unless `-Real`; the development build installs into Logi only with `-p:Reel=true`; `placer_touches.py`,

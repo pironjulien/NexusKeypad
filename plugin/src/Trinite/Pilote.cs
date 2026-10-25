@@ -12,6 +12,7 @@ namespace Loupedeck.TrinitePlugin
     //   appui <1-18>  → appui simulé sur la touche à cette place du pad (même chemin qu'un vrai appui) ; répond son issue
     //   etat          → résumé de la dernière lecture (conversations, états, quotas)
     //   releve        → relevé du quota d'Antigravity sur sa page Settings › Models, sans attendre l'inactivité
+    //   update        → (édition complète) mise à jour vers la dernière release ; l'appli Nexus la déclenche ainsi
     //   etats-en-direct → la question de l'action « Live states » (poser ou retirer les hooks), comme un appui sur elle
     public sealed class Pilote : IDisposable
     {
@@ -101,6 +102,10 @@ namespace Loupedeck.TrinitePlugin
                     return this._moteur.Resume ?? "";
                 case "releve":
                     return this._moteur.ReleverAntigravity();
+#if NEXUS
+                case "update":
+                    return MiseAJour.Lancer(this._moteur, demande: true) ? "started" : "already running";
+#endif
 #if !POSTE
                 case "etats-en-direct":
                     EtatsEnDirect.Basculer();

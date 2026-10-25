@@ -178,6 +178,43 @@ using (var carre = new BitmapBuilder(Rendu.T, Rendu.T))
 Vrai(!Rendu.Image(Moteur.Photo, S(0.1, instantane with { Photo = null })).Pixels.AsSpan().SequenceEqual(Rendu.Image(Moteur.Photo, S(0.6, instantane with { Photo = null })).Pixels), "sans téléphone : horloge animée");
 Vrai(!Rendu.Image(0, S(0.1)).Pixels.AsSpan().SequenceEqual(Rendu.Image(0, S(0.6)).Pixels), "tête qui travaille animée");
 
+// Mise à jour de l'édition complète : versions comparées, réglage, état pour l'appli Nexus, paquet contrôlé (SHA-256 de
+// la release, plugin et version attendus) et déballé dans un dossier de travail. Dossiers temporaires seulement.
+{
+    Vrai(MiseAJour.PlusRecente("1.10.0", "1.9.3") && MiseAJour.PlusRecente("v1.3.1", "1.3.0") && !MiseAJour.PlusRecente("1.3.0", "1.3.0")
+        && !MiseAJour.PlusRecente("1.2.9", "1.3.0"), "mise à jour : versions comparées nombre par nombre");
+    var dossier = Directory.CreateTempSubdirectory("nexus-maj").FullName;
+    var reglages = Path.Combine(dossier, "reglages.json");
+    Vrai(MiseAJour.Auto(reglages), "mise à jour : automatique sans réglage");
+    File.WriteAllText(reglages, """{"miseAJourAuto": false}""");
+    Vrai(!MiseAJour.Auto(reglages), "mise à jour : coupée par le réglage");
+    var etat = Path.Combine(dossier, "status", "keypad.json");
+    MiseAJour.Ecrire("1.3.0", "1.3.1", "idle", "update available", etat);
+    var lu = JsonDocument.Parse(File.ReadAllText(etat)).RootElement;
+    Vrai(lu.GetProperty("product").GetString() == "keypad" && lu.GetProperty("version").GetString() == "1.3.0" && lu.GetProperty("latest").GetString() == "1.3.1"
+        && lu.GetProperty("state").GetString() == "idle" && lu.TryGetProperty("checked_at", out _), "mise à jour : état au contrat de l'appli Nexus");
+
+    // Faux paquet 1.3.1 : bin/NexusKeypadPlugin.dll et metadata/LoupedeckPackage.yaml.
+    var source = Path.Combine(dossier, "source");
+    Directory.CreateDirectory(Path.Combine(source, "bin"));
+    Directory.CreateDirectory(Path.Combine(source, "metadata"));
+    File.WriteAllText(Path.Combine(source, "bin", "NexusKeypadPlugin.dll"), "dll");
+    File.WriteAllText(Path.Combine(source, "metadata", "LoupedeckPackage.yaml"), "name: NexusKeypad\nversion: 1.3.1\n");
+    var paquet = Path.Combine(dossier, MiseAJour.NomPaquet("1.3.1"));
+    System.IO.Compression.ZipFile.CreateFromDirectory(source, paquet);
+    var empreinte = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(paquet))).ToLowerInvariant();
+    var sommes = $"{new String('0', 64)}  autre.lplug4\n{empreinte}  {MiseAJour.NomPaquet("1.3.1")}\n";
+    var travail = Path.Combine(dossier, "maj");
+    Directory.CreateDirectory(travail);
+    var pret = MiseAJour.Preparer(paquet, sommes, "1.3.1", travail);
+    Vrai(File.Exists(Path.Combine(pret, "bin", "NexusKeypadPlugin.dll")) && MiseAJour.Version(pret) == "1.3.1", "mise à jour : paquet contrôlé et déballé");
+    Boolean Refuse(Action a) { try { a(); return false; } catch (InvalidDataException) { return true; } }
+    Vrai(Refuse(() => MiseAJour.Preparer(paquet, sommes.Replace(empreinte, new String('1', 64)), "1.3.1", travail)), "mise à jour : empreinte différente refusée");
+    Vrai(Refuse(() => MiseAJour.Preparer(paquet, "", "1.3.1", travail)), "mise à jour : paquet absent de SHA256SUMS refusé");
+    Vrai(Refuse(() => MiseAJour.Preparer(paquet, sommes.Replace(MiseAJour.NomPaquet("1.3.1"), MiseAJour.NomPaquet("1.3.2")), "1.3.2", travail)), "mise à jour : autre version refusée");
+    Directory.Delete(dossier, true);
+}
+
 // États en direct : pose et retrait des hooks par le plugin (ceux des autres outils gardés, idempotent), format
 // d'Antigravity, et rien de modifié quand la pose échoue.
 {

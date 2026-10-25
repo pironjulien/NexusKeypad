@@ -47,6 +47,7 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
   the first question is kept in `%LOCALAPPDATA%\NexusKeypad\etats-en-direct.json`. Answering No changes nothing; the
   *Live states* action removes the hooks and the module the same way.
 - `%LOCALAPPDATA%\NexusKeypad\quota-antigravity.json`: the last Antigravity quota read.
+- `~/.nexus/status/keypad.json`: the Plugin's version and how it is updated (here: by Logi Options+), for the Nexus app.
 - The plugin log of the Logi Plugin Service (`…\LogiPluginService\Logs\plugin_logs\TrinitePad.log`): technical events,
   which can include conversation titles and file names. It stays on your computer.
 - The Windows clipboard: Screen capture and Phone photo put the image in the clipboard before pasting it.

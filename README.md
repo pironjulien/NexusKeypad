@@ -171,6 +171,12 @@ states and keys; Logi Options+ is left alone):
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1))) -Remove
 ```
 
+**Updates.** The complete edition updates itself: once a day it looks at the latest release (the
+`github.com/pironjulien/NexusKeypad/releases/latest` redirect, no API), downloads its package, checks it against the
+release's `SHA256SUMS.txt`, and swaps it in only while the keypad is idle (no press for a minute); a failed swap puts
+the previous version back. Turn this off with `{"miseAJourAuto": false}` in `%LOCALAPPDATA%\NexusKeypad\reglages.json`.
+Its state is in `~/.nexus/status/keypad.json` (read by the Nexus app, which can also start an update).
+
 It has its own plugin name, so Logi Options+ never mixes it up with a Marketplace edition: install one or the other.
 The Marketplace editions below are the same code, split and trimmed to Logitech's rules (one function per plugin, no
 default website).
