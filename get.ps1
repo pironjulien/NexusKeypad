@@ -32,6 +32,23 @@ $Results = [ordered]@{}
 
 function Say([string]$Text, [string]$Color = 'Gray') { Write-Host $Text -ForegroundColor $Color }
 
+function Get-LatestTag {
+    # The latest release's tag from the redirect of github.com/<repo>/releases/latest (to .../releases/tag/vX.Y.Z): no
+    # GitHub API, whose anonymous limit (60 requests an hour per IP) breaks on shared IPs (CI runners, offices). The API
+    # stays as a fallback.
+    try {
+        $request = [Net.HttpWebRequest]::Create('https://github.com/pironjulien/NexusKeypad/releases/latest')
+        $request.AllowAutoRedirect = $false
+        $request.UserAgent = 'NexusKeypad-get'
+        $response = $request.GetResponse()
+        try { $location = $response.Headers['Location'] } finally { $response.Close() }
+        if ($location -match '/releases/tag/(v[0-9][^/?#]*)$') { return $Matches[1] }
+    } catch {
+        Write-Verbose "Redirect lookup failed: $($_.Exception.Message)"
+    }
+    return (Invoke-RestMethod -UseBasicParsing 'https://api.github.com/repos/pironjulien/NexusKeypad/releases/latest').tag_name
+}
+
 function Get-Profile {
     # The keypad's general profile: Loupedeck70 (MX Creative Keypad), application @_defaultwin, its default profile.
     $app = Join-Path $Logi 'Applications\Loupedeck70\@_defaultwin'
@@ -112,17 +129,16 @@ function Install-NexusKeypad {
             $package = (Resolve-Path -LiteralPath $env:NEXUS_KEYPAD_SOURCE).Path
             Say "Installing NexusKeypad from $package..."
         } else {
-            $release = Invoke-RestMethod -UseBasicParsing 'https://api.github.com/repos/pironjulien/NexusKeypad/releases/latest'
-            $asset = $release.assets | Where-Object { $_.name -like "$($Plugin)_*.lplug4" } | Select-Object -First 1
-            $sums = $release.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
-            if (-not $asset -or -not $sums) { throw "Release $($release.tag_name) has no $Plugin package." }
-            Say "Downloading NexusKeypad $($release.tag_name)..."
-            $package = Join-Path $work $asset.name
-            Invoke-WebRequest -UseBasicParsing $asset.browser_download_url -OutFile $package
-            $expected = ((Invoke-WebRequest -UseBasicParsing $sums.browser_download_url).Content -split "`n" |
-                Where-Object { $_ -match "^([0-9a-f]{64})\s+\*?$([regex]::Escape($asset.name))\s*$" } | ForEach-Object { $Matches[1] }) | Select-Object -First 1
+            $tag = Get-LatestTag
+            $name = '{0}_{1}.lplug4' -f $Plugin, ($tag.TrimStart('v') -replace '\.', '_')
+            $base = "https://github.com/pironjulien/NexusKeypad/releases/download/$tag"
+            Say "Downloading NexusKeypad $tag..."
+            $package = Join-Path $work $name
+            Invoke-WebRequest -UseBasicParsing "$base/$name" -OutFile $package
+            $expected = ([Text.Encoding]::UTF8.GetString((Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS.txt").RawContentStream.ToArray()) -split "`n" |
+                Where-Object { $_ -match "^([0-9a-f]{64})\s+\*?$([regex]::Escape($name))\s*$" } | ForEach-Object { $Matches[1] }) | Select-Object -First 1
             $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
-            if ($expected -ne $actual) { throw "SHA-256 mismatch for $($asset.name): the download is not the published package." }
+            if ($expected -ne $actual) { throw "SHA-256 mismatch for $($name): the download is not the published package." }
         }
         $unpacked = Join-Path $work 'package'
         Add-Type -AssemblyName System.IO.Compression.FileSystem

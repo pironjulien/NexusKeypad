@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `get.ps1` reads the latest version from the `releases/latest` redirect instead of the GitHub API (its anonymous limit
+  of 60 requests an hour per IP broke on shared IPs); the API stays as a fallback.
+
 ## [1.3.0] - 2026-10-25 — The complete NexusKeypad in one command
 
 ### Added
