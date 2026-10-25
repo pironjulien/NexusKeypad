@@ -172,7 +172,7 @@ namespace Loupedeck.TrinitePlugin
         private Int32 _derniereIa = -1; // dernière IA vue au premier plan : la capture y va quand aucune IA n'est devant
         private Double _teteRatee = -9; // instant où une tête n'a pas amené son appli devant en 3 s
         private readonly String[] _ouverte = new String[3]; // dernière conversation ouverte par chaque tête
-        private readonly Int32[] _descentes = new Int32[3]; // génération de la dernière descente lancée par chaque tête
+        private Int32 _appuiFenetre; // numéro du dernier appui qui amène une fenêtre devant (têtes, page 2)
 
         public Moteur(Action<Int32> redessiner) => this._redessiner = redessiner;
 
@@ -329,16 +329,13 @@ namespace Loupedeck.TrinitePlugin
             this._observateur.NoterGeste();
             this.Envoyer(touche);
 
-            // Une touche qui amène une autre fenêtre devant rend caduques, dès l'appui, les descentes en cours : celle de
-            // Claude défile par UI Automation, ce qui le ramenait devant (tête 1 puis tête 3 : Claude revenait 1 à 2 s
-            // après, 25/10).
-            if (touche < Capture || touche >= Gmail)
-            {
-                for (var agent = 0; agent < 3; agent++)
-                {
-                    Interlocked.Increment(ref this._descentes[agent]);
-                }
-            }
+            // Une touche qui amène une fenêtre devant prend un numéro dès l'appui : une descente n'est valable que tant
+            // qu'aucun appui de ce genre ne l'a suivie. Celle de Claude défile par UI Automation, ce qui le ramenait
+            // devant (tête 1 puis tête 3 : Claude revenait 1 à 2 s après, 25/10). Le numéro est pris à l'appui, pas au
+            // lancement de la descente : un geste encore en cours ne la revalide plus (relecture de Codex, 25/10).
+            var appui = touche < Capture || touche >= Gmail
+                ? Interlocked.Increment(ref this._appuiFenetre)
+                : Volatile.Read(ref this._appuiFenetre);
 
             // Les gestes passent l'un après l'autre, dans l'ordre des appuis : deux appuis rapides (tête puis Dictée,
             // Dictée deux fois) ne se chevauchent plus.
@@ -391,7 +388,7 @@ namespace Loupedeck.TrinitePlugin
                                 {
                                     this._observateur.MarquerVu(c.Agent, c.Id); // ouverte et devant : vue
                                     this._ouverte[touche] = c.Id;
-                                    Descendre(touche);
+                                    this.Descendre(touche, appui);
                                 }
                             }
                             else
@@ -399,7 +396,7 @@ namespace Loupedeck.TrinitePlugin
                                 Gestes.Premier(touche);
                                 if (this.Devant(touche))
                                 {
-                                    Descendre(touche); // appli ramenée devant : sa conversation aussi, jusqu'au bout
+                                    this.Descendre(touche, appui); // appli ramenée devant : sa conversation aussi, jusqu'au bout
                                 }
                             }
 
@@ -648,15 +645,14 @@ namespace Loupedeck.TrinitePlugin
 
         // Descente hors de la file des gestes : elle ne prend ni le focus ni le clavier (défilement UI Automation ou du
         // DOM), et ses ~4 s (changement de vue de Claude, trois passes) faisaient abandonner les gestes pressés derrière.
-        // Caduque dès qu'une nouvelle tête de la même IA en lance une autre, ou que le plugin s'arrête.
-        private void Descendre(Int32 agent)
+        // Caduque dès qu'une touche pressée après son appui amène une autre fenêtre, ou que le plugin s'arrête.
+        private void Descendre(Int32 agent, Int32 appui)
         {
-            var generation = Interlocked.Increment(ref this._descentes[agent]);
             Task.Run(() =>
             {
                 try
                 {
-                    Gestes.Descendre(agent, () => !this._arret && Volatile.Read(ref this._descentes[agent]) == generation);
+                    Gestes.Descendre(agent, () => !this._arret && Volatile.Read(ref this._appuiFenetre) == appui);
                 }
                 catch (Exception e)
                 {

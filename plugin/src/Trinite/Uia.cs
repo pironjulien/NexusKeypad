@@ -318,7 +318,8 @@ namespace Loupedeck.TrinitePlugin
 
         // Conversation de Claude descendue jusqu'au dernier message : sa plus grande zone qui défile verticalement (le fil ;
         // la barre latérale et le panneau de droite sont plus petits), mise à 100 %. Vrai si une zone a été descendue.
-        public static Boolean DescendreClaude()
+        // autorise : revérifié avec la fenêtre visée juste avant le défilement ; faux, rien ne défile.
+        public static Boolean DescendreClaude(Func<IntPtr, Boolean> autorise)
         {
             var uia = Nouveau();
             foreach (var fenetre in Fenetres("claude"))
@@ -338,6 +339,11 @@ namespace Loupedeck.TrinitePlugin
 
                 if (fil?.GetCurrentPattern(MotifDefilement) is IUIAutomationScrollPattern defilement)
                 {
+                    if (!autorise(fenetre))
+                    {
+                        return false;
+                    }
+
                     defilement.SetScrollPercent(-1, 100); // -1 : UIA_ScrollPatternNoScroll, l'horizontale ne bouge pas
                     return true;
                 }

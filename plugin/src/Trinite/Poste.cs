@@ -183,23 +183,24 @@ namespace Loupedeck.TrinitePlugin
         // Touche des mises à jour : TOUT mettre à jour d'un appui, sans rien amener au premier plan. Rechercher seulement ne
         // suffisait pas : le Store et Windows Update proposaient ensuite leurs mises à jour sans les installer (25/10).
         // Aucune API sans droits d'administrateur (Store : E_ACCESSDENIED ; Windows Update : installation réservée aux
-        // administrateurs) : leurs boutons sont cliqués par UI Automation, fenêtre derrière les autres (réduite, elle ne
-        // montre plus ses boutons : réaffichée sans activation), puis réduite. Le pad ne clique jamais « Redémarrer » ;
+        // administrateurs) : leurs boutons sont cliqués par UI Automation, Windows Update sur la moitié gauche de l'écran de
+        // l'appui et le Store sur la droite ; à jour, fermées. Le pad ne clique jamais « Redémarrer » ;
         // Windows peut redémarrer de lui-même selon ses propres règles. arret : plugin en cours d'arrêt, tout s'interrompt.
         public static (IssueMiseAJour Store, IssueMiseAJour Windows) MettreAJour(System.Threading.CancellationToken arret)
         {
+            var moniteur = Gestes.MoniteurDevant(); // l'écran de l'appui, le même pour les deux moitiés
             var store = System.Threading.Tasks.Task.Run(() => Page(
                 "Store", "ms-windows-store://downloadsandupdates", ["Microsoft Store"],
                 ["Rechercher les mises à jour", "Obtenir les mises à jour", "Get updates", "Check for updates"],
                 ["Tout mettre à jour", "Mettre à jour tout", "Update all"], [], 25, arret,
                 ["Mises à jour disponibles", "Updates available", "Tout mettre à jour", "Mettre à jour tout", "Update all"],
-                ["Réessayer", "Try again", "erreur", "error", "Something went wrong", "hors connexion", "offline"]));
+                ["Réessayer", "Try again", "erreur", "error", "Something went wrong", "hors connexion", "offline"], moniteur));
             var windows = System.Threading.Tasks.Task.Run(() => Page(
                 "Windows Update", "ms-settings:windowsupdate", ["Paramètres", "Settings"],
                 ["Rechercher des mises à jour", "Check for updates"],
                 ["Télécharger et installer tout", "Tout télécharger et installer", "Installer tout", "Télécharger et installer",
                     "Installer maintenant", "Download & install all", "Install all", "Download & install", "Install now"],
-                ["Vous êtes à jour", "You're up to date"], 150, arret, [], []));
+                ["Vous êtes à jour", "You're up to date"], 150, arret, [], [], moniteur));
             System.Threading.Tasks.Task.WaitAll(store, windows);
             return (store.Result, windows.Result);
         }
@@ -214,7 +215,7 @@ namespace Loupedeck.TrinitePlugin
         // n'a répondu. Sondage toutes les 0,5 s les 10 premières secondes, puis toutes les 2 s (chaque sondage parcourt la
         // fenêtre).
         private static IssueMiseAJour Page(String nom, String adresse, String[] titres, String[] rechercher, String[] installer,
-            String[] aJour, Int32 attente, System.Threading.CancellationToken arret, String[] proposees, String[] erreurs)
+            String[] aJour, Int32 attente, System.Threading.CancellationToken arret, String[] proposees, String[] erreurs, IntPtr moniteur)
         {
             var issue = IssueMiseAJour.Inconnue;
             try
@@ -238,7 +239,7 @@ namespace Loupedeck.TrinitePlugin
                     return IssueMiseAJour.Echec;
                 }
 
-                Gestes.Moitie(fenetre, gauche: nom == "Windows Update"); // Windows Update à gauche, le Store à droite
+                Gestes.Moitie(fenetre, gauche: nom == "Windows Update", moniteur); // Windows Update à gauche, le Store à droite
                 var recherchee = false;
                 var debut = Environment.TickCount64;
                 var reprise = debut + 2000; // prochaine reprise de l'appli si aucun bouton n'a encore répondu
@@ -284,11 +285,22 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 // À jour : rien à suivre, la fenêtre se ferme. Installation lancée ou rien de prouvé : elle reste à l'écran,
-                // l'utilisateur y voit la progression ou ce qui bloque.
-                if (issue == IssueMiseAJour.AJour)
+                // l'utilisateur y voit la progression ou ce qui bloque. Fermée seulement si, au moment de fermer, elle montre
+                // encore sa page de mises à jour à jour (l'utilisateur a pu passer sur une autre page des Paramètres) et que
+                // le plugin ne s'arrête pas (relecture de Codex, 25/10).
+                if (issue == IssueMiseAJour.AJour && !arret.WaitHandle.WaitOne(1500))
                 {
-                    arret.WaitHandle.WaitOne(1500);
-                    Gestes.Fermer(fenetre);
+                    var toujours = Uia.BoutonActif(fenetre, rechercher) && (aJour.Length > 0
+                        ? Uia.Affiche(fenetre, aJour)
+                        : !Uia.Affiche(fenetre, proposees) && !Uia.Affiche(fenetre, erreurs));
+                    if (toujours && !arret.IsCancellationRequested) // arrêt pendant ces lectures : rien n'est fermé
+                    {
+                        Gestes.Fermer(fenetre);
+                    }
+                    else
+                    {
+                        PluginLog.Info($"mises à jour : {nom} laissée ouverte (sa page a changé)");
+                    }
                 }
 
                 if (!recherchee && issue == IssueMiseAJour.Inconnue)

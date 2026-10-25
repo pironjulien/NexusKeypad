@@ -110,12 +110,12 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (agent == 0)
                 {
-                    if (Observateur.PremierPlan() != Observateur.Processus[0])
+                    // Revérifié au moment même du défilement (le parcours de l'arbre UI Automation prend du temps) : la
+                    // fenêtre visée doit encore être devant et la descente encore valable.
+                    if (!Uia.DescendreClaude(fenetre => encore() && GetForegroundWindow() == fenetre))
                     {
                         return;
                     }
-
-                    Uia.DescendreClaude();
                 }
                 else
                 {
@@ -446,14 +446,16 @@ namespace Loupedeck.TrinitePlugin
         // Fenêtre posée sur une moitié de l'écran où travaille l'utilisateur (gauche ou droite de sa zone de travail),
         // au-dessus des autres mais sans prendre le clavier ; son appli reprise si Windows l'a suspendue. Les marges
         // invisibles de Windows 11 (bordures de redimensionnement) sont compensées : les deux moitiés se touchent.
-        public static void Moitie(IntPtr fenetre, Boolean gauche)
+        // moniteur : celui de l'appui (MoniteurDevant), le même pour les deux moitiés même si l'utilisateur change d'écran
+        // pendant les lancements (relecture de Codex, 25/10).
+        public static void Moitie(IntPtr fenetre, Boolean gauche, IntPtr moniteur)
         {
             Paquets.Reprendre(fenetre); // réduite, l'appli du Store est suspendue : reprise, sinon aucun bouton
             var avant = SetThreadDpiAwarenessContext(new IntPtr(-4)); // PER_MONITOR_AWARE_V2 : pixels réels partout
             try
             {
                 var infos = new INFOS_MONITEUR { Taille = Marshal.SizeOf<INFOS_MONITEUR>() };
-                if (!GetMonitorInfo(MonitorFromWindow(GetForegroundWindow(), 2), ref infos)) // 2 : MONITOR_DEFAULTTONEAREST
+                if (!GetMonitorInfo(moniteur, ref infos))
                 {
                     return;
                 }
@@ -486,6 +488,9 @@ namespace Loupedeck.TrinitePlugin
                 SetThreadDpiAwarenessContext(avant);
             }
         }
+
+        // Écran de la fenêtre au premier plan (le plus proche).
+        public static IntPtr MoniteurDevant() => MonitorFromWindow(GetForegroundWindow(), 2); // MONITOR_DEFAULTTONEAREST
 
         // Ferme une fenêtre (WM_CLOSE, comme son bouton ×).
         public static void Fermer(IntPtr fenetre) => PostMessage(fenetre, 0x0010, IntPtr.Zero, IntPtr.Zero);
