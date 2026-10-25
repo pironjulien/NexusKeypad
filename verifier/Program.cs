@@ -178,6 +178,30 @@ using (var carre = new BitmapBuilder(Rendu.T, Rendu.T))
 Vrai(!Rendu.Image(Moteur.Photo, S(0.1, instantane with { Photo = null })).Pixels.AsSpan().SequenceEqual(Rendu.Image(Moteur.Photo, S(0.6, instantane with { Photo = null })).Pixels), "sans téléphone : horloge animée");
 Vrai(!Rendu.Image(0, S(0.1)).Pixels.AsSpan().SequenceEqual(Rendu.Image(0, S(0.6)).Pixels), "tête qui travaille animée");
 
+// Demande d'autorisation de Claude : lue dans le dossier des demandes (la plus ancienne, périmée après 11 min), réponse
+// écrite pour le hook, ligne du bas redessinée (Approuver, demande, Refuser).
+{
+    var dossier = Directory.CreateTempSubdirectory("nexus-demandes").FullName;
+    Double Ilya(Int32 minutes) => DateTimeOffset.UtcNow.AddMinutes(-minutes).ToUnixTimeMilliseconds() / 1000.0;
+    File.WriteAllText(Path.Combine(dossier, "s1.json"), $$"""{"id": "a1", "session": "s1", "outil": "Bash", "resume": "rm -rf build", "at": {{Ilya(2).ToString(System.Globalization.CultureInfo.InvariantCulture)}}}""");
+    File.WriteAllText(Path.Combine(dossier, "s2.json"), $$"""{"id": "b2", "session": "s2", "outil": "Edit", "resume": "x", "at": {{Ilya(1).ToString(System.Globalization.CultureInfo.InvariantCulture)}}}""");
+    File.WriteAllText(Path.Combine(dossier, "s3.json"), $$"""{"id": "c3", "session": "s3", "outil": "Bash", "resume": "vieux", "at": {{Ilya(20).ToString(System.Globalization.CultureInfo.InvariantCulture)}}}""");
+    File.WriteAllText(Path.Combine(dossier, "s9.decision.json"), """{"id": "z", "behavior": "allow"}""");
+    var d = Observateur.DemandeClaude(dossier);
+    Vrai(d is { Id: "a1", Session: "s1", Outil: "Bash", Resume: "rm -rf build" }, "demande : la plus ancienne encore valable, réponses et demandes périmées écartées");
+    Observateur.Repondre(d, accord: true, dossier);
+    var reponse = JsonDocument.Parse(File.ReadAllText(Path.Combine(dossier, "s1.decision.json"))).RootElement;
+    Vrai(reponse.GetProperty("id").GetString() == "a1" && reponse.GetProperty("behavior").GetString() == "allow", "demande : réponse du pad pour cette demande");
+    Directory.Delete(dossier, true);
+    Vrai(Observateur.DemandeClaude(dossier) is null, "demande : aucun dossier, aucune demande");
+    Vrai(Rendu.Lignes("rm -rf node_modules dist build", 14, 4) is ["rm -rf", "node_modules", "dist build"] && Rendu.Lignes(new String('x', 30), 14, 2) is [{ Length: 14 }, { Length: 14 }],
+        "demande : texte coupé en lignes courtes, mots entiers quand ils tiennent");
+    var avec = S(1.0, instantane with { Demande = new Demande("s1", "a1", "Bash", "ls", DateTime.UtcNow) });
+    Vrai(new[] { Moteur.Capture, Moteur.Photo, Moteur.Dictee }.All(t => !Rendu.Image(t, avec).Pixels.AsSpan().SequenceEqual(Rendu.Image(t, S(1.0)).Pixels)),
+        "demande : la ligne du bas devient Approuver, demande, Refuser");
+    Vrai(Rendu.Image(Moteur.Capture, avec).Pixels.AsSpan().SequenceEqual(Rendu.Image(Moteur.Capture, avec).Pixels), "demande : même scène, mêmes pixels");
+}
+
 // États en direct : pose et retrait des hooks par le plugin (ceux des autres outils gardés, idempotent), format
 // d'Antigravity, et rien de modifié quand la pose échoue.
 {

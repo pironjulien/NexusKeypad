@@ -121,7 +121,7 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 // La photo remplit toute la touche, sans marge (une image ne suit pas l'échelle du dessin).
-                if (touche == Moteur.Photo)
+                if (touche == Moteur.Photo && scene.Instantane.Demande is null)
                 {
                     TouchePhoto(b, scene);
                     return b;
@@ -133,6 +133,9 @@ namespace Loupedeck.TrinitePlugin
                 b.Scale(Cote / (Single)T, Cote / (Single)T);
                 switch (touche)
                 {
+                    case Moteur.Capture or Moteur.Photo or Moteur.Dictee when scene.Instantane.Demande is { } demande:
+                        ToucheDemande(b, touche, demande, scene);
+                        break;
                     case Moteur.Capture: ToucheCapture(b, scene); break;
                     case Moteur.Dictee: ToucheDictee(b, scene); break;
                     case < 3: ToucheIA(b, touche, scene); break;

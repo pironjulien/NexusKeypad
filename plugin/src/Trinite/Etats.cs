@@ -280,6 +280,7 @@ namespace Loupedeck.TrinitePlugin
             {
                 Dictee = dictee,
                 DicteeIa = dictee ? this._dicteeIa : -1,
+                Demande = DemandeClaude(),
             };
         }
 

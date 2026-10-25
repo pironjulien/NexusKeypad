@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import time
+import uuid
 from pathlib import Path
 
 RACINE = Path(os.environ.get("USERPROFILE", Path.home())) / ".nexus" / "trinite"
@@ -80,6 +81,8 @@ def lancee_par_une_session(session_id: str) -> bool:
 
 
 def etat_pour(evenement: str, payload: dict, precedent: dict) -> str | None:
+    if evenement == "PermissionRequest":
+        return "perm"  # à l'instant même (la notification permission_prompt n'arrive qu'après ~6 s)
     if evenement == "Notification":
         kind = payload.get("notification_type") or ""
         message = (payload.get("message") or "").lower()
@@ -117,12 +120,76 @@ def etat_pour(evenement: str, payload: dict, precedent: dict) -> str | None:
     return None
 
 
+def nom_session(payload: dict) -> str:
+    brut = payload.get("session_id") or payload.get("conversationId") or payload.get("cascadeId") or "defaut"
+    return "".join(c for c in str(brut) if c.isalnum() or c in "-_")[:80] or "defaut"
+
+
+# Demande d'autorisation de Claude, à trancher depuis le pad (touches Approuver / Refuser) : déposée dans
+# demandes/<session>.json, réponse du plugin dans demandes/<session>.decision.json. Appli de bureau seulement (la carte
+# reste à l'écran, le premier qui décide l'emporte) ; l'attente cesse si la demande est tranchée à l'écran (la session
+# quitte « perm » après elle) ou après 10 min. Même contrat que hook/Demandes.cs.
+DELAI_DEMANDE = 600
+
+
+def resume(payload: dict) -> str:
+    entree = payload.get("tool_input") or {}
+    for cle in ("command", "file_path", "path", "url", "description", "pattern"):
+        valeur = entree.get(cle)
+        if isinstance(valeur, str) and valeur.strip():
+            return " ".join(valeur.split())[:80]
+    return ""
+
+
+def lire_json(fichier: Path) -> dict | None:
+    try:
+        return json.loads(fichier.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def attendre_demande(payload: dict, debut: float) -> str:
+    if os.environ.get("CLAUDE_CODE_ENTRYPOINT") != "claude-desktop":
+        return "{}"
+    session = nom_session(payload)
+    dossier = RACINE / "claude" / "demandes"
+    dossier.mkdir(parents=True, exist_ok=True)
+    demande, decision = dossier / f"{session}.json", dossier / f"{session}.decision.json"
+    etat = RACINE / "claude" / f"{session}.json"
+    ident = uuid.uuid4().hex
+    temporaire = dossier / f"{session}.json.{os.getpid()}.tmp"
+    temporaire.write_text(json.dumps({"id": ident, "session": session, "outil": payload.get("tool_name") or "",
+                                      "resume": resume(payload), "at": debut}), encoding="utf-8")
+    os.replace(temporaire, demande)
+    try:
+        fin = time.time() + DELAI_DEMANDE
+        while time.time() < fin:
+            time.sleep(0.2)
+            d = lire_json(decision)
+            if d and d.get("id") == ident and d.get("behavior") in ("allow", "deny"):
+                reponse = {"behavior": d["behavior"]}
+                if d["behavior"] == "deny":
+                    reponse["message"] = "Refusé depuis le pad NexusKeypad."
+                return json.dumps({"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": reponse}})
+            e = lire_json(etat)
+            if e and float(e.get("at") or 0) > debut and e.get("state") != "perm":
+                return "{}"  # tranchée à l'écran
+            courante = lire_json(demande)
+            if courante and courante.get("id") != ident:
+                return "{}"  # remplacée par une demande plus récente de la même session
+        return "{}"
+    finally:
+        for fichier in (demande, decision):
+            contenu = lire_json(fichier)
+            if contenu and contenu.get("id") == ident:
+                fichier.unlink(missing_ok=True)
+
+
 def noter(agent: str, evenement: str, payload: dict, debut: float) -> None:
     """Écrit l'état de la session, sous son verrou ; un événement parti avant celui déjà noté est ignoré."""
     dossier = RACINE / agent
     dossier.mkdir(parents=True, exist_ok=True)
-    brut = payload.get("session_id") or payload.get("conversationId") or payload.get("cascadeId") or "defaut"
-    session = "".join(c for c in str(brut) if c.isalnum() or c in "-_")[:80] or "defaut"
+    session = nom_session(payload)
     fichier = dossier / f"{session}.json"
     verrou = dossier / f"{session}.lock"
     for _ in range(1000):  # 20 s au plus (un Stop lit son journal) ; un verrou de plus de 30 s est celui d'un appel mort
@@ -164,6 +231,10 @@ def main() -> None:
         payload = {}
     # Antigravity : son PreToolUse exige une décision (sans « allow », l'outil est REFUSÉ : vu le 23/10, tous ses outils
     # bloqués). Ailleurs, « {} » ne change rien (Claude, et Stop/PostToolUse/PreInvocation d'Antigravity).
+    if agent == "claude" and evenement == "PermissionRequest":
+        noter(agent, evenement, payload, debut)
+        print(attendre_demande(payload, debut), flush=True)
+        return
     print(json.dumps({"decision": "allow"}) if agent == "antigravity" and evenement == "PreToolUse" else "{}", flush=True)
     noter(agent, evenement, payload, debut)
 

@@ -46,6 +46,12 @@ animated.
   clock with the date; a press opens the Windows notification center and calendar.
 - **Dictation** starts the dictation button of the agent in front (Claude, Codex voice, Antigravity voice memo); a
   second press stops it and leaves the text in the field, unsent. No agent in front: Windows voice typing (Win+H).
+- **Approve or deny, for Claude.** When Claude (desktop app, Code tab) asks permission to use a tool, row 3 turns
+  into **✓ Approve**, what is asked (the tool and its command or file; a press opens the conversation) and **✗ Deny**
+  until it is answered, on the keypad or on screen; the oldest request first. Through Claude Code's documented
+  `PermissionRequest` hook, which runs alongside the app's own permission card (the first answer wins); deny and ask
+  rules still apply, and there is no "always allow" from the keypad. Needs the live states. Codex and Antigravity
+  offer no way to answer a request from outside their window: approve them on screen.
 
 ## Page 2: the PC
 

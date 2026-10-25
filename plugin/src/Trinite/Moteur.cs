@@ -314,10 +314,31 @@ namespace Loupedeck.TrinitePlugin
 #endif
         }
 
+        // Demandes d'autorisation déjà tranchées par le pad (le hook les retire un instant après) ; première vue de la
+        // demande affichée, pour ignorer un appui réflexe dans la demi-seconde qui suit son apparition.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<String, Byte> _repondues = new();
+        private (String Id, Double Vue) _demandeVue = (null, 0);
+
+        private Demande DemandeAffichee()
+        {
+            var d = this._instantane.Demande;
+            if (d is null || this._repondues.ContainsKey(d.Id))
+            {
+                return null;
+            }
+
+            if (this._demandeVue.Id != d.Id)
+            {
+                this._demandeVue = (d.Id, this._horloge.Elapsed.TotalSeconds);
+            }
+
+            return d;
+        }
+
         // Photo toujours la plus récente (sans attendre la lecture suivante).
         public Scene Scene => new()
         {
-            Instantane = this._instantane with { Photo = this._observateur.Telephone.Derniere },
+            Instantane = this._instantane with { Photo = this._observateur.Telephone.Derniere, Demande = this.DemandeAffichee() },
             Temps = this._horloge.Elapsed.TotalSeconds,
             Appuis = this._appuis,
             PhotoCopiee = this._photoCopiee,
@@ -335,6 +356,29 @@ namespace Loupedeck.TrinitePlugin
         public Task<String> Appuyer(Int32 touche, Signet site = null)
         {
             var scene = this.Scene;
+            if (touche is Capture or Photo or Dictee && scene.Instantane.Demande is { } demande)
+            {
+                // Demande d'autorisation de Claude : Approuver, Refuser, ou (au milieu) sa conversation.
+                if (touche == Photo)
+                {
+                    return this.Appuyer(0, site);
+                }
+
+                if (scene.Temps - this._demandeVue.Vue < 0.5)
+                {
+                    return Task.FromResult("ignoré : demande apparue à l'instant");
+                }
+
+                this._appuis[touche] = scene.Temps;
+                Observateur.Repondre(demande, touche == Capture);
+                this._repondues[demande.Id] = 0;
+                PluginLog.Info($"demande de Claude ({demande.Outil}) {(touche == Capture ? "approuvée" : "refusée")} depuis le pad");
+                this.Envoyer(Capture);
+                this.Envoyer(Photo);
+                this.Envoyer(Dictee);
+                return Task.FromResult(touche == Capture ? "approuvée" : "refusée");
+            }
+
             this._appuis[touche] = scene.Temps;
             this._observateur.NoterGeste();
             this.Envoyer(touche);

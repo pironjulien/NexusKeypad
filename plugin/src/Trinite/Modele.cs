@@ -49,6 +49,10 @@ namespace Loupedeck.TrinitePlugin
         // L'IA où tourne la dictée lancée par le pad (0 à 2), -1 sinon : sa tête écoute.
         public Int32 DicteeIa { get; init; } = -1;
 
+        // Demande d'autorisation de Claude en attente d'une réponse du pad (la plus ancienne), null sinon : la ligne du bas
+        // devient Approuver / ce qui est demandé / Refuser.
+        public Demande Demande { get; init; }
+
         public static readonly Instantane Vide = new([[], [], []], [0, 0, 0], [null, null, null], [false, false, false], false, null, -1);
 
         public Conversation Premiere(Int32 agent) => this.Conversations[agent].Length > 0 ? this.Conversations[agent][0] : null;
@@ -60,6 +64,10 @@ namespace Loupedeck.TrinitePlugin
         public Etat EtatIA(Int32 agent) =>
             !this.Ouverte[agent] ? Etat.Ferme : this.Premiere(agent)?.Etat ?? Etat.Repos;
     }
+
+    // Demande d'autorisation déposée par le hook PermissionRequest (~/.nexus/trinite/claude/demandes/<session>.json) :
+    // Id la désigne pour la réponse ; Session, le nom de son fichier ; Outil et Resume, ce qui est demandé.
+    public sealed record Demande(String Session, String Id, String Outil, String Resume, DateTime Depuis);
 
     // Dernière photo du téléphone : chemin sur le téléphone, copie locale, miniature prête pour la touche.
     public sealed record Photo(String SurTelephone, String Fichier, BitmapImage Miniature);

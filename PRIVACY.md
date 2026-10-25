@@ -36,7 +36,9 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 ## What the Plugin writes, on your computer only
 
 - `~/.nexus/trinite`: the last 5 screen captures and the last 5 phone photos with their reduced copies (older ones are
-  deleted), and the hook states if you turned live states on.
+  deleted), and the hook states if you turned live states on, with Claude's pending permission requests (tool name and
+  a short extract of its command or file, removed once answered) and the keypad's answer to them in
+  `~/.nexus/trinite/claude/demandes`.
 - **Live states, only after you answer Yes** (a question at first start, then the *Live states* action): the Plugin
   copies its hook program to `%LOCALAPPDATA%\NexusKeypad\hook\nexuskeypad-hook.exe` and adds its hooks to
   `~/.claude/settings.json` and to the `trinite-pad` entry of `~/.gemini/config/hooks.json` (other tools' hooks are

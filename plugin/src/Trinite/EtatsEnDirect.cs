@@ -20,7 +20,7 @@ namespace Loupedeck.TrinitePlugin
     public static class EtatsEnDirect
     {
         public static readonly String[] EvenementsClaude =
-            ["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "Stop", "StopFailure", "SessionEnd"];
+            ["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest", "Notification", "Stop", "StopFailure", "SessionEnd"];
 
         public static readonly String[] EvenementsAntigravity = ["PreInvocation", "PreToolUse", "PostToolUse", "Stop"];
 
@@ -72,8 +72,10 @@ namespace Loupedeck.TrinitePlugin
             ["type"] = "command",
             ["shell"] = "powershell",
             ["command"] = $"& (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\{NomExe}') claude {evenement}",
-            ["async"] = true,
-            ["timeout"] = 10,
+            // PermissionRequest rend une décision (touches Approuver / Refuser du pad) : synchrone, jusqu'à 10 min ; les
+            // autres en tâche de fond, pour ne jamais ralentir un tour.
+            ["async"] = evenement != "PermissionRequest",
+            ["timeout"] = evenement == "PermissionRequest" ? 610 : 10,
         };
 
         // Retire les hooks du pad (et seulement eux : un groupe peut porter ceux d'autres outils) ; un groupe vidé disparaît.
