@@ -97,7 +97,8 @@ namespace Loupedeck.TrinitePlugin
         // Conversation ouverte par le pad : affichée jusqu'au dernier message (l'appli la rouvrait là où l'utilisateur l'avait
         // laissée). Trois passes, après le changement de vue de Claude : le fil se charge par morceaux et s'allonge. Sans
         // zone qui défile (conversation courte), rien à faire. encore : faux dès que la descente est caduque (nouvelle tête,
-        // plugin arrêté), vérifié avant chaque passe.
+        // plugin arrêté), vérifié avant chaque passe. Claude seulement s'il est encore devant : le défilement par UI Automation
+        // ramène sa fenêtre au premier plan (rejoué le 25/10 : Antigravity devant, Claude revenait à la passe suivante).
         public static void Descendre(Int32 agent, Func<Boolean> encore)
         {
             if (agent == 0)
@@ -109,6 +110,11 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (agent == 0)
                 {
+                    if (Observateur.PremierPlan() != Observateur.Processus[0])
+                    {
+                        return;
+                    }
+
                     Uia.DescendreClaude();
                 }
                 else

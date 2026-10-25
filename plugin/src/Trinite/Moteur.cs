@@ -329,6 +329,17 @@ namespace Loupedeck.TrinitePlugin
             this._observateur.NoterGeste();
             this.Envoyer(touche);
 
+            // Une touche qui amène une autre fenêtre devant rend caduques, dès l'appui, les descentes en cours : celle de
+            // Claude défile par UI Automation, ce qui le ramenait devant (tête 1 puis tête 3 : Claude revenait 1 à 2 s
+            // après, 25/10).
+            if (touche < Capture || touche >= Gmail)
+            {
+                for (var agent = 0; agent < 3; agent++)
+                {
+                    Interlocked.Increment(ref this._descentes[agent]);
+                }
+            }
+
             // Les gestes passent l'un après l'autre, dans l'ordre des appuis : deux appuis rapides (tête puis Dictée,
             // Dictée deux fois) ne se chevauchent plus.
             var issue = new TaskCompletionSource<String>(TaskCreationOptions.RunContinuationsAsynchronously);
