@@ -88,7 +88,8 @@ namespace Loupedeck.TrinitePlugin
         // Dernière lecture gardée sur disque, avec son détail par groupe (lue au plus tous les quarts d'heure : sans elle, la
         // jauge serait grise après chaque rechargement du plugin) ; reprise jusqu'à 7 jours, la durée de sa fenêtre la
         // plus longue, chaque groupe remis à zéro à son heure.
-        private static String Fichier => System.IO.Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "", "NexusKeypad", "quota-antigravity.json");
+        // Changé seulement par le vérificateur (fichier temporaire : jamais le vrai cache du plugin en service).
+        public static String Fichier { get; set; } = System.IO.Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "", "NexusKeypad", "quota-antigravity.json");
 
         public static void Garder(Quota quota)
         {

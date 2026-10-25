@@ -109,11 +109,11 @@ var actuel = QuotaAntigravity.Actuel(groupes, instant.AddDays(-8));
 Vrai(actuel.Cinq == 0.5 && actuel.Semaine == 0, "remise à zéro par groupe ; sans heure, au bout de sa durée");
 Vrai(QuotaAntigravity.Actuel(groupes, instant).Semaine == 0.6, "semaine sans heure, lue à l'instant : gardée");
 // Ancien cache (sans groupes) avec ses heures de remise à zéro : elles restent appliquées.
-var cache = Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "", "NexusKeypad", "quota-antigravity.json");
-var avant = File.Exists(cache) ? File.ReadAllText(cache) : null;
+var cache = Path.Combine(Directory.CreateTempSubdirectory("nexus-quota").FullName, "quota-antigravity.json");
+var vraiCache = QuotaAntigravity.Fichier;
+QuotaAntigravity.Fichier = cache; // fichier temporaire : le vrai cache du plugin en service n'est jamais touché
 try
 {
-    Directory.CreateDirectory(Path.GetDirectoryName(cache));
     File.WriteAllText(cache, JsonSerializer.Serialize(new
     {
         cinq = 0.97, semaine = 0.4, finCinq = instant.AddMinutes(-1), finSemaine = instant.AddDays(3), lu = instant.AddMinutes(-15),
@@ -123,7 +123,8 @@ try
 }
 finally
 {
-    if (avant is null) { File.Delete(cache); } else { File.WriteAllText(cache, avant); }
+    QuotaAntigravity.Fichier = vraiCache;
+    Directory.Delete(Path.GetDirectoryName(cache), true);
 }
 Vrai(QuotaAntigravity.Delai("it will fully refresh in 4 days, 23 hours.") == new TimeSpan(4, 23, 0, 0)
     && QuotaAntigravity.Delai("Weekly Limit Remaining") is null, "délai de remise à zéro lu en jours, heures, minutes");
