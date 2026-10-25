@@ -37,6 +37,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   of behind your windows, then minimized); up to date, each window closes by itself; installing or unproven, it stays.
 
 ### Fixed
+- Claude key, conversation still in the middle (Antigravity then Claude): Claude keeps only part of the thread
+  loaded and UI Automation reported 100 % at the end of that part. The pad first presses Claude's own "Scroll to
+  bottom" button, which loads the real end.
 - Claude key: the opened conversation stayed in the middle. A pass with nothing to scroll yet (conversation still
   loading) stopped the next passes since the re-check added just before; only "Claude is no longer in front" stops
   them now.

@@ -316,14 +316,40 @@ namespace Loupedeck.TrinitePlugin
             return null;
         }
 
-        // Conversation de Claude descendue jusqu'au dernier message : sa plus grande zone qui défile verticalement (le fil ;
-        // la barre latérale et le panneau de droite sont plus petits), mise à 100 %. Vrai si une zone a été descendue.
+        // Conversation de Claude descendue jusqu'au dernier message. D'abord son propre bouton « Défiler vers le bas » : le
+        // fil ne garde qu'une partie de la conversation (« Charger les messages suivants »), et le mettre à 100 % ne menait
+        // qu'à la fin de ce morceau, au milieu de la conversation (25/10) ; le bouton charge la vraie fin. Sinon (déjà en
+        // bas, ou bouton renommé) : sa plus grande zone qui défile verticalement (le fil ; la barre latérale et le panneau
+        // de droite sont plus petits), mise à 100 %. Vrai si quelque chose a été descendu.
         // autorise : revérifié avec la fenêtre visée juste avant le défilement ; faux, rien ne défile.
+        private static readonly String[] BasClaude = ["Défiler vers le bas", "Scroll to bottom"];
+
         public static Boolean DescendreClaude(Func<IntPtr, Boolean> autorise)
         {
             var uia = Nouveau();
             foreach (var fenetre in Fenetres("claude"))
             {
+                var bas = BasClaude.Select(nom => uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants,
+                        uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), uia.CreatePropertyCondition(NomPropriete, nom))))
+                    .FirstOrDefault(b => b is not null);
+                if (bas?.GetCurrentPattern(MotifInvoke) is IUIAutomationInvokePattern appui)
+                {
+                    if (!autorise(fenetre))
+                    {
+                        return false;
+                    }
+
+                    try
+                    {
+                        appui.Invoke();
+                        return true;
+                    }
+                    catch (COMException)
+                    {
+                        // disparu entre-temps (déjà en bas) : le défilement ci-dessous suffit
+                    }
+                }
+
                 var zones = uia.ElementFromHandle(fenetre)?.FindAll(TreeScopeDescendants,
                     uia.CreateAndCondition(uia.CreatePropertyCondition(DefilementPossible, true), uia.CreatePropertyCondition(DefilementVertical, true)));
                 IUIAutomationElement fil = null;
