@@ -61,11 +61,11 @@ animated.
   [NexusBrowser](https://github.com/pironjulien/NexusBrowser) when its "Gmail unread for the pad" box is ticked (works
   with Gmail closed); Messages, from its window or tab title, otherwise from the phone's pending notifications. No
   source, no badge.
-- **Updates**: one press installs everything, without bringing anything to the front. There is no update API without
-  admin rights, so the Store's *Downloads and updates* page and Windows Update's Settings page are shown behind your
-  windows (minimized, they expose no buttons), searched, then their *Update all* / *Download & install all* button is
-  pressed through UI Automation, and they are minimized again. The pad never presses *Restart*; Windows may still
-  restart on its own schedule, per its own settings. The key spins until both are done.
+- **Updates**: one press installs everything. There is no update API without admin rights, so Windows Update's Settings
+  page opens on the left half of the screen and the Store's *Downloads and updates* page on the right half, both are
+  searched, then their *Update all* / *Download & install all* button is pressed through UI Automation. Up to date, a
+  window closes by itself; installing or unproven, it stays on screen. The pad never presses *Restart*; Windows may
+  still restart on its own schedule, per its own settings. The key spins until both are done.
 - **Task Manager on Performance**: set `"DefaultStartPage": 1` in
   `%LOCALAPPDATA%\Microsoft\Windows\TaskManager\settings.json` while Task Manager is closed.
 

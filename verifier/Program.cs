@@ -138,6 +138,7 @@ Vrai(!js.Contains("'); alert(1)", StringComparison.Ordinal) && js.Contains("abc"
 Vrai(AppliWeb.Gmail.NonLus(["Codex LB", "Boîte de réception (12) - a@example.com - Gmail"]) == 12, "Gmail : 12 non-lus dans le titre");
 Vrai(AppliWeb.Gmail.NonLus(["Boîte de réception - a@example.com - Gmail"]) == 0, "Gmail sans nombre : 0");
 Vrai(AppliWeb.Gmail.NonLus(["Boîte de réception (3) - Gmail - Google Chrome"]) is null, "onglet Gmail de Chrome : pas une fenêtre d'appli");
+Vrai(AppliWeb.Messages.NonLus(["Messages - Google Messages pour le Web : conversations"]) == 0, "Messages : titre réel à espaces insécables reconnu");
 Vrai(AppliWeb.Messages.NonLus(["(2) Google Messages pour le Web"]) == 2 && AppliWeb.Messages.NonLus([]) is null, "Messages : titre, sinon rien");
 // Touche du site sans titre : sa fenêtre est celle dont la page est sous l'adresse (origine, puis chemin au segment près).
 Boolean Sous(String page, String adresse) => AppliWeb.Sous(new Uri(page), new Uri(adresse));

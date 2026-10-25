@@ -76,10 +76,17 @@ namespace Loupedeck.TrinitePlugin
 
         private static String SansWww(String hote) => hote.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? hote[4..] : hote;
 
-        private Boolean Reconnue(String titre) =>
-            !titre.EndsWith(" - Google Chrome", StringComparison.Ordinal) && this.Titres.Any(t => this.AuDebut
-                ? titre.StartsWith(t, StringComparison.OrdinalIgnoreCase)
-                : titre.Contains(t, StringComparison.OrdinalIgnoreCase));
+        // Espaces unifiées des deux côtés : Google Messages écrit « Google Messages pour le Web » avec des espaces insécables
+        // (U+00A0) ; sans cela sa fenêtre n'était jamais reconnue et chaque appui en rouvrait une (25/10).
+        private Boolean Reconnue(String titre)
+        {
+            var lu = Espaces(titre);
+            return !lu.EndsWith(" - Google Chrome", StringComparison.Ordinal) && this.Titres.Select(Espaces).Any(t => this.AuDebut
+                ? lu.StartsWith(t, StringComparison.OrdinalIgnoreCase)
+                : lu.Contains(t, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static String Espaces(String texte) => Regex.Replace(texte ?? "", @"\s", " ");
 
         // Non-lus dans le titre de sa fenêtre (sans nombre : 0) ; null si elle n'est pas ouverte.
         public Int32? NonLus(System.Collections.Generic.IEnumerable<String> titres) =>

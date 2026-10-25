@@ -238,7 +238,7 @@ namespace Loupedeck.TrinitePlugin
                     return IssueMiseAJour.Echec;
                 }
 
-                Gestes.DerriereSansActiver(fenetre);
+                Gestes.Moitie(fenetre, gauche: nom == "Windows Update"); // Windows Update à gauche, le Store à droite
                 var recherchee = false;
                 var debut = Environment.TickCount64;
                 var reprise = debut + 2000; // prochaine reprise de l'appli si aucun bouton n'a encore répondu
@@ -283,8 +283,14 @@ namespace Loupedeck.TrinitePlugin
                     return IssueMiseAJour.Annulee;
                 }
 
-                arret.WaitHandle.WaitOne(1500);
-                Gestes.Reduire(fenetre);
+                // À jour : rien à suivre, la fenêtre se ferme. Installation lancée ou rien de prouvé : elle reste à l'écran,
+                // l'utilisateur y voit la progression ou ce qui bloque.
+                if (issue == IssueMiseAJour.AJour)
+                {
+                    arret.WaitHandle.WaitOne(1500);
+                    Gestes.Fermer(fenetre);
+                }
+
                 if (!recherchee && issue == IssueMiseAJour.Inconnue)
                 {
                     issue = IssueMiseAJour.Echec; // ni recherche ni installation : boutons introuvables

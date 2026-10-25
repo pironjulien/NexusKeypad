@@ -32,7 +32,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - README: "Better with the Nexus family, fine on its own", what each part adds and what replaces it when it is missing.
 - `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
 
+### Changed
+- Updates key: Windows Update opens on the left half of the screen and the Store on the right half, in view (instead
+  of behind your windows, then minimized); up to date, each window closes by itself; installing or unproven, it stays.
+
 ### Fixed
+- Messages key: a second press opened another window instead of closing its own. Google Messages writes "Google
+  Messages for web" with non-breaking spaces (U+00A0), so its window was never recognised; titles are now compared
+  with unified spaces.
 - Agent keys: Claude came back to the front 1 to 2 s after pressing Codex or Antigravity right after Claude's key. The
   scroll of its conversation to the end (UI Automation, up to ~4 s after the press) brought its window forward. It now
   scrolls only while Claude is still in front, and any key that brings another window cancels pending scrolls at once.

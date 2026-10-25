@@ -443,26 +443,96 @@ namespace Loupedeck.TrinitePlugin
             Devant(fenetre);
         }
 
-        // Une fenêtre devant, en plein écran.
-        // Une fenêtre réduite dans la barre des tâches, sans prendre le premier plan.
-        public static void Reduire(IntPtr fenetre) => ShowWindow(fenetre, SW_MINIMIZE);
-
-        // Fenêtre réaffichée sans être activée, tout en dessous des autres : ses boutons redeviennent lisibles (réduite, une
-        // appli UWP n'en publie plus aucun), sans rien cacher à Julien.
-        public static void DerriereSansActiver(IntPtr fenetre)
+        // Fenêtre posée sur une moitié de l'écran où travaille l'utilisateur (gauche ou droite de sa zone de travail),
+        // au-dessus des autres mais sans prendre le clavier ; son appli reprise si Windows l'a suspendue. Les marges
+        // invisibles de Windows 11 (bordures de redimensionnement) sont compensées : les deux moitiés se touchent.
+        public static void Moitie(IntPtr fenetre, Boolean gauche)
         {
             Paquets.Reprendre(fenetre); // réduite, l'appli du Store est suspendue : reprise, sinon aucun bouton
-            if (IsIconic(fenetre))
+            var avant = SetThreadDpiAwarenessContext(new IntPtr(-4)); // PER_MONITOR_AWARE_V2 : pixels réels partout
+            try
             {
-                ShowWindow(fenetre, 4); // SW_SHOWNOACTIVATE
-            }
+                var infos = new INFOS_MONITEUR { Taille = Marshal.SizeOf<INFOS_MONITEUR>() };
+                if (!GetMonitorInfo(MonitorFromWindow(GetForegroundWindow(), 2), ref infos)) // 2 : MONITOR_DEFAULTTONEAREST
+                {
+                    return;
+                }
 
-            SetWindowPos(fenetre, new IntPtr(1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); // HWND_BOTTOM ; NOSIZE | NOMOVE | NOACTIVATE
-            System.Threading.Thread.Sleep(800); // le temps qu'elle redessine ses boutons
+                var travail = infos.Travail;
+                var demi = (travail.Droite - travail.Gauche) / 2;
+                var (x, l) = gauche ? (travail.Gauche, demi) : (travail.Gauche + demi, travail.Droite - travail.Gauche - demi);
+                var h = travail.Bas - travail.Haut;
+                // Réduite ou agrandie : rendue à l'état normal sans activation (SW_SHOWNOACTIVATE garderait l'agrandie).
+                var place = new PLACEMENT { Taille = Marshal.SizeOf<PLACEMENT>() };
+                if (GetWindowPlacement(fenetre, ref place) && place.Affichage != 1)
+                {
+                    place.Affichage = 4; // SW_SHOWNOACTIVATE
+                    place.Normale = new RECT { Gauche = x - travail.Gauche, Haut = 0, Droite = x - travail.Gauche + l, Bas = h }; // repère de la zone de travail
+                    SetWindowPlacement(fenetre, ref place);
+                }
+
+                SetWindowPos(fenetre, IntPtr.Zero, x, travail.Haut, l, h, 0x0010 | 0x0040); // HWND_TOP ; NOACTIVATE | SHOWWINDOW
+                if (GetWindowRect(fenetre, out var cadre) && DwmGetWindowAttribute(fenetre, 9, out var visible, Marshal.SizeOf<RECT>()) == 0)
+                {
+                    // DWMWA_EXTENDED_FRAME_BOUNDS : la partie visible ; l'écart avec le cadre, ce sont les marges invisibles.
+                    var (mg, mh, md, mb) = (visible.Gauche - cadre.Gauche, visible.Haut - cadre.Haut, cadre.Droite - visible.Droite, cadre.Bas - visible.Bas);
+                    SetWindowPos(fenetre, IntPtr.Zero, x - mg, travail.Haut - mh, l + mg + md, h + mh + mb, 0x0010 | 0x0040);
+                }
+
+                System.Threading.Thread.Sleep(800); // le temps qu'elle redessine ses boutons
+            }
+            finally
+            {
+                SetThreadDpiAwarenessContext(avant);
+            }
+        }
+
+        // Ferme une fenêtre (WM_CLOSE, comme son bouton ×).
+        public static void Fermer(IntPtr fenetre) => PostMessage(fenetre, 0x0010, IntPtr.Zero, IntPtr.Zero);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public Int32 Gauche, Haut, Droite, Bas;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct INFOS_MONITEUR
+        {
+            public Int32 Taille;
+            public RECT Ecran, Travail;
+            public UInt32 Drapeaux;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PLACEMENT
+        {
+            public Int32 Taille, Drapeaux, Affichage;
+            public Int32 MinX, MinY, MaxX, MaxY;
+            public RECT Normale;
         }
 
         [DllImport("user32.dll")]
-        private static extern Boolean IsIconic(IntPtr h);
+        private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr contexte);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr MonitorFromWindow(IntPtr h, UInt32 drapeaux);
+
+        [DllImport("user32.dll")]
+        private static extern Boolean GetMonitorInfo(IntPtr moniteur, ref INFOS_MONITEUR infos);
+
+        [DllImport("user32.dll")]
+        private static extern Boolean GetWindowPlacement(IntPtr h, ref PLACEMENT place);
+
+        [DllImport("user32.dll")]
+        private static extern Boolean SetWindowPlacement(IntPtr h, ref PLACEMENT place);
+
+        [DllImport("user32.dll")]
+        private static extern Boolean GetWindowRect(IntPtr h, out RECT cadre);
+
+        [DllImport("dwmapi.dll")]
+        private static extern Int32 DwmGetWindowAttribute(IntPtr h, Int32 attribut, out RECT valeur, Int32 taille);
+
 
         [DllImport("user32.dll")]
         private static extern Boolean SetWindowPos(IntPtr h, IntPtr apres, Int32 x, Int32 y, Int32 l, Int32 ht, UInt32 drapeaux);
@@ -750,6 +820,5 @@ namespace Loupedeck.TrinitePlugin
         private static extern Boolean IsZoomed(IntPtr hWnd);
 
         private const Int32 SW_SHOWMAXIMIZED = 3;
-        private const Int32 SW_MINIMIZE = 6;
     }
 }
