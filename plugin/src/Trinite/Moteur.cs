@@ -578,7 +578,7 @@ namespace Loupedeck.TrinitePlugin
                 case Gmail: AppliWeb.Gmail.Ouvrir(); break;
                 case Agenda: AppliWeb.Agenda.Ouvrir(); break;
                 case Messages: AppliWeb.Messages.Ouvrir(); break;
-                case Sante: Releve.Lancer("taskmgr.exe"); break;
+                case Sante: Gestes.GestionnaireDesTaches(); break;
                 case MisesAJour:
                     // Les deux recherches, hors de la file des gestes (le Store met quelques secondes à s'ouvrir) et sans
                     // rien amener au premier plan ; la touche s'anime pendant ce temps.
@@ -607,7 +607,9 @@ namespace Loupedeck.TrinitePlugin
             var titres = this._titres;
             return Releve.Lire() with
             {
-                Mails = AppliWeb.Gmail.NonLus(titres) ?? this._notifications?.Item1,
+                // Gmail : seulement sa fenêtre sur le PC ; ses notifications restent sur le téléphone après une lecture sur le
+                // PC (2 en attente, boîte vide, 25/10).
+                Mails = AppliWeb.Gmail.NonLus(titres),
                 Messages = AppliWeb.Messages.NonLus(titres) ?? this._notifications?.Item2,
             };
         }

@@ -43,10 +43,15 @@ namespace Loupedeck.TrinitePlugin
                 ? Regex.Match(titre, @"\((\d+)\)") is { Success: true } m ? Int32.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) : 0
                 : null;
 
-        // Au premier plan : sa fenêtre, sinon lancée puis attendue (6 s au plus) et passée devant.
+        // Au premier plan : sa fenêtre, sinon lancée puis attendue (6 s au plus) et passée devant ; déjà devant, fermée.
         public void Ouvrir()
         {
             var fenetre = this.Fenetre();
+            if (Gestes.FermerSiDevant(fenetre))
+            {
+                return; // déjà devant : le deuxième appui la ferme
+            }
+
             if (fenetre == IntPtr.Zero)
             {
                 this.Lancer();

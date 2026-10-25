@@ -123,6 +123,10 @@ namespace Loupedeck.TrinitePlugin
         // Fenêtre visible d'un processus au titre exact (une appli web installée : « Codex LB » dans chrome) ; zéro si aucune.
         public static IntPtr FenetreTitree(String processus, String titre) => Fenetres(processus).FirstOrDefault(h => Titre(h) == titre);
 
+        // Fenêtre dont le titre commence par ce texte (Codex LB : « Codex LB - 127.0.0.1 » depuis le 25/10).
+        public static IntPtr FenetreTitreDebut(String processus, String debut) =>
+            Fenetres(processus).FirstOrDefault(h => Titre(h).StartsWith(debut, StringComparison.Ordinal));
+
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern Int32 GetWindowText(IntPtr h, System.Text.StringBuilder texte, Int32 max);
 

@@ -60,9 +60,19 @@ namespace Loupedeck.TrinitePlugin
                 return null;
             }
 
-            var lignes = sortie.Split('\n').Where(l => !l.Contains("GROUP_SUMMARY", StringComparison.Ordinal)).ToList();
-            return (lignes.Count(l => l.Contains("pkg=com.google.android.gm ", StringComparison.Ordinal)),
-                lignes.Count(l => l.Contains("pkg=com.google.android.apps.messaging ", StringComparison.Ordinal)));
+            // Vrais mails et messages seulement : catégorie email ou msg, ni résumé de groupe ni notification permanente (le
+            // service « Messages pour le Web » en tient deux, comptées comme messages, 25/10). Seuls les premiers drapeaux
+            // de la ligne sont ceux de la notification (sa version publique suit).
+            Boolean Vraie(String l, String categorie)
+            {
+                var drapeaux = System.Text.RegularExpressions.Regex.Match(l, @"flags=(\S*)").Groups[1].Value;
+                return l.Contains($"category={categorie}", StringComparison.Ordinal)
+                    && !new[] { "GROUP_SUMMARY", "ONGOING_EVENT", "FOREGROUND_SERVICE", "NO_CLEAR" }.Any(drapeaux.Contains);
+            }
+
+            var lignes = sortie.Split('\n');
+            return (lignes.Count(l => l.Contains("pkg=com.google.android.gm ", StringComparison.Ordinal) && Vraie(l, "email")),
+                lignes.Count(l => l.Contains("pkg=com.google.android.apps.messaging ", StringComparison.Ordinal) && Vraie(l, "msg")));
         }
 
         public void Rafraichir()

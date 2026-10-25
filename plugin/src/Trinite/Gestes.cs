@@ -184,11 +184,10 @@ namespace Loupedeck.TrinitePlugin
         private static void CodexLb()
         {
             const String Titre = "Codex LB";
-            var fenetre = Uia.FenetreTitree("chrome", Titre);
-            if (fenetre != IntPtr.Zero && fenetre == GetForegroundWindow())
+            var fenetre = Uia.FenetreTitreDebut("chrome", Titre);
+            if (FermerSiDevant(fenetre))
             {
-                ShowWindow(fenetre, SW_MINIMIZE); // déjà devant : le deuxième appui la range
-                return;
+                return; // déjà devant : le deuxième appui la ferme
             }
 
             if (fenetre != IntPtr.Zero)
@@ -211,7 +210,7 @@ namespace Loupedeck.TrinitePlugin
             }
 
             Lancer(raccourci);
-            _ = System.Threading.Tasks.Task.Run(() => AgrandirALOuverture(() => Uia.FenetreTitree("chrome", Titre)));
+            _ = System.Threading.Tasks.Task.Run(() => AgrandirALOuverture(() => Uia.FenetreTitreDebut("chrome", Titre)));
         }
 
         // Échéance réelle (une lecture lente compte dans le budget : la file des gestes reste sous le verrou pendant ce temps).
@@ -422,6 +421,54 @@ namespace Loupedeck.TrinitePlugin
         // Une fenêtre devant, en plein écran.
         // Une fenêtre réduite dans la barre des tâches, sans prendre le premier plan.
         public static void Reduire(IntPtr fenetre) => ShowWindow(fenetre, SW_MINIMIZE);
+
+        // Deuxième appui d'une touche qui ouvre une fenêtre : elle est devant, elle se ferme (vrai si c'est fait).
+        public static Boolean FermerSiDevant(IntPtr fenetre)
+        {
+            if (fenetre == IntPtr.Zero || fenetre != GetForegroundWindow())
+            {
+                return false;
+            }
+
+            PostMessage(fenetre, 0x0010, IntPtr.Zero, IntPtr.Zero); // WM_CLOSE
+            return true;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern Boolean PostMessage(IntPtr h, UInt32 message, IntPtr w, IntPtr l);
+
+        // Gestionnaire des tâches (santé du PC), sans élévation : lancé en administrateur (son manifeste le demande), le
+        // pad ne pouvait ni le fermer ni le réduire (Windows protège une fenêtre élevée). Un deuxième appui le ferme.
+        public static void GestionnaireDesTaches()
+        {
+            var fenetre = Uia.FenetrePrincipale("Taskmgr");
+            if (FermerSiDevant(fenetre))
+            {
+                return;
+            }
+
+            if (fenetre == IntPtr.Zero)
+            {
+                try
+                {
+                    var info = new ProcessStartInfo("taskmgr.exe") { UseShellExecute = false };
+                    info.Environment["__COMPAT_LAYER"] = "RunAsInvoker";
+                    Process.Start(info)?.Dispose();
+                }
+                catch (Exception e)
+                {
+                    PluginLog.Error(e, "Gestionnaire des tâches");
+                    return;
+                }
+
+                Attendre(() => (fenetre = Uia.FenetrePrincipale("Taskmgr")) != IntPtr.Zero, 4000);
+            }
+
+            if (fenetre != IntPtr.Zero)
+            {
+                Devant(fenetre);
+            }
+        }
 
         public static void Devant(IntPtr fenetre)
         {

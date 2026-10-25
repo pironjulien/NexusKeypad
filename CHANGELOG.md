@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
 
 ### Fixed
+- Second press on Gmail, Calendar, Messages, the site, PC health or the Codex quota key closes its window when it is in
+  front. Task Manager is started without elevation (`__COMPAT_LAYER=RunAsInvoker`): elevated, Windows would not let
+  the pad close or minimise it.
+- False pending mail: Gmail only counts the unread mails shown in its window title on the PC (its phone notifications
+  stay after mails are read on the PC); Messages no longer counts the permanent notifications of its web service.
+- Codex quota key: the Codex LB window, now titled "Codex LB - 127.0.0.1", was no longer recognised and each press
+  opened a new one.
 - Site key: it could bring Gmail forward, whose window title contains the account address; the site window is now
   recognised when its title starts with the site name.
 - Antigravity quota no longer goes blank after 5 hours while Antigravity is closed: nothing was used, so the 5-hour
