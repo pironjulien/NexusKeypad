@@ -1,0 +1,79 @@
+# ==================================================================================================
+# GENERAL SETTINGS
+# ==================================================================================================
+
+# Package type. Must be plugin4 for plugins.
+type: plugin4
+
+# Name that identifies the plugin.
+name: NexusKeypad
+
+# Plugin name that is shown to the user.
+displayName: NexusKeypad
+
+# Short description of the plugin.
+description: The complete NexusKeypad, outside the Marketplace. Page 1, Claude, Codex and Antigravity as animated pixel-art keys with quota gauges and one-press access to the conversation that needs you; page 2, sound, Gmail, Calendar, Messages, PC health and updates, website.
+
+# Name of the plugin library file.
+pluginFileName: NexusKeypadPlugin.dll
+
+# Plugin version.
+version: 1.3.0
+
+# Author of the plugin. The author can be a company or an individual developer.
+author: Julien Piron
+
+# Copyright information.
+copyright: Copyright © 2026 Julien Piron. MIT License.
+
+
+# ==================================================================================================
+# PLUGIN PROPERTIES
+# ==================================================================================================
+
+# Location of plugin files on Windows (relative to the plugin base directory).
+# This parameter is required to support Windows.
+pluginFolderWin: bin
+
+# Location of plugin files on macOS (relative to the plugin base directory).
+# This parameter is required to support Mac.
+#pluginFolderMac: bin
+
+# List of devices the plugin is optimized for.
+supportedDevices:
+    # LoupedeckCtFamily covers the following devices: Loupedeck CT, Live and Live S.
+    - LogitechCreativeFamily
+
+    # LoupedeckPlusFamily covers Loupedeck+ device. Uncomment the following line to support Loupedeck+.
+    #- LoupedeckPlusFamily
+
+# List of plugin capabilities.
+pluginCapabilities:
+    # Uncomment the following line if this plugin is an application plugin.
+    #- HasApplication
+
+    # Uncomment the following line if the plugin sends keyboard shortcuts to the target application.
+    #- ActivatesApplication
+
+# Minimum Logi Plugin Service version supported by the plugin.
+minimumLoupedeckVersion: 6.4
+
+
+# ==================================================================================================
+# LOUPEDECK MARKETPLACE SETTINGS
+# ==================================================================================================
+
+# Name of the license that the plugin is licensed under. Select the one that you prefer.
+# NOTE: GPL license is not compatible with Loupedeck Marketplace.
+license: MIT
+
+# URL of the plugin license.
+licenseUrl: https://github.com/pironjulien/NexusKeypad/blob/main/LICENSE
+
+# URL of the support page where the users can send improvement suggestions and report bugs.
+# The URL is shown in Loupedeck Marketplace. The page can be for example a GitHub issues page.
+# NOTE: This setting is recommended when publishing the plugin in Loupedeck Marketplace.
+supportPageUrl: https://github.com/pironjulien/NexusKeypad/issues
+
+# URL of the plugin homepage. The URL is shown in Loupedeck Marketplace.
+homePageUrl: https://github.com/pironjulien/NexusKeypad

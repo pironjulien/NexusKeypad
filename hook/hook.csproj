@@ -9,7 +9,7 @@
     <AssemblyName>nexuskeypad-hook</AssemblyName>
     <RootNamespace>NexusKeypad.Hook</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <Nullable>annotations</Nullable>
     <PublishAot>true</PublishAot>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <InvariantGlobalization>true</InvariantGlobalization>
@@ -19,5 +19,10 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <BaseOutputPath>$(LocalAppData)\NexusKeypad\hook-build\bin\</BaseOutputPath>
   </PropertyGroup>
+
+  <!-- Argument « remove » (get.ps1 -Remove) : le retrait des états en direct, le même code que l'action « Live states ». -->
+  <ItemGroup>
+    <Compile Include="..\plugin\src\Trinite\EtatsEnDirect.cs" />
+  </ItemGroup>
 
 </Project>

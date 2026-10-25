@@ -7,6 +7,8 @@ namespace Loupedeck.TrinitePlugin
     public class PcDashboardApplication : ClientApplication
 #elif COMPLETE
     public class AiAgentsPcApplication : ClientApplication
+#elif NEXUS
+    public class NexusKeypadApplication : ClientApplication
 #else
     public class TrinitePadApplication : ClientApplication
 #endif

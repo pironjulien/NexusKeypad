@@ -3,14 +3,15 @@
 #   -Edition Marketplace (défaut) : AI Coding Agents, la page 1 seule (la Trinité, sans le poste ni le tube d'essais).
 #   -Edition Poste : PC Dashboard, second plugin, la page 2 seule (le poste) et la touche du site à régler.
 #   -Edition Complete : AI Coding Agents + PC, troisième plugin, les deux pages comme la version de Julien.
+#   -Edition Nexus : NexusKeypad, la version complète hors Marketplace (release GitHub, installée par get.ps1).
 # Sortie : %LOCALAPPDATA%\NexusKeypad\marketplace\<nom>_<version>.lplug4 (nom conseillé par Logitech : nom_version).
 #Requires -Version 7
 [CmdletBinding()]
-param([ValidateSet('Marketplace', 'Poste', 'Complete')] [string] $Edition = 'Marketplace')
+param([ValidateSet('Marketplace', 'Poste', 'Complete', 'Nexus')] [string] $Edition = 'Marketplace')
 $ErrorActionPreference = 'Stop'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $racine = Join-Path $env:LOCALAPPDATA 'NexusKeypad\marketplace'
-$dossier = @{ Marketplace = 'marketplace'; Poste = 'poste'; Complete = 'complete' }[$Edition]
+$dossier = @{ Marketplace = 'marketplace'; Poste = 'poste'; Complete = 'complete'; Nexus = 'nexus' }[$Edition]
 $entree = Join-Path $env:LOCALAPPDATA "NexusKeypad\$dossier\bin\Release"
 # Repartir de zéro : aucun reste d'une compilation précédente dans le paquet.
 if (Test-Path $entree) { Remove-Item $entree -Recurse -Force }

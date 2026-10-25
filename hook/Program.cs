@@ -27,6 +27,18 @@ public static class Program
     {
         try
         {
+            // Outils de get.ps1 (installation sans Python) : retrait des états en direct, pose ou retrait des touches.
+            switch (args)
+            {
+                case ["--remove"]:
+                    // hooks du pad et mod du quota, sans question (le retrait a été demandé)
+                    return Loupedeck.TrinitePlugin.EtatsEnDirect.Appliquer(null, pose: false) ? 0 : 1;
+                case ["keys", var profil, var plugin]:
+                    return Touches.Executer(profil, plugin, retirer: false);
+                case ["keys", var profil, var plugin, "--remove"]:
+                    return Touches.Executer(profil, plugin, retirer: true);
+            }
+
             var debut = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
             if (args.Length < 2)
             {

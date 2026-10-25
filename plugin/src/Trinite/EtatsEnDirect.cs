@@ -121,7 +121,7 @@ namespace Loupedeck.TrinitePlugin
 
                 if (pose && EvenementsClaude.Contains(evenement))
                 {
-                    groupes.Add(new JsonObject { ["hooks"] = new JsonArray(CommandeClaude(evenement)) });
+                    groupes.Add((JsonNode)new JsonObject { ["hooks"] = new JsonArray(CommandeClaude(evenement)) });
                 }
                 else if (groupes.Count == 0)
                 {

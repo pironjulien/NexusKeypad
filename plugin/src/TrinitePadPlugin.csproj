@@ -46,6 +46,19 @@
 
   <!-- Édition « AI Coding Agents + PC » (outils\paquet_marketplace.ps1 -Edition Complete) : les deux pages, comme la
        version de Julien, troisième plugin du Logi Marketplace, sans tube d'essais ni réglage du site du poste. -->
+  <!-- Édition complète hors Marketplace (outils\paquet_marketplace.ps1 -Edition Nexus, installée par get.ps1) : tout ce
+       que fait la version de Julien (deux pages, réglage du site du poste, tube d'essais local), sous son propre nom
+       (NexusKeypad) pour qu'Options+ ne la confonde jamais avec une fiche de la Marketplace. -->
+  <PropertyGroup Condition="'$(Edition)' == 'Nexus'">
+    <BaseOutputPath>$(NexusBuild)nexus\bin\</BaseOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)nexus\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>$(DefineConstants);NEXUS</DefineConstants>
+    <DebugType>none</DebugType>
+    <AssemblyName>NexusKeypadPlugin</AssemblyName>
+    <PluginShortName>NexusKeypad</PluginShortName>
+    <Paquet>package-nexus</Paquet>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Edition)' == 'Complete'">
     <BaseOutputPath>$(NexusBuild)complete\bin\</BaseOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)complete\$(Configuration)\</IntermediateOutputPath>
@@ -90,7 +103,7 @@
     <HookProjet>$(MSBuildThisFileDirectory)..\..\hook\</HookProjet>
     <HookSortie>$(NexusBuild)hook-build\publish\</HookSortie>
   </PropertyGroup>
-  <Target Name="HookPublie" Inputs="$(HookProjet)Program.cs;$(HookProjet)hook.csproj" Outputs="$(HookSortie)nexuskeypad-hook.exe"
+  <Target Name="HookPublie" Inputs="$(HookProjet)Program.cs;$(HookProjet)PluginLog.cs;$(HookProjet)Touches.cs;$(HookProjet)hook.csproj;$(MSBuildThisFileDirectory)Trinite\EtatsEnDirect.cs" Outputs="$(HookSortie)nexuskeypad-hook.exe"
           Condition="'$(Edition)' != 'Poste'">
     <Exec Command="set &quot;PATH=$(MSBuildProgramFiles32)\Microsoft Visual Studio\Installer;%PATH%&quot; &amp;&amp; dotnet publish &quot;$(HookProjet)hook.csproj&quot; -c Release -nologo -v q -o &quot;$(HookSortie)&quot;"
           EnvironmentVariables="DOTNET_CLI_TELEMETRY_OPTOUT=1" />

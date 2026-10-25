@@ -143,13 +143,37 @@ flowchart LR
 - Windows 11, a **Logitech MX Creative Console keypad** (MX Keypad) and **Logi Options+** with Logi Plugin Service 6.4
   or later.
 - From source only: [.NET 10 SDK](https://dotnet.microsoft.com/download) and Python 3.11+ (setup scripts). The
-  Marketplace editions need neither.
+  complete edition (one command, below) and the Marketplace editions need neither.
 - Any of: **Claude Desktop** (Claude Code), **Codex** desktop app, **Antigravity**. A missing app just sleeps on its key.
 - Optional: an Android phone with USB or wireless debugging and `adb` on the `PATH` (photo key, Messages badge), and
   [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (Gmail badge with Gmail closed). See the table above for
   what each one adds and what replaces it.
 
 ## Installation
+
+### Complete edition, one command (both pages, everything)
+
+The complete **NexusKeypad** is everything described above, both pages, as the author runs it. In PowerShell (no
+administrator rights):
+
+```powershell
+irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1 | iex
+```
+
+It downloads the latest release's `NexusKeypad` package (checked against the release's `SHA256SUMS.txt`), copies it
+into Logi Options+'s plugin folder (`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad`), where the Logi Plugin
+Service loads it, and offers to place the 18 keys for you (your keypad profile is backed up first and Logi Options+
+restarts for a few seconds; otherwise drag **Key 1** to **Key 18** of the *AI agents* group yourself). At its first
+start the plugin asks whether to turn on the live states. Run the same command to update. To remove it (plugin, live
+states and keys; Logi Options+ is left alone):
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1))) -Remove
+```
+
+It has its own plugin name, so Logi Options+ never mixes it up with a Marketplace edition: install one or the other.
+The Marketplace editions below are the same code, split and trimmed to Logitech's rules (one function per plugin, no
+default website).
 
 ### From the Logitech Marketplace (page 1 only)
 

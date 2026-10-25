@@ -1,9 +1,12 @@
 // La classe du plugin porte son nom pour le service (« XxxPlugin » → plugin « Xxx ») : les éditions PC Dashboard
-// (Edition=Poste) et AI Coding Agents + PC (Edition=Complete) en ont une autre ; le reste du code la nomme PadPlugin.
+// (Edition=Poste), AI Coding Agents + PC (Edition=Complete) et la version complète hors Marketplace (Edition=Nexus) en ont
+// une autre ; le reste du code la nomme PadPlugin.
 #if POSTE
 global using PadPlugin = Loupedeck.TrinitePlugin.PcDashboardPlugin;
 #elif COMPLETE
 global using PadPlugin = Loupedeck.TrinitePlugin.AiAgentsPcPlugin;
+#elif NEXUS
+global using PadPlugin = Loupedeck.TrinitePlugin.NexusKeypadPlugin;
 #else
 global using PadPlugin = Loupedeck.TrinitePlugin.TrinitePadPlugin;
 #endif
@@ -17,6 +20,8 @@ namespace Loupedeck.TrinitePlugin
     public class PcDashboardPlugin : Plugin
 #elif COMPLETE
     public class AiAgentsPcPlugin : Plugin
+#elif NEXUS
+    public class NexusKeypadPlugin : Plugin
 #else
     public class TrinitePadPlugin : Plugin
 #endif
@@ -36,6 +41,8 @@ namespace Loupedeck.TrinitePlugin
         public PcDashboardPlugin()
 #elif COMPLETE
         public AiAgentsPcPlugin()
+#elif NEXUS
+        public NexusKeypadPlugin()
 #else
         public TrinitePadPlugin()
 #endif

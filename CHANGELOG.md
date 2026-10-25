@@ -5,7 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-25 — The complete NexusKeypad in one command
+
 ### Added
+- The complete edition outside the Logi Marketplace: `irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1 | iex`
+  (no administrator rights) installs the `NexusKeypad` plugin, both pages, everything, from the latest release (SHA-256
+  checked), and offers to place the 18 keys (profile backed up first). `-Remove` takes it all away. It has its own
+  plugin name, distinct from the Marketplace editions. Non-interactive mode for the Nexus pack (`NEXUS_PACK=1`).
+- The release now carries four packages: the three Marketplace editions and `NexusKeypad`.
 - Claude's exact usage: the `nexuskeypad-quota` Claude Code module (`claude-quota/`) writes the 5-hour and weekly
   windows to `~/.nexus/trinite/quota-claude.json`. It ships in the package and is set up and removed with the live
   states (same Yes), through a local marketplace declared in `~/.claude/settings.json`.

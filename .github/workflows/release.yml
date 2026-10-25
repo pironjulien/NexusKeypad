@@ -1,5 +1,5 @@
-# Release: on a vX.Y.Z tag, builds the three Logi Marketplace editions (.lplug4, checked by the official Logi Plugin
-# Tool), attests their build provenance (verify with `gh attestation verify <file> --repo pironjulien/NexusKeypad`),
+# Release: on a vX.Y.Z tag, builds the three Logi Marketplace editions and the complete NexusKeypad edition installed by
+# get.ps1 (.lplug4, checked by the official Logi Plugin Tool), attests their build provenance (verify with `gh attestation verify <file> --repo pironjulien/NexusKeypad`),
 # and publishes them with SHA256SUMS.txt as the "NexusKeypad X.Y.Z" GitHub release.
 # Actions pinned by commit SHA; Dependabot (github-actions) keeps them up to date.
 name: Release
@@ -35,11 +35,11 @@ jobs:
           dotnet tool install -g LogiPluginTool --version 6.4.2.3599
           $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
           $version = $env:TAG.TrimStart('v')
-          foreach ($e in 'Marketplace', 'Poste', 'Complete') { ./outils/paquet_marketplace.ps1 -Edition $e }
+          foreach ($e in 'Marketplace', 'Poste', 'Complete', 'Nexus') { ./outils/paquet_marketplace.ps1 -Edition $e }
           New-Item -ItemType Directory dist | Out-Null
           $suffixe = $version -replace '\.', '_'
           $fichiers = @(Get-ChildItem "$env:LOCALAPPDATA\NexusKeypad\marketplace" -File -Filter "*_$suffixe.lplug4")
-          if ($fichiers.Count -ne 3) { throw "Expected 3 packages at version $version, got $($fichiers.Count)." }
+          if ($fichiers.Count -ne 4) { throw "Expected 4 packages at version $version, got $($fichiers.Count)." }
           $fichiers | Copy-Item -Destination dist
           Get-ChildItem dist -File | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |
             Set-Content dist/SHA256SUMS.txt -Encoding utf8NoBOM

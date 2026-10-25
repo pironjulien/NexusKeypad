@@ -25,6 +25,11 @@ if ($LASTEXITCODE) { throw "L'édition PC Dashboard ne compile pas." }
 # Édition AI Coding Agents + PC (les deux pages, troisième plugin du Marketplace) : elle doit compiler aussi.
 dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Release -nologo -v q -p:NexusTest=true -p:Edition=Complete -p:NexusBuild=$sortie
 if ($LASTEXITCODE) { throw "L'édition AI Coding Agents + PC ne compile pas." }
+# Version complète hors Marketplace (NexusKeypad) : elle compile, et get.ps1 l'installe, pose les touches et la retire
+# dans un dossier de test (jamais le service Logi ni les réglages réels).
+dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Release -nologo -v q -p:NexusTest=true -p:Edition=Nexus -p:NexusBuild=$sortie
+if ($LASTEXITCODE) { throw "La version complète (NexusKeypad) ne compile pas." }
+& (Join-Path $PSScriptRoot 'tests\test_get.ps1') -Compilation (Join-Path $sortie 'nexus\bin\Release') -Travail (Join-Path $env:TEMP 'nexuskeypad-test-get')
 
 $planches = Join-Path $sortie 'planches'
 if (Test-Path $planches) { Remove-Item $planches -Recurse -Force }

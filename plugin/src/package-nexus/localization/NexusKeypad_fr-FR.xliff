@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff version="1.2">
+  <file original="$NexusKeypad___@general" source-language="en-US" target-language="fr-FR" datatype="plaintext">
+    <body>
+      <group id="@general">
+        <trans-unit id="$NexusKeypad___General___ResetDisplayNameTemplate" translate="yes">
+          <source>Reset %</source>
+          <target>Réinitialiser %</target>
+        </trans-unit>
+      </group>
+      <group id="@modes">
+        <trans-unit id="$NexusKeypad___ModeName___main" translate="yes">
+          <source>Main</source>
+          <target>Principal</target>
+        </trans-unit>
+      </group>
+      <group id="@resources" />
+    </body>
+  </file>
+  <file original="$NexusKeypad___main" source-language="en-US" target-language="fr-FR" datatype="plaintext">
+    <body>
+      <group id="@commands">
+        <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.LiveStatesCommand" translate="yes">
+          <source>Live states</source>
+          <target>États en direct</target>
+        </trans-unit>
+        <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.LiveStatesCommand###description" translate="yes">
+          <source>Sets up or removes live states for Claude and Antigravity (asks first).</source>
+          <target>Pose ou retire les états en direct de Claude et d'Antigravity (demande d'abord).</target>
+        </trans-unit>
+        <group id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand">
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t1" translate="yes">
+            <source>Key 1 · Codex</source>
+            <target>Touche 1 · Codex</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t2" translate="yes">
+            <source>Key 2 · Claude</source>
+            <target>Touche 2 · Claude</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t3" translate="yes">
+            <source>Key 3 · Antigravity</source>
+            <target>Touche 3 · Antigravity</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t4" translate="yes">
+            <source>Key 4 · Codex quota</source>
+            <target>Touche 4 · Quota de Codex</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t5" translate="yes">
+            <source>Key 5 · Claude quota</source>
+            <target>Touche 5 · Quota de Claude</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t6" translate="yes">
+            <source>Key 6 · Antigravity quota</source>
+            <target>Touche 6 · Quota d'Antigravity</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t7" translate="yes">
+            <source>Key 7 · Screen capture</source>
+            <target>Touche 7 · Capture d'écran</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t8" translate="yes">
+            <source>Key 8 · Phone photo</source>
+            <target>Touche 8 · Photo du téléphone</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t9" translate="yes">
+            <source>Key 9 · Dictation</source>
+            <target>Touche 9 · Dictée</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t10" translate="yes">
+            <source>Key 10 · Volume down</source>
+            <target>Touche 10 · Volume moins</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t11" translate="yes">
+            <source>Key 11 · Mute</source>
+            <target>Touche 11 · Son coupé</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t12" translate="yes">
+            <source>Key 12 · Volume up</source>
+            <target>Touche 12 · Volume plus</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t13" translate="yes">
+            <source>Key 13 · Gmail</source>
+            <target>Touche 13 · Gmail</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t14" translate="yes">
+            <source>Key 14 · Calendar</source>
+            <target>Touche 14 · Agenda</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t15" translate="yes">
+            <source>Key 15 · Messages</source>
+            <target>Touche 15 · Messages</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t16" translate="yes">
+            <source>Key 16 · PC health</source>
+            <target>Touche 16 · Santé du PC</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t17" translate="yes">
+            <source>Key 17 · Store and Windows Update</source>
+            <target>Touche 17 · Store et Windows Update</target>
+          </trans-unit>
+          <trans-unit id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t18" translate="yes">
+            <source>Key 18 · Website</source>
+            <target>Touche 18 · Site</target>
+          </trans-unit>
+        </group>
+        <trans-unit id="$NexusKeypad___#DynamicFolder" translate="yes">
+          <source>Dynamic Folder</source>
+          <target>Dossier dynamique</target>
+        </trans-unit>
+        <group id="$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand" />
+      </group>
+      <group id="@adjustments" />
+      <group id="@groups">
+        <trans-unit id="$NexusKeypad___GroupName___E300284EAB7192930009" translate="yes">
+          <source>AI agents</source>
+          <target>Trinité</target>
+        </trans-unit>
+      </group>
+    </body>
+  </file>
+</xliff>
