@@ -53,6 +53,13 @@ namespace Loupedeck.TrinitePlugin
                         continue; // sous-agent d'un chat : l'appli ne le montre pas à part
                     }
 
+                    if (entete.Contains("\"originator\":\"codex_exec\"", StringComparison.Ordinal))
+                    {
+                        // `codex exec` lancé par un outil (sonde, script) : absent de la barre latérale de l'appli, son alerte
+                        // « Chat Codex » clignotait sans jamais pouvoir s'ouvrir (25/10).
+                        continue;
+                    }
+
                     var (etat, depuis) = this.EtatCodexGarde(f);
                     var relais = entete.Contains(@".nexus\\relay", StringComparison.OrdinalIgnoreCase);
                     if (relais && etat is not (Etat.Travaille or Etat.Attend or Etat.Autorisation) && DateTime.UtcNow - f.LastWriteTimeUtc > TimeSpan.FromHours(12))

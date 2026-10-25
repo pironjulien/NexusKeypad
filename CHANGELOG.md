@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Codex key: headless `codex exec` runs (started by scripts or tools) were counted as app chats; they have no row in
+  the app's sidebar, so a "Chat Codex" alert blinked and could never be opened. They are now ignored.
+
 ## [1.2.0] - 2026-10-25 — NexusKeypad: live states without Python, one version for everything
 
 ### Added
