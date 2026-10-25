@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
 
 ### Fixed
+- No Gmail badge when Gmail is open in a Chrome tab: tab titles (Chrome's tab strip, read through UI Automation even
+  with the window behind) count like window titles; read every 3 s, off the animation thread.
 - Updates key: it only searched, then the Store and Windows Update offered their updates without installing them. It
   now installs everything: search, then "Update all" (Store) and "Download & install all" (Windows Update) pressed
   through UI Automation, windows shown behind the others (minimised, they expose no buttons) then minimised again;

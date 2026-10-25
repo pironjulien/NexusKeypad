@@ -67,6 +67,7 @@ namespace Loupedeck.TrinitePlugin
         private Double _miseAJourFinie = -99; // fin de ce qu'il a lancé
         private volatile String[] _titres = []; // titres des fenêtres de Chrome (non-lus de Gmail et Messages)
         private Double _titresLus = -99;
+        private Int32 _titresEnCours;
         private readonly Action<Int32> _redessiner;
         private readonly Object _envoi = new();
         private readonly BitmapImage[] _images = new BitmapImage[Touches];
@@ -603,16 +604,31 @@ namespace Loupedeck.TrinitePlugin
             this.Envoyer(touche);
         }
 
-        // Poste et non-lus de Gmail et Messages : le titre de leur fenêtre sur le PC fait foi (vrais non-lus), sinon les
-        // notifications du téléphone, sinon pas de pastille. Titres relus toutes les 2 s au plus (la recherche des
-        // fenêtres de Chrome énumère les processus).
+        // Poste et non-lus de Gmail et Messages : le titre de leur fenêtre ou de leur ONGLET de Chrome sur le PC fait foi
+        // (vrais non-lus ; Gmail ouvert dans un onglet n'avait pas de pastille, 25/10), sinon les notifications du
+        // téléphone (Messages), sinon pas de pastille. Titres relus toutes les 3 s au plus, hors du fil d'animation (la
+        // barre d'onglets de Chrome se lit par UI Automation).
         private Poste LirePoste()
         {
             var maintenant = this._horloge.Elapsed.TotalSeconds;
-            if (maintenant - this._titresLus >= 2)
+            if (maintenant - this._titresLus >= 3 && Interlocked.Exchange(ref this._titresEnCours, 1) == 0)
             {
                 this._titresLus = maintenant;
-                this._titres = Uia.Fenetres("chrome").Select(Uia.Titre).ToArray();
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        this._titres = Uia.Fenetres("chrome").Select(Uia.Titre).Concat(Uia.OngletsChrome()).ToArray();
+                    }
+                    catch (Exception e)
+                    {
+                        PluginLog.Error(e, "titres de Chrome");
+                    }
+                    finally
+                    {
+                        Volatile.Write(ref this._titresEnCours, 0);
+                    }
+                });
             }
 
             var titres = this._titres;

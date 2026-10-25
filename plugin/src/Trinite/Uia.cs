@@ -79,6 +79,26 @@ namespace Loupedeck.TrinitePlugin
         // (un element.click() ou un clic simulé par son port de débogage restent sans effet, 23/10).
         public static Boolean Cliquer(String processus, params String[] noms) => Fenetres(processus).Any(f => CliquerDans(f, noms));
 
+        // Titres de tous les onglets de Chrome (barre d'onglets, publiée même fenêtre derrière), actifs ou non.
+        public static System.Collections.Generic.List<String> OngletsChrome()
+        {
+            var uia = Nouveau();
+            var noms = new System.Collections.Generic.List<String>();
+            foreach (var fenetre in Fenetres("chrome"))
+            {
+                var onglets = uia.ElementFromHandle(fenetre)?.FindAll(TreeScopeDescendants, uia.CreatePropertyCondition(TypePropriete, 50019)); // TabItem
+                for (var i = 0; i < (onglets?.Length ?? 0); i++)
+                {
+                    if (onglets.GetElement(i).GetCurrentPropertyValue(NomPropriete) is String nom)
+                    {
+                        noms.Add(nom);
+                    }
+                }
+            }
+
+            return noms;
+        }
+
         // Un élément de la fenêtre dont le nom contient un de ces textes (« Vous êtes à jour »…), rien n'est cliqué.
         public static Boolean Affiche(IntPtr fenetre, params String[] textes)
         {
