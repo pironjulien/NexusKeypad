@@ -100,7 +100,12 @@ namespace Loupedeck.TrinitePlugin
                 var r = doc.RootElement;
                 lu = r.GetProperty("lu").GetDateTime().ToUniversalTime();
                 Double? Valeur(String nom) => r.GetProperty(nom).ValueKind == JsonValueKind.Number ? r.GetProperty(nom).GetDouble() : null;
-                return DateTime.UtcNow - lu < TimeSpan.FromHours(5) ? new(Valeur("cinq"), Valeur("semaine")) : null;
+                // Au-delà de 5 h, la fenêtre courte est forcément repartie à zéro si Antigravity n'a pas servi (fermé) : 0 %
+                // utilisé ; la semaine reste juste jusqu'à 7 jours. Antigravity ouvert, l'appelant ne s'en sert pas.
+                var age = DateTime.UtcNow - lu;
+                return age < TimeSpan.FromHours(5) ? new(Valeur("cinq"), Valeur("semaine"))
+                    : age < TimeSpan.FromDays(7) ? new(0, Valeur("semaine"))
+                    : null;
             }
             catch (Exception)
             {

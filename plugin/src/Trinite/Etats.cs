@@ -261,10 +261,11 @@ namespace Loupedeck.TrinitePlugin
                     }
                 }
             });
-            // Plus de 5 h sans relevé (l'utilisateur toujours dans Antigravity, page fermée) : la valeur gardée ne dit plus rien.
+            // Plus de 5 h sans relevé : Antigravity ouvert (il a pu servir), la valeur gardée ne dit plus rien ; fermé, rien n'a
+            // été consommé : fenêtre de 5 h repartie à zéro, semaine inchangée (sa jauge vide le matin, 25/10).
             if (DateTime.UtcNow - this._quotaAgyLu > TimeSpan.FromHours(5))
             {
-                this._quotas[2] = null;
+                this._quotas[2] = ouverte[2] ? null : QuotaAntigravity.Garde(out _);
             }
 
             return new(conversations, ouvertes, [.. this._quotas], ouverte, eteint, this.Telephone.Derniere, Array.IndexOf(Processus, premier))

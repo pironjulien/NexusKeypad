@@ -8,7 +8,7 @@ namespace Loupedeck.TrinitePlugin
     // Touche du site (page 2, en bas à droite) : l'adresse ouverte, l'image au centre et les couleurs de l'anneau qui
     // tourne, lues une fois au chargement du plugin dans ~/.nexus/trinite/site.json :
     //   { "url": "https://exemple.org", "titre": "Exemple", "image": "logo.png", "anneau": ["#0055A4", "#FFFFFF", "#EF4135"] }
-    // Image : chemin absolu ou relatif au fichier (PNG ou JPEG, carré de préférence). Titre : un mot du titre de sa
+    // Image : chemin absolu ou relatif au fichier (PNG ou JPEG, carré de préférence). Titre : le début du titre de sa
     // fenêtre (appli installée), pour la ramener devant ; par défaut le nom du site (« exemple.org »). Sans réglage : un
     // globe dans un anneau arc-en-ciel, qui ouvre la page du projet.
     public sealed record Signet(String Url, String Titre, BitmapImage Image, BitmapColor[] Anneau)

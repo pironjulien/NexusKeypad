@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
+
+### Fixed
+- Site key: it could bring Gmail forward, whose window title contains the account address; the site window is now
+  recognised when its title starts with the site name.
+- Antigravity quota no longer goes blank after 5 hours while Antigravity is closed: nothing was used, so the 5-hour
+  gauge is shown full and the weekly one is kept for up to 7 days (Antigravity open: unchanged).
+
 ## [1.0.0] - 2026-10-24 — First public release
 
 ### Added

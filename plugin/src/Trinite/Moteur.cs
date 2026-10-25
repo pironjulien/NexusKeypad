@@ -112,15 +112,22 @@ namespace Loupedeck.TrinitePlugin
         // Résumé de la dernière lecture (journal et pilote).
         public String Resume => this._resume;
 
-        // Les 9 touches telles qu'envoyées au pad, en grille 3 × 3 (PNG) : ce que l'utilisateur voit, pour les essais.
-        public Byte[] Planche()
+        // Les 9 touches d'une page telles qu'envoyées au pad, en grille 3 × 3 (PNG) : ce que l'utilisateur voit, pour les
+        // essais. Page 2 cachée : son poste est relu et ses touches dessinées à neuf (rien d'envoyé au pad).
+        public Byte[] Planche(Int32 page = 1)
         {
+            if (page == 2)
+            {
+                this._poste = this.LirePoste();
+            }
+
             const Int32 Ecart = 12;
             using var b = new BitmapBuilder((3 * Rendu.T) + (4 * Ecart), (3 * Rendu.T) + (4 * Ecart));
             b.Clear(new BitmapColor(200, 198, 192));
             for (var t = 0; t < 9; t++)
             {
-                var image = this._images[Disposition[t]] ?? Rendu.Image(Disposition[t], this.Scene).Image;
+                var touche = Disposition[((page - 1) * 9) + t];
+                var image = page == 2 ? Rendu.Image(touche, this.Scene).Image : this._images[touche] ?? Rendu.Image(touche, this.Scene).Image;
                 b.DrawImage(image, Ecart + (t % 3 * (Rendu.T + Ecart)), Ecart + (t / 3 * (Rendu.T + Ecart)), Rendu.T, Rendu.T, BitmapRotation.None);
             }
 

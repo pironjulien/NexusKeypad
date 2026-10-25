@@ -83,7 +83,7 @@ namespace Loupedeck.TrinitePlugin
                 case "capture":
                     Directory.CreateDirectory(Captures);
                     var chemin = Path.Combine(Captures, $"pad-{DateTime.Now:yyyyMMdd-HHmmss-fff}.png");
-                    File.WriteAllBytes(chemin, this._moteur.Planche());
+                    File.WriteAllBytes(chemin, this._moteur.Planche(mots.Length == 2 && mots[1] == "2" ? 2 : 1));
                     return chemin;
                 case "appui" when mots.Length == 2 && Int32.TryParse(mots[1], out var touche) && touche is >= 1 and <= Moteur.Touches:
                     var issue = this._moteur.Appuyer(Moteur.Disposition[touche - 1]); // place du pad ; l'issue réelle du geste
