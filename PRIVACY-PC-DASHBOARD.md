@@ -37,6 +37,10 @@ instance).
   drawn when Windows turns the screen off.
 - **Website key**: the web address (and optional window title) you type for that key in Logi Options+. Logi Options+
   stores it in your profile; the Plugin uses it only to open that address and find its window.
+- **Addresses of Chrome app windows** (only when you press a Website key without a window title): the address of the
+  page shown in each Google Chrome app window (Windows UI Automation), compared with the key's address to find the
+  window that key opened, so a second press brings it back or closes it, and never another one. Addresses are read
+  at the press, neither kept nor logged.
 
 ## What the Plugin writes, on your computer only
 

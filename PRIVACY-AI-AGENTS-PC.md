@@ -15,7 +15,9 @@ exactly what the two single-page plugins describe, on your computer only:
   and Windows Update): the
   [PC Dashboard Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-PC-DASHBOARD.md).
 
-Differences: its log file is `…\LogiPluginService\Logs\plugin_logs\AiAgentsPc.log`; its Website key has no address to
+Differences: at each press of its Website key, the addresses of the pages shown in Google Chrome app windows are read
+(Windows UI Automation) to find the window that key opened, neither kept nor logged; its log file is
+`…\LogiPluginService\Logs\plugin_logs\AiAgentsPc.log`; its Website key has no address to
 set and opens the project's page on GitHub; page 2 is only read while it is shown on the keypad.
 
 The controller is **Julien Piron** ("the Developer"). Logitech's own processing is covered by

@@ -218,7 +218,8 @@ when present) and, on a key press, to the page you asked for.
 - **Read**: the agents' local session files and logs, their windows (UI Automation) and pages (debugging ports), the
   Windows audio, CPU and memory state; with a phone, its latest photo and its notification list over adb; the site
   key setting `~/.nexus/trinite/site.json` (and its image); the phone's Wi-Fi pairing note
-  `~/.nexus/nexus-android/wifi.json`.
+  `~/.nexus/nexus-android/wifi.json`; when the website key has no `titre`, at each press, the page addresses of Chrome
+  app windows (UI Automation), to find the window it opened (neither kept nor logged).
 - **Written**: `~/.nexus/trinite` (hook states, the last 5 screen captures, the last 5 phone photos and their reduced
   copies), the plugin log in `%LOCALAPPDATA%\Logi\LogiPluginService\Logs\plugin_logs\TrinitePad.log`, build output and the last
   Antigravity quota read (`quota-antigravity.json`) in `%LOCALAPPDATA%\NexusKeypad`.

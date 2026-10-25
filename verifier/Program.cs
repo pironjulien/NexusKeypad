@@ -139,6 +139,16 @@ Vrai(AppliWeb.Gmail.NonLus(["Codex LB", "Boîte de réception (12) - a@example.c
 Vrai(AppliWeb.Gmail.NonLus(["Boîte de réception - a@example.com - Gmail"]) == 0, "Gmail sans nombre : 0");
 Vrai(AppliWeb.Gmail.NonLus(["Boîte de réception (3) - Gmail - Google Chrome"]) is null, "onglet Gmail de Chrome : pas une fenêtre d'appli");
 Vrai(AppliWeb.Messages.NonLus(["(2) Google Messages pour le Web"]) == 2 && AppliWeb.Messages.NonLus([]) is null, "Messages : titre, sinon rien");
+// Touche du site sans titre : sa fenêtre est celle dont la page est sous l'adresse (origine, puis chemin au segment près).
+Boolean Sous(String page, String adresse) => AppliWeb.Sous(new Uri(page), new Uri(adresse));
+Vrai(Sous("https://github.com/pironjulien/mx-keypad-ai-agents/issues", "https://github.com/pironjulien/mx-keypad-ai-agents")
+    && Sous("https://www.example.org/a", "https://example.org/") && Sous("https://example.org/", "https://example.org"),
+    "site : page sous l'adresse, www ignoré, racine");
+Vrai(!Sous("http://localhost:5173/", "http://localhost:3000/") && !Sous("http://example.org/", "https://example.org/"),
+    "site : port ou schéma différents → autre site");
+Vrai(!Sous("https://github.com/pironjulien/NexusBrowser", "https://github.com/pironjulien/mx-keypad-ai-agents")
+    && !Sous("https://github.com/pironjulien/mx-keypad-ai-agents-fork", "https://github.com/pironjulien/mx-keypad-ai-agents"),
+    "site : autre dépôt GitHub, ou chemin qui ne s'arrête pas au segment → autre site");
 Vrai(AppliWeb.Gmail.NonLus(["(2) Issues · pironjulien/nexus-gmail", "Questions sur l'API Gmail (4)"]) is null
     && AppliWeb.Messages.NonLus(["(3) Messages pour le Web - aide"]) is null, "onglets qui citent Gmail ou Messages : pas de fausse pastille");
 

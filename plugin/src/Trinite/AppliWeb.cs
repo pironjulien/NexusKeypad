@@ -18,8 +18,9 @@ namespace Loupedeck.TrinitePlugin
     // une fenêtre d'appli, 24/10 : sans raccourci, une fenêtre --app.)
     // AuDebut : le titre doit COMMENCER par un de ses mots (le site : « JulienPiron.fr - … ») ; sinon il le contient. Le titre
     // de Gmail contient l'adresse du compte, qui peut contenir le nom du site : la touche du site ramenait Gmail (25/10).
-    // Sans titre (site sans titre donné) : sa fenêtre est une fenêtre d'appli de Chrome dont la page est sur l'hôte demandé,
-    // adresse relue par UI Automation (valeur de son document) à chaque appui, avant de la ramener ou de la fermer. Le titre
+    // Sans titre (site sans titre donné) : sa fenêtre est une fenêtre d'appli de Chrome dont la page est sous l'adresse
+    // demandée (Sous), adresse relue par UI Automation (valeur de son document) à chaque appui, avant de la ramener et
+    // encore juste avant de la fermer. Le titre
     // d'une page ne commence presque jamais par le nom de son hôte (« Example Domain », « GitHub - … ») : chercher l'hôte
     // dans le titre ne la trouvait jamais (6 s d'attente et une fenêtre de plus à chaque appui), et retenir « la nouvelle
     // fenêtre de Chrome » pouvait prendre une autre appli ouverte entre-temps (relectures de Codex et d'Antigravity, 25/10).
@@ -44,12 +45,27 @@ namespace Loupedeck.TrinitePlugin
         public IntPtr Fenetre() =>
             Uia.Fenetres("chrome").FirstOrDefault(h => this.Titres.Length == 0 ? this.MemeSite(h) : this.Reconnue(Uia.Titre(h)));
 
-        // Fenêtre d'appli de Chrome (pas une fenêtre d'onglets, titrée « … - Google Chrome ») dont la page est sur l'hôte
-        // de l'adresse (« www. » ignoré : une redirection vers lui ou depuis lui reste le même site).
+        // Fenêtre d'appli de Chrome (pas une fenêtre d'onglets, titrée « … - Google Chrome ») dont la page est sous l'adresse.
         private Boolean MemeSite(IntPtr h) =>
             !Uia.Titre(h).EndsWith(" - Google Chrome", StringComparison.Ordinal)
             && Uri.TryCreate(Uia.AdresseDocument(h), UriKind.Absolute, out var page)
-            && String.Equals(SansWww(page.Host), SansWww(new Uri(this.Url).Host), StringComparison.OrdinalIgnoreCase);
+            && Sous(page, new Uri(this.Url));
+
+        // Une page est sous une adresse : même origine (schéma, hôte, port ; « www. » ignoré, une redirection vers lui ou
+        // depuis lui reste le même site) et chemin égal à celui de l'adresse ou en dessous, au segment près. Deux applis sur
+        // localhost:3000 et localhost:5173, ou deux dépôts GitHub, ne se confondent pas (contre-relecture de Codex, 25/10).
+        public static Boolean Sous(Uri page, Uri adresse)
+        {
+            if (!String.Equals(page.Scheme, adresse.Scheme, StringComparison.OrdinalIgnoreCase) || page.Port != adresse.Port
+                || !String.Equals(SansWww(page.Host), SansWww(adresse.Host), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var cible = adresse.AbsolutePath.TrimEnd('/');
+            var chemin = page.AbsolutePath;
+            return cible.Length == 0 || chemin.Equals(cible, StringComparison.Ordinal) || chemin.StartsWith(cible + "/", StringComparison.Ordinal);
+        }
 
         private static String SansWww(String hote) => hote.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? hote[4..] : hote;
 
@@ -68,7 +84,7 @@ namespace Loupedeck.TrinitePlugin
         public void Ouvrir()
         {
             var fenetre = this.Fenetre();
-            if (Gestes.FermerSiDevant(fenetre))
+            if ((this.Titres.Length > 0 || fenetre == IntPtr.Zero || this.MemeSite(fenetre)) && Gestes.FermerSiDevant(fenetre))
             {
                 return; // déjà devant : le deuxième appui la ferme
             }
