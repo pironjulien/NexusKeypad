@@ -16,14 +16,19 @@
     <PluginDir>$(LocalAppData)\Logi\LogiPluginService\Plugins\</PluginDir>
 
     <BaseOutputPath>$(NexusBuild)bin\</BaseOutputPath>
-    <!-- Édition du Logi Marketplace (outils\paquet_marketplace.ps1) : page 1 seule, sans tube d'essais, compilée à part. -->
-    <BaseOutputPath Condition="'$(Edition)' == 'Marketplace'">$(NexusBuild)marketplace\bin\</BaseOutputPath>
-    <DefineConstants Condition="'$(Edition)' == 'Marketplace'">$(DefineConstants);MARKETPLACE</DefineConstants>
-    <!-- Sans symboles : ni .pdb ni chemin du poste (dossier de l'utilisateur) gravé dans la DLL distribuée. -->
-    <DebugType Condition="'$(Edition)' == 'Marketplace'">none</DebugType>
 
     <PluginShortName>TrinitePad</PluginShortName>
     <Paquet>package</Paquet>
+  </PropertyGroup>
+
+  <!-- Édition « AI Coding Agents » du Logi Marketplace (outils\paquet_marketplace.ps1) : page 1 seule, sans tube d'essais,
+       compilée à part (sorties et fichiers intermédiaires à elle : la compilation d'une autre édition ne s'y mélange pas).
+       Sans symboles : ni .pdb ni chemin du poste (dossier de l'utilisateur) gravé dans la DLL distribuée. -->
+  <PropertyGroup Condition="'$(Edition)' == 'Marketplace'">
+    <BaseOutputPath>$(NexusBuild)marketplace\bin\</BaseOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)marketplace\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>$(DefineConstants);MARKETPLACE</DefineConstants>
+    <DebugType>none</DebugType>
   </PropertyGroup>
 
   <!-- Édition « PC Dashboard » (outils\paquet_marketplace.ps1 -Edition Poste) : la page 2 seule, second plugin du Logi

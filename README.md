@@ -80,9 +80,10 @@ The bottom-right key opens a link of your choice. Create `%USERPROFILE%\.nexus\t
 { "url": "https://example.org", "titre": "Example", "image": "logo.png", "anneau": ["#0055A4", "#FFFFFF", "#EF4135"] }
 ```
 
-`image` is a PNG or JPEG (absolute, or relative to the JSON file), `anneau` the colors of the spinning ring, `titre` a
-word of its window title (and the name of its app shortcut), by default the site's host name. Without
-this file, the key shows a spinning globe and opens this repository. The file is read when the plugin loads.
+`image` is a PNG or JPEG (absolute, or relative to the JSON file), `anneau` the colors of the spinning ring, `titre`
+how its window title starts (and the name of its app shortcut). Without `titre`, the key recognizes the window it
+opened itself (a second press brings it back or closes it). Without this file, the key shows a spinning globe and
+opens this repository. The file is read when the plugin loads.
 
 ## Better with the Nexus family, fine on its own
 

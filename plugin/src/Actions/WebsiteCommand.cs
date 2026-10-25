@@ -23,7 +23,7 @@ namespace Loupedeck.TrinitePlugin
                 .SetPlaceholder("https://example.com")
                 .SetRequired());
             this.ActionEditor.AddControlEx(new ActionEditorTextbox(Titre, "Window title (optional)",
-                    "How its window title starts, so a second press brings it back instead of opening a new one; by default the site name")
+                    "How its window title starts, to find its window when it was not opened by this key")
                 .SetPlaceholder("Example"));
         }
 
@@ -66,7 +66,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Le nom du site sous la touche dans Options+ ; « Website » tant qu'aucune adresse n'est saisie.
         protected override String GetCommandDisplayName(ActionEditorActionParameters parametres) =>
-            Signet.Choisi(parametres.GetString(Adresse, ""), "") is { Url: not null } site ? site.Titre : this.DisplayName;
+            Signet.Choisi(parametres.GetString(Adresse, ""), "") is { Url: not null } site ? site.Nom : this.DisplayName;
     }
 }
 #endif

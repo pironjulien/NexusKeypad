@@ -8,7 +8,8 @@ Developer or to anyone else.** It has no account, no analytics, no telemetry, no
 AI Coding Agents + PC is the complete edition of the project, page 1 and page 2 in one plugin. It reads and writes
 exactly what the two single-page plugins describe, on your computer only:
 
-- page 1 (AI agents, quotas, screen capture, phone photo, dictation): the
+- page 1 (AI agents, quotas, screen capture, dictation, and the phone photo: with a phone reachable over adb, each new
+  photo or screenshot is copied from the phone as soon as it is taken, to show it on the key): the
   [AI Coding Agents Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY.md);
 - page 2 (sound, unread Gmail and Messages counts from Chrome window titles or phone notifications, PC health, Store
   and Windows Update): the

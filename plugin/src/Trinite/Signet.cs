@@ -9,10 +9,13 @@ namespace Loupedeck.TrinitePlugin
     // tourne, lues une fois au chargement du plugin dans ~/.nexus/trinite/site.json :
     //   { "url": "https://exemple.org", "titre": "Exemple", "image": "logo.png", "anneau": ["#0055A4", "#FFFFFF", "#EF4135"] }
     // Image : chemin absolu ou relatif au fichier (PNG ou JPEG, carré de préférence). Titre : le début du titre de sa
-    // fenêtre (appli installée), pour la ramener devant ; par défaut le nom du site (« exemple.org »). Sans réglage : un
-    // globe dans un anneau arc-en-ciel, qui ouvre la page du projet.
+    // fenêtre (appli installée), pour la ramener devant ; null s'il n'est pas donné (la fenêtre est alors celle que la
+    // touche a ouverte, AppliWeb). Sans réglage : un globe dans un anneau arc-en-ciel, qui ouvre la page du projet.
     public sealed record Signet(String Url, String Titre, BitmapImage Image, BitmapColor[] Anneau)
     {
+        // Nom du site : le titre donné, sinon l'hôte (« exemple.org ») ; nom de son raccourci d'appli Chrome.
+        public String Nom => this.Titre ?? Hote(this.Url);
+
         public const String Projet = "https://github.com/pironjulien/mx-keypad-ai-agents";
 
         private static readonly String Fichier = Path.Combine(Environment.GetEnvironmentVariable("USERPROFILE") ?? "", ".nexus", "trinite", "site.json");
@@ -34,7 +37,7 @@ namespace Loupedeck.TrinitePlugin
         public static readonly Signet Generique = new(null, null, null, null);
 
         // Adresse saisie dans Options+ (http ou https, « https:// » ajouté s'il manque) et début du titre de sa fenêtre
-        // (vide : le nom du site) ; Generique si l'adresse est vide ou illisible.
+        // (vide : null) ; Generique si l'adresse est vide ou illisible.
         public static Signet Choisi(String adresse, String titre)
         {
             adresse = adresse?.Trim() ?? "";
@@ -44,7 +47,7 @@ namespace Loupedeck.TrinitePlugin
             }
 
             return Uri.TryCreate(adresse, UriKind.Absolute, out var u) && u.Scheme is "https" or "http" && u.Host.Length > 0
-                ? new(u.AbsoluteUri, String.IsNullOrWhiteSpace(titre) ? Hote(u.AbsoluteUri) : titre.Trim(), null, null)
+                ? new(u.AbsoluteUri, String.IsNullOrWhiteSpace(titre) ? null : titre.Trim(), null, null)
                 : Generique;
         }
 
@@ -71,7 +74,7 @@ namespace Loupedeck.TrinitePlugin
                 var anneau = racine.TryGetProperty("anneau", out var a) && a.ValueKind == JsonValueKind.Array
                     ? a.EnumerateArray().Select(c => Couleur(c.GetString())).Where(c => c is not null).Select(c => c.Value).ToArray()
                     : null;
-                var titre = racine.TryGetProperty("titre", out var t) && t.GetString() is { Length: > 0 } nom ? nom : Hote(url);
+                var titre = racine.TryGetProperty("titre", out var t) && t.GetString() is { Length: > 0 } nom ? nom : null;
                 return new(url, titre, image, anneau is { Length: > 0 } ? anneau : null);
             }
             catch (Exception e)
@@ -81,7 +84,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private static Signet Defaut => new(Projet, "mx-keypad-ai-agents", null, null);
+        private static Signet Defaut => new(Projet, null, null, null);
 
         private static String Hote(String url)
         {

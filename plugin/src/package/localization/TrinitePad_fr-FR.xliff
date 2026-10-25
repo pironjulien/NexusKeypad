@@ -23,27 +23,27 @@
         <group id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand">
           <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t1" translate="yes">
             <source>Key 1 · Codex</source>
-            <target>Touche 1 · Codex n°1</target>
+            <target>Touche 1 · Codex</target>
           </trans-unit>
           <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t2" translate="yes">
             <source>Key 2 · Claude</source>
-            <target>Touche 2 · Claude n°1</target>
+            <target>Touche 2 · Claude</target>
           </trans-unit>
           <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t3" translate="yes">
             <source>Key 3 · Antigravity</source>
-            <target>Touche 3 · Antigravity n°1</target>
+            <target>Touche 3 · Antigravity</target>
           </trans-unit>
           <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t4" translate="yes">
             <source>Key 4 · Codex quota</source>
-            <target>Touche 4 · Codex n°2</target>
+            <target>Touche 4 · Quota de Codex</target>
           </trans-unit>
           <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t5" translate="yes">
             <source>Key 5 · Claude quota</source>
-            <target>Touche 5 · Claude n°2</target>
+            <target>Touche 5 · Quota de Claude</target>
           </trans-unit>
           <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t6" translate="yes">
             <source>Key 6 · Antigravity quota</source>
-            <target>Touche 6 · Antigravity n°2</target>
+            <target>Touche 6 · Quota d'Antigravity</target>
           </trans-unit>
           <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t7" translate="yes">
             <source>Key 7 · Screen capture</source>

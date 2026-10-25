@@ -33,6 +33,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
 
 ### Fixed
+- Review by Codex and Antigravity of the Marketplace editions (October 25), sent again to Logitech as AI Coding Agents
+  1.1.1, PC Dashboard 1.0.1 and AI Coding Agents + PC 1.1.1:
+  - website key without a window title: it now recognizes the window it opened itself; it looked for a window whose
+    title starts with the site's host name, which a page title almost never does (6 s wait and one more window at
+    each press). With a title given, its window must still start with it (no Gmail false positive);
+  - PC Dashboard no longer opens any agent file (not even the kept Antigravity quota), and reads nothing while its keys
+    are not shown on the keypad (it re-read the PC every second);
+  - the Marketplace edition has its own intermediate build folder, like the other two;
+  - French action names of the quota keys: "Quota de Codex" instead of "Codex n°2";
+  - privacy policy: with a phone reachable over adb, new photos are copied as soon as they are taken (to show them on
+    the key), not only when the photo key is pressed.
 - Review by Codex and Antigravity (October 25):
   - updates key: a real outcome (started, up to date, unknown, failed, cancelled); green check only when both are
     started or up to date, otherwise an amber "!"; slower polling after 10 s; stopped with the plugin; a minimised

@@ -18,8 +18,14 @@ namespace Loupedeck.TrinitePlugin
     // une fenêtre d'appli, 24/10 : sans raccourci, une fenêtre --app.)
     // AuDebut : le titre doit COMMENCER par un de ses mots (le site : « JulienPiron.fr - … ») ; sinon il le contient. Le titre
     // de Gmail contient l'adresse du compte, qui peut contenir le nom du site : la touche du site ramenait Gmail (25/10).
+    // Sans titre (site sans titre donné) : sa fenêtre est celle que la touche a ouverte. Le titre d'une page ne commence
+    // presque jamais par le nom de son hôte (« Example Domain », « GitHub - … ») : chercher l'hôte ne la trouvait jamais
+    // (6 s d'attente et une fenêtre de plus à chaque appui ; relecture de Codex et d'Antigravity, 25/10).
     public sealed record AppliWeb(String Url, String[] Titres, String[] Raccourcis, Boolean AuDebut = false)
     {
+        // Fenêtre ouverte par la touche, par adresse (sites sans titre donné).
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<String, IntPtr> Ouvertes = new();
+
         // Titres stricts : « … - Gmail » (fenêtre, onglet) et le nom complet de Google Messages pour le Web ; un onglet
         // « (2) Issues · …/nexus-gmail » ou « Questions sur l'API Gmail » allumait une fausse pastille (relecture
         // d'Antigravity, 25/10).
@@ -29,12 +35,19 @@ namespace Loupedeck.TrinitePlugin
             ["Messages", "Google Messages"]);
 
         // Site d'une touche ; null sans adresse (touche du site de PC Dashboard pas encore réglée).
-        public static AppliWeb Site(Signet site) => site.Url is null ? null : new(site.Url, [site.Titre], [site.Titre], AuDebut: true);
+        public static AppliWeb Site(Signet site) => site.Url is null ? null : new(site.Url, site.Titre is null ? [] : [site.Titre], [site.Nom], AuDebut: true);
 
         private static readonly String Local = Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "";
 
-        // Sa fenêtre ouverte (appli installée ou fenêtre d'appli), zéro sinon.
-        public IntPtr Fenetre() => Uia.Fenetres("chrome").FirstOrDefault(h => this.Reconnue(Uia.Titre(h)));
+        // Sa fenêtre ouverte (appli installée ou fenêtre d'appli), zéro sinon. Sans titre : celle que la touche a ouverte,
+        // si elle est toujours là.
+        public IntPtr Fenetre() => this.Titres.Length == 0
+            ? Ouvertes.TryGetValue(this.Url, out var h) && Uia.Fenetres("chrome").Contains(h) ? h : IntPtr.Zero
+            : Uia.Fenetres("chrome").FirstOrDefault(h => this.Reconnue(Uia.Titre(h)));
+
+        // Fenêtre d'appli de Chrome apparue depuis « avant » (pas une fenêtre d'onglets, titrée « … - Google Chrome »).
+        private static IntPtr Nouvelle(System.Collections.Generic.HashSet<IntPtr> avant) =>
+            Uia.Fenetres("chrome").FirstOrDefault(h => !avant.Contains(h) && !Uia.Titre(h).EndsWith(" - Google Chrome", StringComparison.Ordinal));
 
         private Boolean Reconnue(String titre) =>
             !titre.EndsWith(" - Google Chrome", StringComparison.Ordinal) && this.Titres.Any(t => this.AuDebut
@@ -58,10 +71,16 @@ namespace Loupedeck.TrinitePlugin
 
             if (fenetre == IntPtr.Zero)
             {
+                var avant = Uia.Fenetres("chrome").ToHashSet();
                 this.Lancer();
-                for (var i = 0; i < 30 && (fenetre = this.Fenetre()) == IntPtr.Zero; i++)
+                for (var i = 0; i < 30 && (fenetre = this.Titres.Length == 0 ? Nouvelle(avant) : this.Fenetre()) == IntPtr.Zero; i++)
                 {
                     Thread.Sleep(200);
+                }
+
+                if (fenetre != IntPtr.Zero && this.Titres.Length == 0)
+                {
+                    Ouvertes[this.Url] = fenetre;
                 }
             }
 

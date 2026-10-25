@@ -26,9 +26,12 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 - **Screen** (Screen capture key, only when you press it): one capture of your screen.
 - **Microphone**: the Plugin never records audio. The Dictation key presses the dictation button of the app in front
   (or starts Windows voice typing); that app or Windows does the listening.
-- **Phone** (Phone photo key, only if an Android phone is reachable over adb, USB or wireless debugging): the most
-  recent photo or screenshot of the phone. Wireless debugging uses adb on your local network; the optional pairing
-  note `~/.nexus/nexus-android/wifi.json` is read if present.
+- **Phone** (only if an Android phone is reachable over adb, USB or wireless debugging, and only while the Plugin
+  runs): to show the phone's latest photo on the Phone photo key, the Plugin watches the phone's camera and screenshot
+  folders (`DCIM/Camera`, `DCIM/Screenshots`, `Pictures/Screenshots`) and copies each new photo or screenshot to your
+  PC as soon as it is taken, without a key press. Pressing the key only pastes it. Without adb or a phone, nothing is
+  read. Wireless debugging uses adb on your local network; the optional pairing note
+  `~/.nexus/nexus-android/wifi.json` is read if present.
 
 ## What the Plugin writes, on your computer only
 
@@ -42,7 +45,7 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 ## Network
 
 The Plugin makes no network request except: to `127.0.0.1` (the apps' local debugging ports, and codex-lb when you
-run it), to your phone through adb when you use the photo key, and, when you press a key that opens a page (for example
+run it), to your phone through adb when one is reachable (see above), and, when you press a key that opens a page (for example
 a usage page), to that page in your browser. **No data is sent to the Developer, to Logitech or to any analytics
 service.** Pasted images and dictated text always stay unsent in the app's field: sending them is your decision, and
 what the AI apps then do with them is governed by their own privacy policies.

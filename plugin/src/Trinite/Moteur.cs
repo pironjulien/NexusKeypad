@@ -529,24 +529,16 @@ namespace Loupedeck.TrinitePlugin
                 if (this._page == 2)
                 {
                     // Édition PC Dashboard : ses touches peuvent n'être sur aucune page affichée du pad. Toutes animées, elles
-                    // sont redemandées sans cesse quand elles sont affichées ; sans demande depuis 3 s, ni Chrome ni le
-                    // téléphone ne sont relus et le poste n'est redessiné qu'une fois par seconde (une image changée et
-                    // redemandée relance tout).
-                    var cachee = Premiere >= 9 && this._horloge.Elapsed.TotalSeconds - this._demande > 3;
-                    if (cachee && this._tic % 8 != 0)
+                    // sont redemandées sans cesse quand elles sont affichées ; sans demande depuis 3 s, rien n'est relu ni
+                    // dessiné (ni le poste, ni Chrome, ni le téléphone). Le pad redemande les images d'une page dès qu'il
+                    // l'affiche, ce qui relance tout.
+                    if (Premiere >= 9 && this._horloge.Elapsed.TotalSeconds - this._demande > 3)
                     {
                         return;
                     }
 
-                    if (cachee)
-                    {
-                        this._poste = Releve.Lire() with { Mails = this._poste?.Mails, Messages = this._poste?.Messages };
-                    }
-                    else
-                    {
-                        this.LireNotifications();
-                        this._poste = this.LirePoste();
-                    }
+                    this.LireNotifications();
+                    this._poste = this.LirePoste();
 
                     for (var t = VolumeMoins; t < Touches; t++)
                     {

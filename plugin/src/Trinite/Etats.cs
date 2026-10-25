@@ -33,11 +33,20 @@ namespace Loupedeck.TrinitePlugin
         private (DateTime Ecrit, Dictionary<String, String> Noms) _indexCodex = (DateTime.MinValue, []);
         private List<(String Id, String Titre, DateTime Activite, Boolean Selection)> _lignesAgy = [];
         private readonly Dictionary<String, String> _sujets = [];
+#if POSTE
+        // Édition PC Dashboard : aucun agent lu, aucun de leurs fichiers ouvert (pas même le quota gardé d'Antigravity).
+        private readonly Quota[] _quotas = new Quota[3];
+#else
         private readonly Quota[] _quotas = [null, null, QuotaAntigravity.Garde(out _)];
+#endif
         private readonly Process[] _lancees = new Process[3];
         private readonly DateTime[] _recherche = new DateTime[3];
         private readonly DateTime[] _vueLancee = new DateTime[3];
+#if POSTE
+        private DateTime _quotaAgyLu = DateTime.MinValue;
+#else
         private DateTime _quotaAgyLu = QuotaAntigravity.Lu(); // dernière lecture réussie de sa page Settings › Models
+#endif
         private DateTime _quotaAgyEssai = DateTime.MinValue;
         private String _selectionCodex;
         private String _selectionAgy;
