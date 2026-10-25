@@ -231,15 +231,15 @@ package with the official Logi Plugin Tool (`dotnet tool install -g LogiPluginTo
 ```powershell
 git clone https://github.com/pironjulien/NexusKeypad
 cd NexusKeypad
-dotnet build -c Debug plugin\src        # builds to %LOCALAPPDATA%\NexusKeypad and installs the plugin package
-python -I outils\installer_hooks.py $env:USERPROFILE\.claude\settings.json   # Claude and Antigravity hooks
+dotnet build -c Debug plugin\src -p:Reel=true   # builds to %LOCALAPPDATA%\NexusKeypad and installs the plugin package
+python -I outils\installer_hooks.py --reel $env:USERPROFILE\.claude\settings.json   # Claude and Antigravity hooks
 ```
 
 Then place the 18 keys on the keypad's default profile, with the Logi service stopped (the script backs up
 `ProfileInfo.json`; `--retour` restores it), and restart the Logi Options+ agent:
 
 ```powershell
-python -I outils\placer_touches.py
+python -I outils\placer_touches.py --reel
 pwsh -File outils\relancer_logi.ps1
 ```
 
@@ -266,7 +266,7 @@ when present) and, on a key press, to the page you asked for.
   copies), the plugin log in `%LOCALAPPDATA%\Logi\LogiPluginService\Logs\plugin_logs\TrinitePad.log`, build output and the last
   Antigravity quota read (`quota-antigravity.json`) in `%LOCALAPPDATA%\NexusKeypad`.
 - **Clipboard**: Screen capture and Photo put the image in the clipboard before pasting it; nothing is ever sent.
-- **Remove everything**: `python -I outils\placer_touches.py --retour`, delete
+- **Remove everything**: `python -I outils\placer_touches.py --reel --retour`, delete
   `%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\TrinitePad`, `%LOCALAPPDATA%\NexusKeypad` and `~/.nexus/trinite`, and
   remove the hooks that call `etat\etat.py` from `~/.claude/settings.json` and the `trinite-pad` entry of
   `~/.gemini/config/hooks.json`.

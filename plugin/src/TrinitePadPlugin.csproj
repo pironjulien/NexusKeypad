@@ -120,7 +120,9 @@
   <!-- test.ps1 compile avec NexusTest=true : ni lien posé, ni rechargement du plugin en service. -->
   <!-- Installé comme un vrai paquet (Plugins\TrinitePad), pas par un lien .link : avec le lien, le service ne chargeait
        pas le plugin quand Logi démarrait avec Windows (pad sur le logo Logi) ; le paquet se charge toujours. -->
-  <Target Name="PostBuild" AfterTargets="CopyPackage" Condition="'$(NexusTest)' != 'true'">
+  <!-- Garde-fou (règle du 25/10, après un essai qui a touché le vrai dossier des plugins) : la compilation n'installe dans
+       le vrai dossier de Logi qu'avec -p:Reel=true, sur l'accord de Julien. -->
+  <Target Name="PostBuild" AfterTargets="CopyPackage" Condition="'$(NexusTest)' != 'true' And '$(Reel)' == 'true'">
     <ItemGroup>
       <Paquet Include="$(BaseOutputPath)$(Configuration)\**\*" />
     </ItemGroup>
@@ -131,8 +133,8 @@
   </Target>
 
   <Target Name="PluginClean" AfterTargets="CoreClean">
-    <Delete Files="$(PluginDir)$(ProjectName).link" Condition="'$(NexusTest)' != 'true'" />
-    <RemoveDir Directories="$(PluginDir)$(PluginShortName)\" Condition="'$(NexusTest)' != 'true'" />
+    <Delete Files="$(PluginDir)$(ProjectName).link" Condition="'$(NexusTest)' != 'true' And '$(Reel)' == 'true'" />
+    <RemoveDir Directories="$(PluginDir)$(PluginShortName)\" Condition="'$(NexusTest)' != 'true' And '$(Reel)' == 'true'" />
     <RemoveDir Directories="$(OutputPath)..\" />
   </Target>
 

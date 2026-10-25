@@ -4,7 +4,9 @@ Update, site). Les deux boutons du bas passent d'une page à l'autre. Une page c
 dessine tant que le service ne demande pas ses images.
 
 À lancer service Logi arrêté (sinon il réécrit le profil). Sauvegarde ProfileInfo.json avant d'écrire.
-Usage : python -I placer_touches.py [--retour]   (--retour remet la sauvegarde)
+Usage : python -I placer_touches.py --reel [--retour]   (--retour remet la sauvegarde)
+--reel exigé : le script écrit le vrai profil d'Options+ (garde-fou du 25/10 : aucun essai sur l'environnement réel
+sans un drapeau explicite).
 """
 import copy
 import json
@@ -19,6 +21,8 @@ ACTION = "$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t{}"
 
 
 def main() -> None:
+    if "--reel" not in sys.argv:
+        sys.exit("placer_touches.py écrit le vrai profil d'Options+ : ajouter --reel pour le faire pour de bon.")
     fichier = next(PROFILS.glob("*/ProfileInfo.json"))
     sauvegarde = fichier.with_name("ProfileInfo.avant-trinite.json")
     if "--retour" in sys.argv:

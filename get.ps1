@@ -14,9 +14,10 @@
 # NEXUS_PACK=1 (the Nexus pack, get-nexus.ps1): no question, no wait, no window, keys left to place by hand; exit code
 # 0 on success; a last "NEXUS_PACK_RESULT ..." line.
 # For tests only: NEXUS_KEYPAD_SOURCE (a local .lplug4 instead of the latest release) and NEXUS_KEYPAD_LOGI (another
-# Logi Plugin Service data folder; the real service is then never stopped or started).
+# Logi Plugin Service data folder; the real service is then never stopped or started). A local package aimed at the real
+# Logi folder is refused (a test that lost its test folder must not install for real) unless -Real is given.
 [CmdletBinding()]
-param([switch]$Remove, [ValidateSet('ask', 'yes', 'no')] [string]$Keys = 'ask')
+param([switch]$Remove, [ValidateSet('ask', 'yes', 'no')] [string]$Keys = 'ask', [switch]$Real)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'  # Invoke-WebRequest is many times slower with its progress bar
@@ -203,6 +204,9 @@ function Remove-NexusKeypad {
 
 $code = 1
 try {
+    if ($env:NEXUS_KEYPAD_SOURCE -and -not $Sandbox -and -not $Real) {
+        throw 'NEXUS_KEYPAD_SOURCE (a test package) is set but NEXUS_KEYPAD_LOGI is not: refusing to touch the real Logi folder. Set NEXUS_KEYPAD_LOGI to a test folder, or pass -Real.'
+    }
     if ($Remove) { $code = Remove-NexusKeypad } else { $code = Install-NexusKeypad }
 } catch {
     Say "NexusKeypad: $($_.Exception.Message)" Red

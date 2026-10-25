@@ -1,9 +1,9 @@
 """Pilote le pad Trinité pour les essais, par le tube local du plugin (Pilote.cs).
 
 Usage : python -I outils/pad.py capture [2]        → chemin de l'image des 9 touches (page 1, ou 2)
-        python -I outils/pad.py appui <1-18>       → appui simulé (places du pad : 1 Codex, 2 Claude, 3 Antigravity, 4-6 : leurs quotas, 7 Capture, 8 Photo, 9 Dictée ; 10-18 : page 2)
+        python -I outils/pad.py --reel appui <1-18> → appui simulé (places du pad : 1 Codex, 2 Claude, 3 Antigravity, 4-6 : leurs quotas, 7 Capture, 8 Photo, 9 Dictée ; 10-18 : page 2)
         python -I outils/pad.py etat               → résumé de la dernière lecture
-        python -I outils/pad.py releve             → relevé forcé du quota d'Antigravity (sa page Settings › Models)
+        python -I outils/pad.py --reel releve      → relevé forcé du quota d'Antigravity (sa page Settings › Models)
         python -I outils/pad.py etats-en-direct    → question de l'action « Live states » (poser ou retirer les hooks)
 """
 import ctypes, sys, time
@@ -40,9 +40,15 @@ def commande(texte: str) -> str:
     return "tube du pad occupé depuis 10 s"
 
 
+# Garde-fou (25/10) : un appui ou un relevé agit sur le vrai pad et les vraies applis : seulement avec --reel.
+GESTES = ("appui", "releve")
+
 if __name__ == "__main__":
+    mots = [a for a in sys.argv[1:] if a != "--reel"]
+    if mots and mots[0] in GESTES and "--reel" not in sys.argv:
+        sys.exit(f"« {mots[0]} » agit sur le vrai pad : ajouter --reel, sur l'accord de Julien.")
     try:
-        print(commande(" ".join(sys.argv[1:]) or "aide"))
+        print(commande(" ".join(mots) or "aide"))
     except FileNotFoundError:
         print("plugin du pad absent (service Logi arrêté, ou plugin non chargé : pad sur le logo Logi)")
         sys.exit(1)

@@ -1,6 +1,6 @@
 """Branche etat.py sur les hooks de Claude et d'Antigravity (idempotent).
 
-Usage : python -I installer_hooks.py [<reglages-claude.json>...]   (ajoute aussi le hook d'Antigravity s'il est installé)
+Usage : python -I installer_hooks.py --reel [<reglages-claude.json>...]   (ajoute aussi le hook d'Antigravity s'il est installé)
 Sans argument : Antigravity seul. Un fichier de réglages de Claude absent est créé.
 Claude : un groupe par événement, en tâche de fond (async) pour ne jamais ralentir un tour.
 Antigravity : entrée « trinite-pad » de ~/.gemini/config/hooks.json (son format : type, command, timeout).
@@ -108,6 +108,9 @@ def poser_antigravity() -> None:
 
 
 if __name__ == "__main__":
-    for argument in sys.argv[1:]:
+    # Garde-fou (25/10) : écrit les vrais réglages de Claude et d'Antigravity, seulement avec --reel.
+    if "--reel" not in sys.argv:
+        sys.exit("installer_hooks.py écrit les vrais réglages des IA : ajouter --reel pour le faire pour de bon.")
+    for argument in (a for a in sys.argv[1:] if a != "--reel"):
         poser_claude(Path(argument))
     poser_antigravity()

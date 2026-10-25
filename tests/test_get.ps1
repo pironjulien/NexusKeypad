@@ -28,6 +28,15 @@ function Actions() {
     return @($j.layout.layoutModes[0].workspaces[0].pressPages | ForEach-Object { $_.controls } | ForEach-Object { $_.pressAction } | Where-Object { $_ })
 }
 try {
+    # Garde-fou : un paquet de test sans dossier de test est refusé (incident du 25/10 : un essai sans dossier de test a
+    # installé dans le vrai dossier des plugins). Paquet inexistant : même un garde-fou cassé n'installerait rien.
+    Remove-Item Env:NEXUS_KEYPAD_LOGI
+    $env:NEXUS_KEYPAD_SOURCE = Join-Path $Travail 'absent.lplug4'
+    $sortie = & $shell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $racine 'get.ps1') 2>&1
+    if ($LASTEXITCODE -ne 1 -or -not ($sortie -match 'refusing to touch the real Logi folder')) { throw "garde-fou : code $LASTEXITCODE`n$($sortie -join "`n")" }
+    $env:NEXUS_KEYPAD_LOGI = $logi
+    $env:NEXUS_KEYPAD_SOURCE = $paquet
+
     $env:NEXUS_PACK = '1'
     $sortie = Lancer @()
     Remove-Item Env:NEXUS_PACK
