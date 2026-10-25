@@ -37,9 +37,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   1.1.1, PC Dashboard 1.0.1 and AI Coding Agents + PC 1.1.1:
   - website key without a window title: its window is a Chrome app window whose page is under the requested address
     (same scheme, host and port, path at or below the address's path segment by segment: two apps on localhost:3000 and
-    localhost:5173, or two GitHub repositories, are told apart), the page address being read again (UI Automation) at
-    each press before it is brought back and again just before it is closed; the privacy policies declare this
-    reading; it looked for a
+    localhost:5173, or two GitHub repositories, are told apart; a query or fragment in the address must match exactly),
+    the page address being read again (UI Automation) at each press; a window that fails this check just before the
+    key acts is neither closed nor brought back, the requested page is opened instead; the privacy policies declare
+    this reading; it looked for a
     window whose title starts with the site's host name, which a page title almost never does (6 s wait and one more
     window at each press). With a title given, its window must still start with it (no Gmail false positive);
   - PC Dashboard no longer opens any agent file (not even the kept Antigravity quota). With its keys not requested by

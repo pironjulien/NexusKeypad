@@ -54,10 +54,17 @@ namespace Loupedeck.TrinitePlugin
         // Une page est sous une adresse : même origine (schéma, hôte, port ; « www. » ignoré, une redirection vers lui ou
         // depuis lui reste le même site) et chemin égal à celui de l'adresse ou en dessous, au segment près. Deux applis sur
         // localhost:3000 et localhost:5173, ou deux dépôts GitHub, ne se confondent pas (contre-relecture de Codex, 25/10).
+        // Une requête ou un fragment donnés dans l'adresse désignent une ressource : ils doivent être identiques
+        // (« ?id=alpha » n'est pas « ?id=beta », « #/document/alpha » n'est pas « #/document/beta »).
         public static Boolean Sous(Uri page, Uri adresse)
         {
             if (!String.Equals(page.Scheme, adresse.Scheme, StringComparison.OrdinalIgnoreCase) || page.Port != adresse.Port
                 || !String.Equals(SansWww(page.Host), SansWww(adresse.Host), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if ((adresse.Query.Length > 0 && page.Query != adresse.Query) || (adresse.Fragment.Length > 0 && page.Fragment != adresse.Fragment))
             {
                 return false;
             }
@@ -84,7 +91,14 @@ namespace Loupedeck.TrinitePlugin
         public void Ouvrir()
         {
             var fenetre = this.Fenetre();
-            if ((this.Titres.Length > 0 || fenetre == IntPtr.Zero || this.MemeSite(fenetre)) && Gestes.FermerSiDevant(fenetre))
+            if (fenetre != IntPtr.Zero && this.Titres.Length == 0 && !this.MemeSite(fenetre))
+            {
+                // Identité revérifiée juste avant d'agir (sa page a pu changer depuis) : refusée, cette fenêtre n'est ni
+                // fermée ni ramenée, la page demandée est ouverte.
+                fenetre = IntPtr.Zero;
+            }
+
+            if (Gestes.FermerSiDevant(fenetre))
             {
                 return; // déjà devant : le deuxième appui la ferme
             }

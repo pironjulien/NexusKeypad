@@ -149,6 +149,12 @@ Vrai(!Sous("http://localhost:5173/", "http://localhost:3000/") && !Sous("http://
 Vrai(!Sous("https://github.com/pironjulien/NexusBrowser", "https://github.com/pironjulien/mx-keypad-ai-agents")
     && !Sous("https://github.com/pironjulien/mx-keypad-ai-agents-fork", "https://github.com/pironjulien/mx-keypad-ai-agents"),
     "site : autre dépôt GitHub, ou chemin qui ne s'arrête pas au segment → autre site");
+Vrai(Sous("https://example.org/view?id=alpha", "https://example.org/view?id=alpha") && !Sous("https://example.org/view?id=beta", "https://example.org/view?id=alpha")
+    && !Sous("https://example.org/view", "https://example.org/view?id=alpha") && Sous("https://example.org/view?id=beta", "https://example.org/view"),
+    "site : requête de l'adresse exigée à l'identique (aucune requête donnée : toutes acceptées)");
+Vrai(Sous("https://example.org/app#/document/alpha", "https://example.org/app#/document/alpha")
+    && !Sous("https://example.org/app#/document/beta", "https://example.org/app#/document/alpha"),
+    "site : fragment de l'adresse exigé à l'identique");
 Vrai(AppliWeb.Gmail.NonLus(["(2) Issues · pironjulien/nexus-gmail", "Questions sur l'API Gmail (4)"]) is null
     && AppliWeb.Messages.NonLus(["(3) Messages pour le Web - aide"]) is null, "onglets qui citent Gmail ou Messages : pas de fausse pastille");
 
