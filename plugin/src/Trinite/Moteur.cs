@@ -69,8 +69,14 @@ namespace Loupedeck.TrinitePlugin
         public const Int32 Premiere = 9;
         public const Int32 Proposees = 8;
         public const Boolean SiteAPart = true;
+#elif COMPLETE
+        // Édition AI Coding Agents + PC (Edition=Complete), troisième plugin du Marketplace : les deux pages, 17 touches,
+        // plus le site à part comme dans PC Dashboard (adresse choisie dans Options+, aucun site par défaut).
+        public const Int32 Premiere = 0;
+        public const Int32 Proposees = Touches - 1;
+        public const Boolean SiteAPart = true;
 #else
-        // Version complète (GitHub, et Edition=Complete : AI Coding Agents + PC, troisième plugin du Marketplace).
+        // Version complète des sources (GitHub) : le site vient du réglage du poste (Signet, site.json).
         public const Int32 Premiere = 0;
         public const Int32 Proposees = Touches;
         public const Boolean SiteAPart = false;

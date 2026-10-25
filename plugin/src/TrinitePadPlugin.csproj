@@ -97,6 +97,11 @@
   </Target>
   <Target Name="HookCopie" AfterTargets="CopyPackage" DependsOnTargets="HookPublie" Condition="'$(Edition)' != 'Poste'">
     <Copy SourceFiles="$(HookSortie)nexuskeypad-hook.exe" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+    <!-- Mod du quota exact de Claude et son catalogue local, posés avec les hooks (EtatsEnDirect). -->
+    <ItemGroup>
+      <ModsClaude Include="$(MSBuildThisFileDirectory)..\..\claude-quota\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ModsClaude)" DestinationFolder="$(OutputPath)claude-quota\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 
   <!-- test.ps1 compile avec NexusTest=true : ni lien posé, ni rechargement du plugin en service. -->

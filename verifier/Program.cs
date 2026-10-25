@@ -214,16 +214,33 @@ Vrai(!Rendu.Image(0, S(0.1)).Pixels.AsSpan().SequenceEqual(Rendu.Image(0, S(0.6)
     File.WriteAllText(claude, """{"hooks": {}}""");
     var paquet = Path.Combine(dossier, "paquet", "nexuskeypad-hook.exe");
     var exe = Path.Combine(dossier, "local avec espace", "nexuskeypad-hook.exe");
-    Vrai(!EtatsEnDirect.Appliquer(paquet, true, claude, gemini, exe) && File.ReadAllText(claude) == """{"hooks": {}}""" && !File.Exists(gemini),
+    var catalogue = Path.Combine(dossier, "local avec espace", "claude-marketplace");
+    File.WriteAllText(claude, """{"hooks": {}, "enabledPlugins": {"autre@x": true}}""");
+    var reglagesAvant = File.ReadAllText(claude);
+    Vrai(!EtatsEnDirect.Appliquer(paquet, true, claude, gemini, exe, catalogue) && File.ReadAllText(claude) == reglagesAvant && !File.Exists(gemini),
         "états en direct : pose échouée (exécutable absent) → rien de modifié");
     Directory.CreateDirectory(Path.GetDirectoryName(paquet));
     File.WriteAllText(paquet, "exe");
-    Vrai(EtatsEnDirect.Appliquer(paquet, true, claude, gemini, exe) && File.Exists(exe)
+    Vrai(!EtatsEnDirect.Appliquer(paquet, true, claude, gemini, exe, catalogue) && File.ReadAllText(claude) == reglagesAvant && !File.Exists(gemini),
+        "états en direct : pose échouée (mod du quota absent du paquet) → rien de modifié");
+    var mod = Path.Combine(dossier, "paquet", EtatsEnDirect.DossierModsPaquet, ".claude-plugin", "marketplace.json");
+    Directory.CreateDirectory(Path.GetDirectoryName(mod));
+    File.WriteAllText(mod, "{}");
+    Vrai(EtatsEnDirect.Appliquer(paquet, true, claude, gemini, exe, catalogue) && File.Exists(exe)
         && EtatsEnDirect.ClaudeAvecPad(J(File.ReadAllText(claude))) && !J(File.ReadAllText(gemini))[EtatsEnDirect.CleAntigravity]!.ToJsonString().Contains("avec espace"),
         "états en direct : pose (exécutable copié, Claude, Antigravity par un chemin sans espace)");
-    Vrai(EtatsEnDirect.Appliquer(paquet, false, claude, gemini, exe) && !EtatsEnDirect.ClaudeAvecPad(J(File.ReadAllText(claude)))
+    var pose = J(File.ReadAllText(claude));
+    Vrai(File.Exists(Path.Combine(catalogue, ".claude-plugin", "marketplace.json"))
+        && pose["extraKnownMarketplaces"]![EtatsEnDirect.Catalogue]!["source"]!["path"]!.GetValue<String>() == catalogue
+        && pose["extraKnownMarketplaces"]![EtatsEnDirect.Catalogue]!["source"]!["source"]!.GetValue<String>() == "directory"
+        && pose["enabledPlugins"]![EtatsEnDirect.ModQuota]!.GetValue<Boolean>() && pose["enabledPlugins"]!["autre@x"]!.GetValue<Boolean>(),
+        "états en direct : mod du quota (catalogue local copié, déclaré et activé ; autres plugins gardés)");
+    Vrai(EtatsEnDirect.Appliquer(paquet, false, claude, gemini, exe, catalogue) && !EtatsEnDirect.ClaudeAvecPad(J(File.ReadAllText(claude)))
         && !J(File.ReadAllText(gemini)).ContainsKey(EtatsEnDirect.CleAntigravity),
         "états en direct : retrait chez les deux");
+    var retire = J(File.ReadAllText(claude));
+    Vrai(!retire.ContainsKey("extraKnownMarketplaces") && retire["enabledPlugins"]!.AsObject().Count == 1 && !Directory.Exists(catalogue),
+        "états en direct : retrait du mod du quota (clés et catalogue), autres plugins gardés");
     Directory.Delete(dossier, true);
 }
 

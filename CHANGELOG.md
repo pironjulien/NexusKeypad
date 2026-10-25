@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Claude's exact usage: the `nexuskeypad-quota` Claude Code module (`claude-quota/`) writes the 5-hour and weekly
+  windows to `~/.nexus/trinite/quota-claude.json`. It ships in the package and is set up and removed with the live
+  states (same Yes), through a local marketplace declared in `~/.claude/settings.json`.
+
+### Changed
+- AI Coding Agents + PC: its Website key is set in Logi Options+ like PC Dashboard's (the **Website** action, no
+  website by default); Key 1 to Key 17 for the other keys.
+
 ### Fixed
 - Codex key: headless `codex exec` runs (started by scripts or tools) were counted as app chats; they have no row in
   the app's sidebar, so a "Chat Codex" alert blinked and could never be opened. They are now ignored.

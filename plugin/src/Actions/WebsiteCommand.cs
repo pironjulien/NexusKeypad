@@ -1,10 +1,10 @@
-#if POSTE
+#if POSTE || COMPLETE
 namespace Loupedeck.TrinitePlugin
 {
     using System;
 
-    // Touche du site de l'édition PC Dashboard : l'utilisateur la pose et saisit son adresse dans Options+ (aucun site par
-    // défaut). Un globe dans un anneau arc-en-ciel qui tourne, dessiné par le moteur comme les autres touches ; l'appui
+    // Touche du site des éditions PC Dashboard et AI Coding Agents + PC : l'utilisateur la pose et saisit son adresse dans
+    // Options+ (aucun site par défaut). Un globe dans un anneau arc-en-ciel qui tourne, dessiné par le moteur comme les autres touches ; l'appui
     // ouvre l'adresse au premier plan (sa fenêtre si elle est ouverte, sinon une fenêtre d'appli Chrome, sinon le navigateur
     // par défaut ; déjà devant, elle se ferme). Plusieurs touches du site peuvent porter chacune leur adresse.
     public class WebsiteCommand : ActionEditorCommand

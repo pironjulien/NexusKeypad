@@ -20,6 +20,14 @@
   <file original="$AiAgentsPc___main" source-language="en-US" target-language="fr-FR" datatype="plaintext">
     <body>
       <group id="@commands">
+        <trans-unit id="$AiAgentsPc___Website" translate="yes">
+          <source>Website</source>
+          <target>Site web</target>
+        </trans-unit>
+        <trans-unit id="$AiAgentsPc___Website###description" translate="yes">
+          <source>Opens the web address you choose.</source>
+          <target>Ouvre l'adresse web de votre choix.</target>
+        </trans-unit>
         <trans-unit id="$AiAgentsPc___Loupedeck.TrinitePlugin.LiveStatesCommand" translate="yes">
           <source>Live states</source>
           <target>États en direct</target>
@@ -96,10 +104,6 @@
           <trans-unit id="$AiAgentsPc___Loupedeck.TrinitePlugin.ToucheCommand___t17" translate="yes">
             <source>Key 17 · Store and Windows Update</source>
             <target>Touche 17 · Store et Windows Update</target>
-          </trans-unit>
-          <trans-unit id="$AiAgentsPc___Loupedeck.TrinitePlugin.ToucheCommand___t18" translate="yes">
-            <source>Key 18 · Website</source>
-            <target>Touche 18 · Site</target>
           </trans-unit>
         </group>
         <trans-unit id="$AiAgentsPc___#DynamicFolder" translate="yes">

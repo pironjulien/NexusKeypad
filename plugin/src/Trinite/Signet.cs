@@ -22,14 +22,10 @@ namespace Loupedeck.TrinitePlugin
 
         private static readonly Lazy<Signet> Lu = new(Lire);
 
-#if POSTE
-        // Édition PC Dashboard : pas de réglage du poste ni de site par défaut (Logitech refuse la promotion) ; un globe,
-        // et l'adresse choisie dans Options+ pour chaque touche du site (WebsiteCommand, Signet.Choisi).
+#if POSTE || COMPLETE
+        // Éditions PC Dashboard et AI Coding Agents + PC : pas de réglage du poste ni de site par défaut (Logitech refuse la
+        // promotion) ; un globe, et l'adresse choisie dans Options+ pour chaque touche du site (WebsiteCommand, Signet.Choisi).
         public static Signet Reglage => Generique;
-#elif COMPLETE
-        // Édition AI Coding Agents + PC : la touche telle qu'elle est sans réglage (globe, page du projet) ; le réglage du
-        // poste n'est pas lu.
-        public static Signet Reglage => Defaut;
 #else
         public static Signet Reglage => Lu.Value;
 #endif

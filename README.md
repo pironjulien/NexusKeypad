@@ -95,7 +95,7 @@ and when one is missing the pad falls back to something useful instead of an emp
 
 | With | The pad gains | Without it |
 |---|---|---|
-| Hooks (`etat/etat.py`, Python 3.11+, one command: see [Installation](#installation)) | Live Claude and Antigravity states: working, waiting for you, done, with their alerts | Claude and Antigravity heads stay at rest; conversations, quotas and sleep still shown (Codex needs no hook) |
+| Live states (a Yes at the plugin's first start, or its **Live states** action; from source, `etat/etat.py`) | Live Claude and Antigravity states: working, waiting for you, done, with their alerts; Claude's exact 5-hour and weekly usage (`nexuskeypad-quota` module) | Claude and Antigravity heads stay at rest; conversations, quotas (Claude's read from its Usage button) and sleep still shown (Codex needs no hook) |
 | Antigravity debugging port (`--remote-debugging-port=9227` on its shortcut, see [Installation](#installation)) | Antigravity's conversations, quota gauges, opening the one that needs you, dictation and its usage panel | Antigravity's key only shows whether the app is open and brings it to the front |
 | [NexusAndroid](https://github.com/pironjulien/NexusAndroid) (phone over adb) | The photo key pastes your phone's latest photo into the AI conversation; Messages badge from the phone | The photo key shows an animated clock and date (or your PC's latest screenshot); Messages counted from its open tab only |
 | Nexus Relay (Claude, Codex and Antigravity talk to each other; not public yet) | Tiny messengers walk between Claude and Codex or Antigravity and give each other an electric shock while they work for Claude | Each agent works on its own; no runner |
@@ -123,8 +123,10 @@ flowchart LR
 ```
 
 - **Claude**: the desktop app's session files (`%LOCALAPPDATA%\Claude-Data\…\claude-code-sessions`) plus Claude Code
-  hooks that run `etat/etat.py` (state per session in `~/.nexus/trinite/claude`). Quota: the name of the app's
-  "Usage" button, never expanded by the plugin.
+  hooks that run `nexuskeypad-hook.exe` (or `etat/etat.py` from source; state per session in
+  `~/.nexus/trinite/claude`). Quota: the exact 5-hour and weekly windows written by the `nexuskeypad-quota` Claude Code
+  module (`claude-quota/`, set up with the live states) to `~/.nexus/trinite/quota-claude.json`; without it, the name
+  of the app's "Usage" button, never expanded by the plugin.
 - **Codex**: `~/.codex/session_index.jsonl` and `~/.codex/sessions/**/rollout-*.jsonl` (task started, task complete,
   approval requests). Quota: the last `token_count` of its logs, or the `/api/usage/summary` of a local
   [codex-lb](https://github.com/Soju06/codex-lb) when one runs on port 2455. Conversations are opened through the
@@ -185,7 +187,8 @@ Package it yourself with `pwsh -File outils\paquet_marketplace.ps1 -Edition Post
 
 **AI Coding Agents + PC** is both pages in one plugin, like the source build below without the local test pipe:
 install it instead of the two plugins above, then drag **Key 1** to **Key 9** of the *AI agents* group onto page 1 and
-**Key 10** to **Key 18** onto page 2. Its website key opens this project page. Package it yourself with
+**Key 10** to **Key 17** onto page 2, and **Website** onto the last key: type the address it opens in its settings, as
+in PC Dashboard (no website is set by default). Package it yourself with
 `pwsh -File outils\paquet_marketplace.ps1 -Edition Complete`. Terms:
 [EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-AI-AGENTS-PC.md); data:
 [Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-AI-AGENTS-PC.md).

@@ -16,8 +16,7 @@ By installing or using the Plugin you accept, between you and **Julien Piron** (
   [PC Dashboard EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-PC-DASHBOARD.md), for the keys of
   page 2.
 
-One difference with PC Dashboard: the Website key of this plugin is not set in Logi Options+; it shows a globe and opens
-the project's page on GitHub.
+Its Website key works as in PC Dashboard: you set the address it opens in Logi Options+; no website is set by default.
 
 **Logitech Europe S.A. and its affiliates are not a party to this EULA** and have no responsibility or liability to you
 in connection with the Plugin. If you do not accept these terms, do not install or use the Plugin.

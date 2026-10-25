@@ -1,0 +1,14 @@
+{
+  "name": "nexuskeypad",
+  "owner": {
+    "name": "Julien Piron"
+  },
+  "description": "NexusKeypad: Claude Code mods for the NexusKeypad plugin of the Logitech MX Creative Keypad.",
+  "plugins": [
+    {
+      "name": "nexuskeypad-quota",
+      "source": "./nexuskeypad-quota",
+      "description": "NexusKeypad: Claude's exact 5-hour and weekly usage for the keypad, written to ~/.nexus/trinite/quota-claude.json."
+    }
+  ]
+}

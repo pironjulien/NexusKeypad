@@ -40,8 +40,12 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 - **Live states, only after you answer Yes** (a question at first start, then the *Live states* action): the Plugin
   copies its hook program to `%LOCALAPPDATA%\NexusKeypad\hook\nexuskeypad-hook.exe` and adds its hooks to
   `~/.claude/settings.json` and to the `trinite-pad` entry of `~/.gemini/config/hooks.json` (other tools' hooks are
-  kept). Your answer to the first question is kept in `%LOCALAPPDATA%\NexusKeypad\etats-en-direct.json`. Answering No
-  changes nothing; the *Live states* action removes the hooks the same way.
+  kept). For Claude's exact usage, it also copies its `nexuskeypad-quota` Claude Code module to
+  `%LOCALAPPDATA%\NexusKeypad\claude-marketplace` and declares it in `~/.claude/settings.json` (`extraKnownMarketplaces`
+  entry `nexuskeypad`, `enabledPlugins` entry `nexuskeypad-quota@nexuskeypad`); the module only writes the 5-hour and
+  weekly usage percentages and reset times, with the session id, to `~/.nexus/trinite/quota-claude.json`. Your answer to
+  the first question is kept in `%LOCALAPPDATA%\NexusKeypad\etats-en-direct.json`. Answering No changes nothing; the
+  *Live states* action removes the hooks and the module the same way.
 - `%LOCALAPPDATA%\NexusKeypad\quota-antigravity.json`: the last Antigravity quota read.
 - The plugin log of the Logi Plugin Service (`…\LogiPluginService\Logs\plugin_logs\TrinitePad.log`): technical events,
   which can include conversation titles and file names. It stays on your computer.

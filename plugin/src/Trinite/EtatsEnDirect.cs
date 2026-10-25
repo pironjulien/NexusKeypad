@@ -34,6 +34,17 @@ namespace Loupedeck.TrinitePlugin
 
         public static String DossierHook => Path.Combine(Local, "NexusKeypad", "hook");
 
+        // Quota exact de Claude : le mod nexuskeypad-quota (claude-quota/ du dépôt, livré dans le paquet), servi à Claude par
+        // un catalogue local (extraKnownMarketplaces, source « directory ») et activé par enabledPlugins, posé et retiré
+        // avec les hooks.
+        public const String Catalogue = "nexuskeypad";
+
+        public const String ModQuota = "nexuskeypad-quota@" + Catalogue;
+
+        public const String DossierModsPaquet = "claude-quota";
+
+        public static String DossierCatalogue => Path.Combine(Local, "NexusKeypad", "claude-marketplace");
+
         public static String Exe => Path.Combine(DossierHook, NomExe);
 
         private static String Choix => Path.Combine(Local, "NexusKeypad", "etats-en-direct.json");
@@ -119,6 +130,37 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+        // Catalogue local et mod du quota de Claude : posés (catalogue = son dossier) ou retirés (null), sans toucher aux
+        // autres catalogues ni plugins ; un objet vidé disparaît.
+        public static void ArrangerQuota(JsonObject reglages, String catalogue)
+        {
+            void Poser(String cle, String nom, JsonNode valeur)
+            {
+                var objet = reglages[cle] as JsonObject;
+                if (valeur is null)
+                {
+                    objet?.Remove(nom);
+                    if (objet is { Count: 0 })
+                    {
+                        reglages.Remove(cle);
+                    }
+
+                    return;
+                }
+
+                if (objet is null)
+                {
+                    reglages[cle] = objet = new JsonObject();
+                }
+
+                objet[nom] = valeur;
+            }
+
+            Poser("extraKnownMarketplaces", Catalogue,
+                catalogue is null ? null : new JsonObject { ["source"] = new JsonObject { ["source"] = "directory", ["path"] = catalogue } });
+            Poser("enabledPlugins", ModQuota, catalogue is null ? null : JsonValue.Create(true));
+        }
+
         // Antigravity : événements d'outil dans une enveloppe { matcher, hooks } (« * » = tous les outils), PreInvocation et
         // Stop directement sous l'événement. Sa commande ne passe pas les guillemets : chemin sans espace (nom court sinon).
         public static void ArrangerAntigravity(JsonObject hooks, String exeSansEspace)
@@ -177,6 +219,10 @@ namespace Loupedeck.TrinitePlugin
                     if (File.Exists(Exe))
                     {
                         Copier(exePaquet);
+                        if (Directory.Exists(DossierCatalogue))
+                        {
+                            CopierCatalogue(exePaquet, DossierCatalogue);
+                        }
                     }
                     else if (!File.Exists(Choix) && (ClaudePresent || AntigravityPresent) && !Poses())
                     {
@@ -209,8 +255,8 @@ namespace Loupedeck.TrinitePlugin
                 if (Poses())
                 {
                     var retirer = francais
-                        ? "Retirer les états en direct de Claude et d'Antigravity ?\n\nLes hooks de NexusKeypad sont retirés de leurs réglages ; ceux des autres outils restent. Leurs têtes restent sur le pad, au repos."
-                        : "Remove live states for Claude and Antigravity?\n\nNexusKeypad's hooks are removed from their settings; other tools' hooks stay. Their heads stay on the keypad, at rest.";
+                        ? "Retirer les états en direct de Claude et d'Antigravity ?\n\nLes hooks de NexusKeypad et son module de quota pour Claude sont retirés de leurs réglages ; ceux des autres outils restent. Leurs têtes restent sur le pad, au repos."
+                        : "Remove live states for Claude and Antigravity?\n\nNexusKeypad's hooks and its usage module for Claude are removed from their settings; other tools' hooks stay. Their heads stay on the keypad, at rest.";
                     if (Oui(retirer))
                     {
                         Appliquer(exePaquet, pose: false);
@@ -221,10 +267,10 @@ namespace Loupedeck.TrinitePlugin
 
                 var poser = francais
                     ? "Afficher en direct ce que font Claude et Antigravity (travaille, t'attend, fini) ?\n\n" +
-                      "NexusKeypad ajoute ses hooks à leurs réglages (~/.claude/settings.json, ~/.gemini/config/hooks.json). Ils lancent un petit programme du plugin, copié dans %LOCALAPPDATA%\\NexusKeypad\\hook, qui note seulement leur état dans ~/.nexus/trinite, sur ce PC. Rien n'est envoyé.\n\n" +
+                      "NexusKeypad ajoute ses hooks à leurs réglages (~/.claude/settings.json, ~/.gemini/config/hooks.json). Ils lancent un petit programme du plugin, copié dans %LOCALAPPDATA%\\NexusKeypad\\hook, qui note seulement leur état dans ~/.nexus/trinite, sur ce PC. Pour Claude s'ajoute un module (nexuskeypad-quota) qui note son quota exact au même endroit. Rien n'est envoyé.\n\n" +
                       "Pour changer d'avis plus tard : l'action « Live states » du groupe AI agents dans Logi Options+."
                     : "Show what Claude and Antigravity are doing, live (working, waiting for you, done)?\n\n" +
-                      "NexusKeypad adds its hooks to their settings (~/.claude/settings.json, ~/.gemini/config/hooks.json). They run a small program from the plugin, copied to %LOCALAPPDATA%\\NexusKeypad\\hook, that only writes their state to ~/.nexus/trinite on this PC. Nothing is sent anywhere.\n\n" +
+                      "NexusKeypad adds its hooks to their settings (~/.claude/settings.json, ~/.gemini/config/hooks.json). They run a small program from the plugin, copied to %LOCALAPPDATA%\\NexusKeypad\\hook, that only writes their state to ~/.nexus/trinite on this PC. For Claude, a module (nexuskeypad-quota) also writes its exact usage there. Nothing is sent anywhere.\n\n" +
                       "To change your mind later: the \"Live states\" action in the AI agents group of Logi Options+.";
                 var accord = Oui(poser);
                 if (premiereFois)
@@ -249,23 +295,32 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Pose ou retire chez Claude et chez Antigravity ; une erreur remet les deux fichiers tels qu'ils étaient.
-        public static Boolean Appliquer(String exePaquet, Boolean pose, String reglagesClaude = null, String hooksAntigravity = null, String exe = null)
+        public static Boolean Appliquer(String exePaquet, Boolean pose, String reglagesClaude = null, String hooksAntigravity = null, String exe = null,
+            String catalogue = null)
         {
             reglagesClaude ??= ReglagesClaude;
             hooksAntigravity ??= HooksAntigravity;
             exe ??= Exe;
+            catalogue ??= DossierCatalogue;
             var avant = new[] { reglagesClaude, hooksAntigravity }.ToDictionary(c => c, c => File.Exists(c) ? File.ReadAllBytes(c) : null);
             try
             {
                 if (pose)
                 {
                     Copier(exePaquet, exe);
+                    CopierCatalogue(exePaquet, catalogue);
                 }
 
                 if (Directory.Exists(Path.GetDirectoryName(reglagesClaude)) && Lire(reglagesClaude) is { } reglages)
                 {
                     ArrangerClaude(reglages, pose);
+                    ArrangerQuota(reglages, pose ? catalogue : null);
                     Ecrire(reglagesClaude, reglages);
+                }
+
+                if (!pose && Directory.Exists(catalogue))
+                {
+                    Directory.Delete(catalogue, recursive: true); // plus cité par les réglages
                 }
 
                 if (Directory.Exists(Path.GetDirectoryName(hooksAntigravity)) && Lire(hooksAntigravity) is { } hooks
@@ -308,6 +363,24 @@ namespace Loupedeck.TrinitePlugin
             var temporaire = chemin + ".nexuskeypad.tmp";
             File.WriteAllText(temporaire, contenu.ToJsonString(Ecriture) + "\n", new UTF8Encoding(false));
             File.Move(temporaire, chemin, overwrite: true);
+        }
+
+        // Catalogue du mod de quota, copié du paquet (claude-quota, à côté de l'exécutable du hook) vers sa place fixe ;
+        // recopié à chaque chargement du plugin (nouvelle version).
+        private static void CopierCatalogue(String exePaquet, String catalogue)
+        {
+            var source = Path.Combine(Path.GetDirectoryName(exePaquet) ?? "", DossierModsPaquet);
+            if (!Directory.Exists(source))
+            {
+                throw new DirectoryNotFoundException($"mod du quota absent du paquet : {source}");
+            }
+
+            foreach (var fichier in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+            {
+                var cible = Path.Combine(catalogue, Path.GetRelativePath(source, fichier));
+                Directory.CreateDirectory(Path.GetDirectoryName(cible));
+                File.Copy(fichier, cible, overwrite: true);
+            }
         }
 
         // Copie l'exécutable du paquet à sa place fixe s'il a changé (un hook en cours le tient : réessayé au prochain
