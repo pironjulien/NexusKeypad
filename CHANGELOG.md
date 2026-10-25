@@ -37,6 +37,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   of behind your windows, then minimized); up to date, each window closes by itself; installing or unproven, it stays.
 
 ### Fixed
+- Claude key: the opened conversation stayed in the middle. A pass with nothing to scroll yet (conversation still
+  loading) stopped the next passes since the re-check added just before; only "Claude is no longer in front" stops
+  them now.
 - Review follow-up: a conversation scroll is tied to the press that started it (a gesture still running no longer
   revives it) and re-checked, target window in front, right before scrolling; both update windows share the screen of
   the press; an up-to-date window is closed only if it still shows its up-to-date page and the plugin is not stopping.

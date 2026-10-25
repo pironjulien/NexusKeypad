@@ -110,12 +110,15 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (agent == 0)
                 {
-                    // Revérifié au moment même du défilement (le parcours de l'arbre UI Automation prend du temps) : la
-                    // fenêtre visée doit encore être devant et la descente encore valable.
-                    if (!Uia.DescendreClaude(fenetre => encore() && GetForegroundWindow() == fenetre))
+                    if (Observateur.PremierPlan() != Observateur.Processus[0])
                     {
-                        return;
+                        return; // Claude n'est plus devant : la descente s'arrête
                     }
+
+                    // Revérifié au moment même du défilement (le parcours de l'arbre UI Automation prend du temps) : la
+                    // fenêtre visée doit encore être devant et la descente encore valable. Rien à faire défiler (fil pas
+                    // encore affiché) n'arrête pas les passes suivantes : la conversation restait au milieu (25/10).
+                    Uia.DescendreClaude(fenetre => encore() && GetForegroundWindow() == fenetre);
                 }
                 else
                 {
