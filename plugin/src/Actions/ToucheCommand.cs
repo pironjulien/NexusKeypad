@@ -2,36 +2,45 @@ namespace Loupedeck.TrinitePlugin
 {
     using System;
 
-    // Une commande à 18 paramètres (deux pages de 9) : chaque touche physique reçoit « Touche N » dans Options+, le plugin décide du reste
-    // (Moteur.Disposition : quelle touche du plugin s'affiche à la place N).
+    // Une commande à 18 paramètres (deux pages de 9 ; la page 1 seule dans l'édition AI Coding Agents, les 8 premières
+    // touches de la page 2 dans PC Dashboard, son site étant à part) : chaque touche physique reçoit « Touche N » dans
+    // Options+, le plugin décide du reste (Moteur.Disposition : quelle touche du plugin s'affiche à la place N).
     public class ToucheCommand : PluginDynamicCommand
     {
+        // Noms en anglais, langue source du SDK ; le français vient de package/localization/TrinitePad_fr-FR.xliff (Options+ en
+        // français). Le nom anglais sert d'identifiant à sa traduction : le changer oblige à refaire le XLIFF.
         private static readonly String[] Noms =
         [
-            "Codex n°1", "Claude n°1", "Antigravity n°1",
-            "Codex n°2", "Claude n°2", "Antigravity n°2",
-            "Capture d'écran", "Photo du téléphone", "Dictée",
-            "Volume moins", "Son coupé", "Volume plus",
-            "Gmail", "Agenda", "Messages",
-            "Santé du PC", "Store et Windows Update", "Site",
+            "Codex", "Claude", "Antigravity",
+            "Codex quota", "Claude quota", "Antigravity quota",
+            "Screen capture", "Phone photo", "Dictation",
+            "Volume down", "Mute", "Volume up",
+            "Gmail", "Calendar", "Messages",
+            "PC health", "Store and Windows Update", "Website",
         ];
+
+#if POSTE
+        public const String Groupe = "PC Dashboard";
+#else
+        public const String Groupe = "AI agents";
+#endif
 
         private readonly Boolean[] _dessinees = new Boolean[Moteur.Touches];
 
         public ToucheCommand()
             : base()
         {
-            for (var i = 0; i < Moteur.Touches; i++)
+            for (var i = 0; i < Moteur.Proposees; i++)
             {
-                this.AddParameter($"t{i + 1}", $"Touche {i + 1} · {Noms[i]}", "Trinité");
+                this.AddParameter($"t{i + 1}", $"Key {i + 1} · {Noms[Moteur.Premiere + i]}", Groupe);
             }
         }
 
-        private Moteur Moteur => ((TrinitePadPlugin)this.Plugin).Moteur;
+        private Moteur Moteur => ((PadPlugin)this.Plugin).Moteur;
 
         protected override Boolean OnLoad()
         {
-            ((TrinitePadPlugin)this.Plugin).Redessiner = t => this.ActionImageChanged($"t{Moteur.Place(t) + 1}");
+            ((PadPlugin)this.Plugin).Redessiner = t => this.ActionImageChanged($"t{Moteur.Place(t) - Moteur.Premiere + 1}");
             return true;
         }
 
@@ -72,7 +81,7 @@ namespace Loupedeck.TrinitePlugin
         protected override String GetCommandDisplayName(String actionParameter, PluginImageSize imageSize) => null;
 
         private static Int32 Index(String parametre) =>
-            parametre is { Length: 2 or 3 } && parametre[0] == 't' && Int32.TryParse(parametre.AsSpan(1), out var n) && n is >= 1 and <= Moteur.Touches
-                ? Moteur.Disposition[n - 1] : -1;
+            parametre is { Length: 2 or 3 } && parametre[0] == 't' && Int32.TryParse(parametre.AsSpan(1), out var n) && n is >= 1 and <= Moteur.Proposees
+                ? Moteur.Disposition[Moteur.Premiere + n - 1] : -1;
     }
 }

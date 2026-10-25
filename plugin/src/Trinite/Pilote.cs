@@ -24,7 +24,14 @@ namespace Loupedeck.TrinitePlugin
 
         public Pilote(Moteur moteur) => this._moteur = moteur;
 
+#if MARKETPLACE || POSTE || COMPLETE
+        // Éditions du Logi Marketplace (AI Coding Agents, PC Dashboard, AI Coding Agents + PC) : pas d'outils d'essai, donc pas de tube ouvert.
+        public void Demarrer()
+        {
+        }
+#else
         public void Demarrer() => Task.Run(this.Ecouter);
+#endif
 
         private async Task Ecouter()
         {

@@ -19,6 +19,9 @@ namespace Loupedeck.TrinitePlugin
         // s'éteint avec lui (aucun réglage Logi ne l'empêche, 24/10) ; rien n'est plus dessiné pour lui.
         private Boolean EcranEteint() => Inactif() > this.DelaiEcran();
 
+        // Pour l'édition PC Dashboard, qui ne lit rien d'autre ici.
+        public Boolean Eteint => this.EcranEteint();
+
         // Poste verrouillé : le bureau de saisie n'est plus celui de l'utilisateur, il ne peut ni être ouvert ni activé.
         // (Chercher le processus LogonUI énumérait tous les processus, une vingtaine de ms chaque seconde.)
         private static Boolean Verrouille()

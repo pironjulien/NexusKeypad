@@ -26,6 +26,9 @@ namespace Loupedeck.TrinitePlugin
         public Double MiseAJourFinie { get; init; } = -99;
         public Boolean MiseAJourReussie { get; init; } = true; // les deux pages lancées ou à jour
 
+        // Site dessiné sur sa touche ; null : le réglage du poste (Signet.Reglage).
+        public Signet Site { get; init; }
+
         public Boolean Appui(Int32 touche) => this.Temps - this.Appuis[touche] < 0.2;
     }
 
@@ -49,6 +52,27 @@ namespace Loupedeck.TrinitePlugin
         public const Int32 Site = 17;
         public const Int32 Touches = 18;
 
+        // Touches proposées dans Options+ (« Key 1 » à « Key N ») : à partir de la place Premiere de Disposition. SiteAPart :
+        // la touche du site est une commande à part (WebsiteCommand), avec l'adresse choisie par l'utilisateur.
+#if MARKETPLACE
+        // Édition du Logi Marketplace (Edition=Marketplace) : la Trinité seule, page 1. La page 2 (le poste) n'a pas de
+        // lien avec les agents : un plugin du Marketplace ne doit porter que sa fonction principale.
+        public const Int32 Premiere = 0;
+        public const Int32 Proposees = 9;
+        public const Boolean SiteAPart = false;
+#elif POSTE
+        // Édition PC Dashboard (Edition=Poste), second plugin du Marketplace : la page 2 seule, ses 8 touches, plus le site
+        // à part (aucun site par défaut : Logitech refuse la promotion). Ni agents, ni photo du téléphone, ni tube d'essais.
+        public const Int32 Premiere = 9;
+        public const Int32 Proposees = 8;
+        public const Boolean SiteAPart = true;
+#else
+        // Version complète (GitHub, et Edition=Complete : AI Coding Agents + PC, troisième plugin du Marketplace).
+        public const Int32 Premiere = 0;
+        public const Int32 Proposees = Touches;
+        public const Boolean SiteAPart = false;
+#endif
+
         // Touche affichée à chaque place du pad (de gauche à droite, de haut en bas ; page 1 puis page 2) : Claude au
         // milieu, entre Codex à gauche et Antigravity à droite, qu'il fait travailler par le relais ; ses quotas dessous.
         public static readonly Int32[] Disposition = [1, 0, 2, 4, 3, 5, Capture, Photo, Dictee, 9, 10, 11, 12, 13, 14, 15, 16, 17];
@@ -58,7 +82,8 @@ namespace Loupedeck.TrinitePlugin
         private readonly Observateur _observateur = new();
         private readonly Stopwatch _horloge = Stopwatch.StartNew();
         private readonly Double[] _appuis = Enumerable.Repeat(-9.0, Touches).ToArray();
-        private volatile Int32 _page = 1; // page que le pad affiche : celle de sa dernière demande d'image
+        private volatile Int32 _page = Premiere < 9 ? 1 : 2; // page que le pad affiche : celle de sa dernière demande d'image
+        private Double _demande = -99; // dernière demande d'image du pad (édition PC Dashboard : rien n'est lu sans elle)
         private Poste _poste;
         private volatile Tuple<Int32, Int32> _notifications; // mails, messages : objet entier, jamais lu à moitié écrit
         private Double _notificationsLues = -99;
@@ -126,10 +151,14 @@ namespace Loupedeck.TrinitePlugin
         private readonly Byte[][] _pixels = new Byte[Touches][];
         private Timer _lecture;
         private Timer _animation;
+#if POSTE
+        private readonly Timer _telephone = null; // pas de photo du téléphone dans l'édition PC Dashboard
+#else
         private Timer _telephone;
+#endif
         private Instantane _instantane = Instantane.Vide;
         private Double _photoCopiee = -9;
-        private String _resume;
+        private String _resume = ""; // reste vide dans l'édition PC Dashboard (aucun agent lu)
         private Int64 _tic;
         private Int32 _telephoneOccupe;
         private Int32 _telephoneEncore;
@@ -155,7 +184,11 @@ namespace Loupedeck.TrinitePlugin
         // ni dessinée, et la page affichée l'est, même quand ses images ne changent pas (l'ancienne règle, fondée sur les
         // avis de changement, laissait une page cachée « affichée » tant que son image restait identique, relecture de
         // Codex, 25/10).
-        public void Demande(Int32 touche) => this._page = Place(touche) < 9 ? 1 : 2;
+        public void Demande(Int32 touche)
+        {
+            this._page = Place(touche) < 9 ? 1 : 2;
+            this._demande = this._horloge.Elapsed.TotalSeconds;
+        }
 
         // Relevé forcé du quota d'Antigravity (pilote) : rend ce qui a été lu.
         public String ReleverAntigravity()
@@ -265,8 +298,11 @@ namespace Loupedeck.TrinitePlugin
             this._pilote.Demarrer();
             this._lecture = new Timer(_ => this.Lire(), null, 0, 1000);
             this._animation = new Timer(_ => this.Animer(), null, 500, 125);
+#if !POSTE
+            // Photo du téléphone (page 1) : l'édition PC Dashboard ne lit du téléphone que ses notifications.
             this._telephone = new Timer(_ => this.Telephone(), null, 1000, 3000);
             this._observateur.Telephone.Veiller(() => Task.Run(this.Telephone));
+#endif
         }
 
         // Photo toujours la plus récente (sans attendre la lecture suivante).
@@ -285,7 +321,8 @@ namespace Loupedeck.TrinitePlugin
 
         // Un appui : action hors du fil du service (ouvrir une appli ou taper prend du temps).
         // Rend l'issue du geste (« fait », ou la raison de l'abandon), une fois passé dans la file : le pilote l'attend.
-        public Task<String> Appuyer(Int32 touche)
+        // site : adresse de la touche du site quand elle est une commande à part (WebsiteCommand) ; sinon son réglage.
+        public Task<String> Appuyer(Int32 touche, Signet site = null)
         {
             var scene = this.Scene;
             this._appuis[touche] = scene.Temps;
@@ -357,7 +394,7 @@ namespace Loupedeck.TrinitePlugin
 
                             break;
                         case >= VolumeMoins:
-                            Page2(touche);
+                            this.Page2(touche, site);
                             break;
                         default:
                             // Ligne des jauges : le détail des quotas de l'IA ; appli pas encore prête, elle est seulement
@@ -399,6 +436,10 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 var avant = this._instantane;
+#if POSTE
+                // Édition PC Dashboard : ni agents ni quotas à lire, seulement l'écran éteint.
+                this._instantane = avant with { Eteint = this._observateur.Eteint };
+#else
                 this._instantane = this._observateur.Lire();
                 if (this._instantane.Devant >= 0)
                 {
@@ -413,6 +454,7 @@ namespace Loupedeck.TrinitePlugin
                     this._resume = resume;
                     PluginLog.Info($"conversations : {resume}");
                 }
+#endif
                 if (avant.Eteint != this._instantane.Eteint)
                 {
                     PluginLog.Info(this._instantane.Eteint ? "écran éteint : le pad n'est plus dessiné" : "écran rallumé : le pad est redessiné");
@@ -486,8 +528,26 @@ namespace Loupedeck.TrinitePlugin
                 // images qui ont changé partent au pad, chacune coûte cher au service Logi.
                 if (this._page == 2)
                 {
-                    this.LireNotifications();
-                    this._poste = this.LirePoste();
+                    // Édition PC Dashboard : ses touches peuvent n'être sur aucune page affichée du pad. Toutes animées, elles
+                    // sont redemandées sans cesse quand elles sont affichées ; sans demande depuis 3 s, ni Chrome ni le
+                    // téléphone ne sont relus et le poste n'est redessiné qu'une fois par seconde (une image changée et
+                    // redemandée relance tout).
+                    var cachee = Premiere >= 9 && this._horloge.Elapsed.TotalSeconds - this._demande > 3;
+                    if (cachee && this._tic % 8 != 0)
+                    {
+                        return;
+                    }
+
+                    if (cachee)
+                    {
+                        this._poste = Releve.Lire() with { Mails = this._poste?.Mails, Messages = this._poste?.Messages };
+                    }
+                    else
+                    {
+                        this.LireNotifications();
+                        this._poste = this.LirePoste();
+                    }
+
                     for (var t = VolumeMoins; t < Touches; t++)
                     {
                         if (t == Muet || this._tic % 2 == 0)
@@ -527,11 +587,12 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+        // Écran rallumé : les 9 touches de la première page proposée redessinées.
         private void Tout()
         {
             for (var t = 0; t < 9; t++)
             {
-                this.Envoyer(t);
+                this.Envoyer(Disposition[Premiere + t]);
             }
         }
 
@@ -627,7 +688,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Page 2 : gestes immédiats sur le poste.
-        private void Page2(Int32 touche)
+        private void Page2(Int32 touche, Signet site)
         {
             switch (touche)
             {
@@ -654,7 +715,7 @@ namespace Loupedeck.TrinitePlugin
                     }
 
                     break;
-                default: AppliWeb.Site.Ouvrir(); break;
+                default: AppliWeb.Site(site ?? Signet.Reglage)?.Ouvrir(); break;
             }
 
             this._poste = this.LirePoste();

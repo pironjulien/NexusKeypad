@@ -31,6 +31,19 @@ namespace Loupedeck.TrinitePlugin
         private const Int32 DefilementVertical = 30058; // UIA_ScrollVerticallyScrollablePropertyId (30057 : horizontal)
         private const Int32 SousChaine = 2; // PropertyConditionFlags_MatchSubstring
 
+        // Libellés de Claude, en français et en anglais (ses fichiers de langue fr-FR et en-US, ion-dist/i18n) : l'appli
+        // suit la langue de Windows.
+        private static readonly String[] ArretDictee = ["Arrêter la dictée", "Stop dictation"];
+        private static readonly String[] Micro = ["Maintenez appuyé pour enregistrer", "Press and hold to record"];
+        private static readonly String[] Utilisation = ["Utilisation :", "Usage:"]; // début du nom : « Utilisation : <quotas> »
+        private static readonly String[] Renommer = [", renommer la session", ", rename session"]; // « <titre>, renommer la session »
+
+        // Bouton dont le nom est l'un de ces libellés (exact, ou contenu si sousChaine) : un seul parcours de l'arbre.
+        private static IUIAutomationCondition Bouton(IUIAutomation uia, String[] noms, Boolean sousChaine = false) =>
+            uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), noms
+                .Select(n => sousChaine ? uia.CreatePropertyConditionEx(NomPropriete, n, SousChaine) : uia.CreatePropertyCondition(NomPropriete, n))
+                .Aggregate(uia.CreateOrCondition));
+
         private static IUIAutomation Nouveau() =>
             (IUIAutomation)Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("ff48dba4-60ef-4201-aa87-54103eef594e")));
 
@@ -211,15 +224,13 @@ namespace Loupedeck.TrinitePlugin
         // Titre de la conversation affichée dans Claude : son en-tête « <titre>, renommer la session » ; null si illisible.
         public static String TitreClaudeAffiche()
         {
-            const String Suffixe = ", renommer la session";
             var uia = Nouveau();
             foreach (var fenetre in Fenetres("claude"))
             {
-                var bouton = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants,
-                    uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), uia.CreatePropertyConditionEx(NomPropriete, Suffixe, SousChaine)));
-                if (bouton?.GetCurrentPropertyValue(NomPropriete) is String nom && nom.EndsWith(Suffixe, StringComparison.Ordinal))
+                var bouton = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, Renommer, sousChaine: true));
+                if (bouton?.GetCurrentPropertyValue(NomPropriete) is String nom && Renommer.FirstOrDefault(s => nom.EndsWith(s, StringComparison.Ordinal)) is String suffixe)
                 {
-                    return nom[..^Suffixe.Length];
+                    return nom[..^suffixe.Length];
                 }
             }
 
@@ -231,8 +242,7 @@ namespace Loupedeck.TrinitePlugin
         {
             var uia = Nouveau();
             return Fenetres("claude")
-                .Any(h => uia.ElementFromHandle(h)?.FindFirst(TreeScopeDescendants,
-                    uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), uia.CreatePropertyCondition(NomPropriete, "Arrêter la dictée"))) is not null);
+                .Any(h => uia.ElementFromHandle(h)?.FindFirst(TreeScopeDescendants, Bouton(uia, ArretDictee)) is not null);
         }
 
         // Arrête une dictée de Claude en cours, dans n'importe laquelle de ses fenêtres ; vrai s'il y en avait une.
@@ -241,8 +251,7 @@ namespace Loupedeck.TrinitePlugin
             foreach (var fenetre in Fenetres("claude"))
             {
                 var uia = Nouveau();
-                var bouton = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants,
-                    uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), uia.CreatePropertyCondition(NomPropriete, "Arrêter la dictée")));
+                var bouton = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, ArretDictee));
                 if (bouton?.GetCurrentPattern(MotifToggle) is IUIAutomationTogglePattern bascule)
                 {
                     bascule.Toggle();
@@ -265,8 +274,7 @@ namespace Loupedeck.TrinitePlugin
         {
             var uia = Nouveau();
             IUIAutomationElement micro = null;
-            for (var i = 0; i < 7 && (micro = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants,
-                uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), uia.CreatePropertyCondition(NomPropriete, "Maintenez appuyé pour enregistrer")))) is null; i++)
+            for (var i = 0; i < 7 && (micro = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, Micro))) is null; i++)
             {
                 System.Threading.Thread.Sleep(300);
             }
@@ -328,8 +336,7 @@ namespace Loupedeck.TrinitePlugin
         private static System.Collections.Generic.IEnumerable<IUIAutomationElement> BoutonsUtilisation()
         {
             var uia = Nouveau();
-            return Fenetres("claude").Select(fenetre => uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants,
-                uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), uia.CreatePropertyConditionEx(NomPropriete, "Utilisation :", SousChaine))));
+            return Fenetres("claude").Select(fenetre => uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, Utilisation, sousChaine: true)));
         }
 
         // Referme la boîte « Utilisation » de Claude si elle est dépliée ; vrai si elle l'était.
@@ -377,8 +384,7 @@ namespace Loupedeck.TrinitePlugin
             var uia = Nouveau();
             foreach (var fenetre in Fenetres("claude"))
             {
-                var bouton = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants,
-                    uia.CreateAndCondition(uia.CreatePropertyCondition(TypePropriete, TypeBouton), uia.CreatePropertyConditionEx(NomPropriete, "Utilisation :", SousChaine)));
+                var bouton = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, Utilisation, sousChaine: true));
                 if (bouton?.GetCurrentPropertyValue(NomPropriete) is not String nom || Regex.Match(nom, @"(\d+(?:[.,]\d+)?)\s*%") is not { Success: true } part)
                 {
                     continue;
@@ -418,6 +424,9 @@ namespace Loupedeck.TrinitePlugin
             IUIAutomationCondition CreatePropertyCondition(Int32 propriete, [MarshalAs(UnmanagedType.Struct)] Object valeur);
             IUIAutomationCondition CreatePropertyConditionEx(Int32 propriete, [MarshalAs(UnmanagedType.Struct)] Object valeur, Int32 drapeaux);
             IUIAutomationCondition CreateAndCondition(IUIAutomationCondition a, IUIAutomationCondition b);
+            void CreateAndConditionFromArray();
+            void CreateAndConditionFromNativeArray();
+            IUIAutomationCondition CreateOrCondition(IUIAutomationCondition a, IUIAutomationCondition b);
         }
 
         [ComImport, Guid("d22108aa-8ac5-49a5-837b-37bbb3d7591e"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]

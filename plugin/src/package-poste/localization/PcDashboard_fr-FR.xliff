@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff version="1.2">
+  <file original="$PcDashboard___@general" source-language="en-US" target-language="fr-FR" datatype="plaintext">
+    <body>
+      <group id="@general">
+        <trans-unit id="$PcDashboard___General___ResetDisplayNameTemplate" translate="yes">
+          <source>Reset %</source>
+          <target>Réinitialiser %</target>
+        </trans-unit>
+      </group>
+      <group id="@modes">
+        <trans-unit id="$PcDashboard___ModeName___main" translate="yes">
+          <source>Main</source>
+          <target>Principal</target>
+        </trans-unit>
+      </group>
+      <group id="@resources" />
+    </body>
+  </file>
+  <file original="$PcDashboard___main" source-language="en-US" target-language="fr-FR" datatype="plaintext">
+    <body>
+      <group id="@commands">
+        <group id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand">
+          <trans-unit id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand___t1" translate="yes">
+            <source>Key 1 · Volume down</source>
+            <target>Touche 1 · Volume moins</target>
+          </trans-unit>
+          <trans-unit id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand___t2" translate="yes">
+            <source>Key 2 · Mute</source>
+            <target>Touche 2 · Son coupé</target>
+          </trans-unit>
+          <trans-unit id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand___t3" translate="yes">
+            <source>Key 3 · Volume up</source>
+            <target>Touche 3 · Volume plus</target>
+          </trans-unit>
+          <trans-unit id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand___t4" translate="yes">
+            <source>Key 4 · Gmail</source>
+            <target>Touche 4 · Gmail</target>
+          </trans-unit>
+          <trans-unit id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand___t5" translate="yes">
+            <source>Key 5 · Calendar</source>
+            <target>Touche 5 · Agenda</target>
+          </trans-unit>
+          <trans-unit id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand___t6" translate="yes">
+            <source>Key 6 · Messages</source>
+            <target>Touche 6 · Messages</target>
+          </trans-unit>
+          <trans-unit id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand___t7" translate="yes">
+            <source>Key 7 · PC health</source>
+            <target>Touche 7 · Santé du PC</target>
+          </trans-unit>
+          <trans-unit id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand___t8" translate="yes">
+            <source>Key 8 · Store and Windows Update</source>
+            <target>Touche 8 · Store et Windows Update</target>
+          </trans-unit>
+        </group>
+        <trans-unit id="$PcDashboard___Website" translate="yes">
+          <source>Website</source>
+          <target>Site web</target>
+        </trans-unit>
+        <trans-unit id="$PcDashboard___Website###description" translate="yes">
+          <source>Opens the web address you choose.</source>
+          <target>Ouvre l'adresse web de votre choix.</target>
+        </trans-unit>
+        <trans-unit id="$PcDashboard___#DynamicFolder" translate="yes">
+          <source>Dynamic Folder</source>
+          <target>Dossier dynamique</target>
+        </trans-unit>
+        <group id="$PcDashboard___Loupedeck.TrinitePlugin.ToucheCommand" />
+      </group>
+      <group id="@adjustments" />
+      <group id="@groups">
+        <trans-unit id="$PcDashboard___GroupName___19C32CFFED62BBF0000C" translate="yes">
+          <source>PC Dashboard</source>
+          <target>Tableau de bord du PC</target>
+        </trans-unit>
+      </group>
+    </body>
+  </file>
+</xliff>

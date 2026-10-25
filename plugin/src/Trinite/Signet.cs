@@ -19,7 +19,34 @@ namespace Loupedeck.TrinitePlugin
 
         private static readonly Lazy<Signet> Lu = new(Lire);
 
+#if POSTE
+        // Édition PC Dashboard : pas de réglage du poste ni de site par défaut (Logitech refuse la promotion) ; un globe,
+        // et l'adresse choisie dans Options+ pour chaque touche du site (WebsiteCommand, Signet.Choisi).
+        public static Signet Reglage => Generique;
+#elif COMPLETE
+        // Édition AI Coding Agents + PC : la touche telle qu'elle est sans réglage (globe, page du projet) ; le réglage du
+        // poste n'est pas lu.
+        public static Signet Reglage => Defaut;
+#else
         public static Signet Reglage => Lu.Value;
+#endif
+
+        public static readonly Signet Generique = new(null, null, null, null);
+
+        // Adresse saisie dans Options+ (http ou https, « https:// » ajouté s'il manque) et début du titre de sa fenêtre
+        // (vide : le nom du site) ; Generique si l'adresse est vide ou illisible.
+        public static Signet Choisi(String adresse, String titre)
+        {
+            adresse = adresse?.Trim() ?? "";
+            if (adresse.Length > 0 && !adresse.Contains("://", StringComparison.Ordinal))
+            {
+                adresse = "https://" + adresse;
+            }
+
+            return Uri.TryCreate(adresse, UriKind.Absolute, out var u) && u.Scheme is "https" or "http" && u.Host.Length > 0
+                ? new(u.AbsoluteUri, String.IsNullOrWhiteSpace(titre) ? Hote(u.AbsoluteUri) : titre.Trim(), null, null)
+                : Generique;
+        }
 
         private static Signet Lire()
         {

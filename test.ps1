@@ -16,6 +16,15 @@ $env:PYTHONDONTWRITEBYTECODE = '1'
 
 dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Debug -nologo -v q -p:NexusTest=true -p:NexusBuild=$sortie
 if ($LASTEXITCODE) { throw 'Le plugin ne compile pas.' }
+# Édition du Logi Marketplace (page 1 seule, sans tube d'essais) : elle doit compiler aussi.
+dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Release -nologo -v q -p:NexusTest=true -p:Edition=Marketplace -p:NexusBuild=$sortie
+if ($LASTEXITCODE) { throw "L'édition du Marketplace ne compile pas." }
+# Édition PC Dashboard (page 2 seule, second plugin du Marketplace) : elle doit compiler aussi.
+dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Release -nologo -v q -p:NexusTest=true -p:Edition=Poste -p:NexusBuild=$sortie
+if ($LASTEXITCODE) { throw "L'édition PC Dashboard ne compile pas." }
+# Édition AI Coding Agents + PC (les deux pages, troisième plugin du Marketplace) : elle doit compiler aussi.
+dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Release -nologo -v q -p:NexusTest=true -p:Edition=Complete -p:NexusBuild=$sortie
+if ($LASTEXITCODE) { throw "L'édition AI Coding Agents + PC ne compile pas." }
 
 $planches = Join-Path $sortie 'planches'
 if (Test-Path $planches) { Remove-Item $planches -Recurse -Force }

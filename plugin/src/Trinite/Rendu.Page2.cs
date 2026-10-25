@@ -280,7 +280,7 @@ namespace Loupedeck.TrinitePlugin
         private static void ToucheSite(BitmapBuilder b, Scene s)
         {
             const Int32 R = 50;
-            var site = Signet.Reglage;
+            var site = s.Site ?? Signet.Reglage;
             var debut = s.Temps * 1.4;
             for (var i = 0; i < 36; i++)
             {

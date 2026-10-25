@@ -28,7 +28,8 @@ namespace Loupedeck.TrinitePlugin
         public static readonly AppliWeb Messages = new("https://messages.google.com/web/conversations", ["Google Messages pour le Web", "Google Messages for web"],
             ["Messages", "Google Messages"]);
 
-        public static AppliWeb Site => new(Signet.Reglage.Url, [Signet.Reglage.Titre], [Signet.Reglage.Titre], AuDebut: true);
+        // Site d'une touche ; null sans adresse (touche du site de PC Dashboard pas encore réglée).
+        public static AppliWeb Site(Signet site) => site.Url is null ? null : new(site.Url, [site.Titre], [site.Titre], AuDebut: true);
 
         private static readonly String Local = Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "";
 

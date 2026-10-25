@@ -91,6 +91,8 @@ and when one is missing the pad falls back to something useful instead of an emp
 
 | With | The pad gains | Without it |
 |---|---|---|
+| Hooks (`etat/etat.py`, Python 3.11+, one command: see [Installation](#installation)) | Live Claude and Antigravity states: working, waiting for you, done, with their alerts | Claude and Antigravity heads stay at rest; conversations, quotas and sleep still shown (Codex needs no hook) |
+| Antigravity debugging port (`--remote-debugging-port=9227` on its shortcut, see [Installation](#installation)) | Antigravity's conversations, quota gauges, opening the one that needs you, dictation and its usage panel | Antigravity's key only shows whether the app is open and brings it to the front |
 | [NexusAndroid](https://github.com/pironjulien/NexusAndroid) (phone over adb) | The photo key pastes your phone's latest photo into the AI conversation; Messages badge from the phone | The photo key shows an animated clock and date (or your PC's latest screenshot); Messages counted from its open tab only |
 | Nexus Relay (Claude, Codex and Antigravity talk to each other; not public yet) | A tiny Clawd runs from Claude to Codex or Antigravity while they work for Claude | Each agent works on its own; no runner |
 | [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (your real Chrome for AI agents) | Gmail unread count even with Gmail closed (read in your own Chrome session, only the number, stays on your PC) | Gmail counted only while it is open in a Chrome window or tab |
@@ -142,6 +144,47 @@ flowchart LR
 
 ## Installation
 
+### From the Logitech Marketplace (page 1 only)
+
+The Marketplace edition, **AI Coding Agents**, is the agents page alone (the 9 keys above), without page 2 and without
+the local test pipe. Install it from Logi Options+, then in Options+ open the keypad's profile and drag the actions
+**Key 1** to **Key 9** of the *AI agents* group onto the 9 keys, in order (the plugin decides what each place shows).
+
+It works out of the box with what is installed: states come from the agents' own session files and windows, quotas
+from their own usage displays. Two optional extras make it livelier:
+
+- **Live states for Claude and Antigravity** (working, waiting, done, as they happen): install Python 3.11+, download
+  this repository and run `python -I outils\installer_hooks.py $env:USERPROFILE\.claude\settings.json`. Without the
+  hooks, Claude and Antigravity heads stay at rest and still show their conversations, quotas and closed state.
+- **Debugging ports** for opening Codex and Antigravity conversations and dictating into them (see below).
+
+Package it yourself with `pwsh -File outils\paquet_marketplace.ps1` (builds the Marketplace edition, packs it and
+checks it with the official Logi Plugin Tool). License terms: [EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA.md);
+data: [Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY.md).
+
+### From the Logitech Marketplace: PC Dashboard (page 2 only)
+
+The second Marketplace plugin, **PC Dashboard**, is page 2 alone (volume, mute, Gmail, Calendar, Messages, PC health,
+Store and Windows Update, a website key), without the agents. Install it from Logi Options+, then drag **Key 1** to
+**Key 8** of the *PC Dashboard* group onto the keys, in order, and **Website** onto the last one: type the address it
+opens in its settings (no website is set by default; you can add several Website keys, each with its own address).
+Gmail and Messages badges come from their Chrome windows or tabs, then from an Android phone over adb if any.
+
+Package it yourself with `pwsh -File outils\paquet_marketplace.ps1 -Edition Poste`. License terms:
+[EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA-PC-DASHBOARD.md); data:
+[Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-PC-DASHBOARD.md).
+
+### From the Logitech Marketplace: AI Coding Agents + PC (both pages)
+
+**AI Coding Agents + PC** is both pages in one plugin, like the source build below without the local test pipe:
+install it instead of the two plugins above, then drag **Key 1** to **Key 9** of the *AI agents* group onto page 1 and
+**Key 10** to **Key 18** onto page 2. Its website key opens this project page. Package it yourself with
+`pwsh -File outils\paquet_marketplace.ps1 -Edition Complete`. Terms:
+[EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA-AI-AGENTS-PC.md); data:
+[Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-AI-AGENTS-PC.md).
+
+### From source (both pages)
+
 ```powershell
 git clone https://github.com/pironjulien/mx-keypad-ai-agents
 cd mx-keypad-ai-agents
@@ -187,9 +230,9 @@ when present) and, on a key press, to the page you asked for.
 ## Limitations
 
 - Built and tested on one setup (Windows 11 in French, MX Creative Keypad). The plugin finds some buttons by their
-  label, and those labels are the **French** ones for Claude (dictation, "Utilisation" usage button and its quota
-  fallback) and Codex (voice chat, dictation); Antigravity's are English. With another app language these presses do
-  nothing; the states, alerts, Codex and Antigravity quotas, capture and page 2 do not depend on it.
+  label, in **French or English** for Claude (dictation, usage button and its quota fallback) and Codex (voice chat,
+  dictation), English for Antigravity, taken from the apps' own language files. With another app language these
+  presses do nothing; the states, alerts, Codex and Antigravity quotas, capture and page 2 do not depend on it.
 - The agents' apps change often; a new version can move a button the plugin relies on.
 - The keypad turns off with the PC screen (Windows powers its display down); the plugin stops drawing meanwhile.
 - Code comments and identifiers are in French.
@@ -210,5 +253,10 @@ build uses the [LogiPluginApi](https://www.nuget.org/packages/LogiPluginApi) pac
 
 ## License
 
-[MIT](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/LICENSE). Claude, Codex, Antigravity, Gmail, Logitech
+[MIT](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/LICENSE), with an
+[EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA.md) and a
+[Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY.md) for the Marketplace edition
+(no data collected), and their [EULA](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/EULA-PC-DASHBOARD.md)
+and [Privacy Policy](https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/PRIVACY-PC-DASHBOARD.md) for PC
+Dashboard. Claude, Codex, Antigravity, Gmail, Logitech
 and MX are trademarks of their owners; this project is not affiliated with them.

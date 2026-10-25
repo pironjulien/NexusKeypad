@@ -16,9 +16,43 @@
     <PluginDir>$(LocalAppData)\Logi\LogiPluginService\Plugins\</PluginDir>
 
     <BaseOutputPath>$(NexusBuild)bin\</BaseOutputPath>
-    <OutputPath>$(BaseOutputPath)$(Configuration)\bin\</OutputPath>
+    <!-- Édition du Logi Marketplace (outils\paquet_marketplace.ps1) : page 1 seule, sans tube d'essais, compilée à part. -->
+    <BaseOutputPath Condition="'$(Edition)' == 'Marketplace'">$(NexusBuild)marketplace\bin\</BaseOutputPath>
+    <DefineConstants Condition="'$(Edition)' == 'Marketplace'">$(DefineConstants);MARKETPLACE</DefineConstants>
+    <!-- Sans symboles : ni .pdb ni chemin du poste (dossier de l'utilisateur) gravé dans la DLL distribuée. -->
+    <DebugType Condition="'$(Edition)' == 'Marketplace'">none</DebugType>
 
     <PluginShortName>TrinitePad</PluginShortName>
+    <Paquet>package</Paquet>
+  </PropertyGroup>
+
+  <!-- Édition « PC Dashboard » (outils\paquet_marketplace.ps1 -Edition Poste) : la page 2 seule, second plugin du Logi
+       Marketplace. Un autre plugin pour le service : autre nom (PcDashboard), autre DLL, autre classe de plugin,
+       autre dossier de paquet (package-poste : fiche, icône, traduction). -->
+  <PropertyGroup Condition="'$(Edition)' == 'Poste'">
+    <BaseOutputPath>$(NexusBuild)poste\bin\</BaseOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)poste\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>$(DefineConstants);POSTE</DefineConstants>
+    <DebugType>none</DebugType>
+    <AssemblyName>PcDashboardPlugin</AssemblyName>
+    <PluginShortName>PcDashboard</PluginShortName>
+    <Paquet>package-poste</Paquet>
+  </PropertyGroup>
+
+  <!-- Édition « AI Coding Agents + PC » (outils\paquet_marketplace.ps1 -Edition Complete) : les deux pages, comme la
+       version de Julien, troisième plugin du Logi Marketplace, sans tube d'essais ni réglage du site du poste. -->
+  <PropertyGroup Condition="'$(Edition)' == 'Complete'">
+    <BaseOutputPath>$(NexusBuild)complete\bin\</BaseOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)complete\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>$(DefineConstants);COMPLETE</DefineConstants>
+    <DebugType>none</DebugType>
+    <AssemblyName>AiAgentsPcPlugin</AssemblyName>
+    <PluginShortName>AiAgentsPc</PluginShortName>
+    <Paquet>package-complete</Paquet>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <OutputPath>$(BaseOutputPath)$(Configuration)\bin\</OutputPath>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -39,7 +73,7 @@
 
   <Target Name="CopyPackage" AfterTargets="PostBuildEvent">
     <ItemGroup>
-      <PackageFiles Include="package\**\*" />
+      <PackageFiles Include="$(Paquet)\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(OutputPath)..\%(RecursiveDir)" />
   </Target>

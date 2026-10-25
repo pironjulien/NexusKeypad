@@ -17,6 +17,42 @@ AssemblyLoadContext.Default.Resolving += (_, nom) =>
     return File.Exists(chemin) ? AssemblyLoadContext.Default.LoadFromAssemblyPath(chemin) : null;
 };
 
+// Icône du plugin (metadata/Icon256x256.png) : nos trois personnages au repos, dessinés par le plugin lui-même, sur fond
+// transparent ; dessin dans les 192 px du centre (règle de Logitech pour Options+ et le Marketplace).
+// Usage : dotnet run -- icone <fichier.png>
+if (args is ["icone", var icone])
+{
+    using var b = new BitmapBuilder(256, 256);
+    b.Clear(new BitmapColor(0, 0, 0, 0));
+    Rendu.Personnage(b, 1, 32, 58, 5, Etat.Repos, 0.4);    // Codex, derrière à gauche comme sur le pad
+    Rendu.Personnage(b, 2, 144, 54, 5, Etat.Repos, 0.4);   // Antigravity, derrière à droite
+    Rendu.Personnage(b, 0, 80, 140, 6, Etat.Repos, 0.4);   // Clawd, au milieu et devant
+    File.WriteAllBytes(icone, b.ToArray(BitmapImageFormat.Png));
+    return;
+}
+
+// Icône de l'édition PC Dashboard (package-poste/metadata/Icon256x256.png) : quatre de ses touches en carré (volume, son coupé,
+// santé du PC, site), sans logo de tiers, dessinées par le plugin, dans les 192 px du centre sur fond transparent.
+// Usage : dotnet run -- icone-poste <fichier.png>
+if (args is ["icone-poste", var iconePoste])
+{
+    using var b = new BitmapBuilder(256, 256);
+    b.Clear(new BitmapColor(0, 0, 0, 0));
+    var scene = new Scene
+    {
+        Instantane = Instantane.Vide, Temps = 20.4, Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9,
+        CaptureCollee = -9, Poste = new(0.6, false, 0.5, 0.3, 0.55) { Mails = 3, Messages = 1 }, Site = Signet.Generique,
+    };
+    int[] touches = [Moteur.VolumePlus, Moteur.Muet, Moteur.Sante, Moteur.Site];
+    for (var k = 0; k < 4; k++)
+    {
+        b.DrawImage(BitmapImage.FromArray(Rendu.Png(touches[k], scene, 92)), 32 + (k % 2 * 100), 32 + (k / 2 * 100), 92, 92, BitmapRotation.None);
+    }
+
+    File.WriteAllBytes(iconePoste, b.ToArray(BitmapImageFormat.Png));
+    return;
+}
+
 var sortie = args.Length > 0 ? args[0] : ".";
 Directory.CreateDirectory(sortie);
 var maintenant = DateTime.UtcNow;

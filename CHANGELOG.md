@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Second Logitech Marketplace plugin, "PC Dashboard" 1.0.0: page 2 alone (`-p:Edition=Poste`), as its own plugin
+  `PcDashboard`, without the agents, the phone photo or the test pipe; Chrome and the phone are only read while its keys
+  are shown. Its website key is a "Website" action whose address you type in Options+ (no website by default).
+  `outils/paquet_marketplace.ps1 -Edition Poste` packs and checks `PcDashboard_1_0_0.lplug4`. Its own
+  [EULA](EULA-PC-DASHBOARD.md) and [Privacy Policy](PRIVACY-PC-DASHBOARD.md).
+- Third Logitech Marketplace plugin, "AI Coding Agents + PC" 1.1.0: both pages in one plugin (`-p:Edition=Complete`,
+  plugin `AiAgentsPc`), without the test pipe; its website key opens the project page.
+  `outils/paquet_marketplace.ps1 -Edition Complete` packs and checks `AiAgentsPc_1_1_0.lplug4`. Its
+  [EULA](EULA-AI-AGENTS-PC.md) and [Privacy Policy](PRIVACY-AI-AGENTS-PC.md).
+- Logitech Marketplace edition, "AI Coding Agents" 1.1.0: the agents page alone (page 1), without page 2 and without
+  the local test pipe (`-p:Edition=Marketplace`), built without debug symbols. `outils/paquet_marketplace.ps1` builds
+  it, packs `TrinitePad_1_1_0.lplug4` and checks it with the official Logi Plugin Tool; `test.ps1` builds it too.
+- [EULA](EULA.md) and [Privacy Policy](PRIVACY.md): the developer is the only licensor, Logitech is not a party; no
+  personal data is collected, everything stays on the PC.
+- Plugin icon: our three characters (Codex and Antigravity behind, Clawd in front), drawn by the plugin's own code
+  (`dotnet run --project apercu -- icone <png>`).
+- README: Marketplace installation, and the hooks and the Antigravity debugging port in "Better with the Nexus
+  family" (what each adds, what remains without it).
+- Action names in English, with a French translation (`package/localization/TrinitePad_fr-FR.xliff`).
+- English labels for Claude (dictation, usage button, conversation title) and Codex (voice chat, dictation), taken from
+  the apps' own language files: these presses now work with the apps in English too.
 - Gmail unread count from [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (its opt-in "Gmail unread for the
   pad" box) when Gmail is not open in Chrome: `~/.nexus/nexus-browser/compteurs.json`, used if under 3 minutes old.
 - README: "Better with the Nexus family, fine on its own", what each part adds and what replaces it when it is missing.

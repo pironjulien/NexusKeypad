@@ -81,12 +81,15 @@ namespace Loupedeck.TrinitePlugin
         public static readonly String[] MicroAntigravity = ["Record voice memo"];
 
         // Codex : son chat vocal dans la conversation ouverte (« Démarrer le chat vocal ») ; à défaut, la dictée
-        // (« Dicter », puis « Transcrire et insérer » : le texte va dans le champ, sans envoi).
-        public static readonly String[] MicroCodex = ["Démarrer le chat vocal", "Dicter"];
+        // (« Dicter », puis « Transcrire et insérer » : le texte va dans le champ, sans envoi). Chaque libellé français est
+        // suivi de son anglais (messages composer.realtime.* et composer.dictation.* de l'appli).
+        public static readonly String[] MicroCodex = ["Démarrer le chat vocal", "Start voice chat", "Dicter", "Dictate"];
 
         // Une dictée en cours, quelle qu'elle soit : son bouton d'arrêt (chat vocal ou dictée de Codex, mémo vocal
-        // d'Antigravity). Le texte dicté reste dans le champ, sans envoi.
-        public static readonly String[] Arrets = ["Arrêter le chat vocal", "Arrêter la dictée", "Transcrire et insérer", "Stop recording"];
+        // d'Antigravity). Le texte dicté reste dans le champ, sans envoi. Le bouton « Transcrire et insérer » se dit
+        // « Transcribe and send » en anglais : jamais cliqué sous ce nom, l'arrêt passe par « Stop dictation ».
+        public static readonly String[] Arrets =
+            ["Arrêter le chat vocal", "Stop voice chat", "Arrêter la dictée", "Stop dictation", "Transcrire et insérer", "Stop recording"];
 
         // Une dictée ou un enregistrement est en cours : un bouton d'arrêt visible (rien n'est cliqué).
         public static readonly String DicteeEnCours =

@@ -9,22 +9,22 @@ type: plugin4
 name: TrinitePad
 
 # Plugin name that is shown to the user.
-displayName: Trinité
+displayName: AI Coding Agents
 
 # Short description of the plugin.
-description: Trois IA (Claude, Codex, Antigravity) en pixel art animé sur le MX Keypad.
+description: Claude, Codex and Antigravity as animated pixel-art status keys, with quota gauges and one-press access to the conversation that needs you.
 
 # Name of the plugin library file.
 pluginFileName: TrinitePadPlugin.dll
 
 # Plugin version.
-version: 1.0.0
+version: 1.1.0
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: Julien Piron
 
 # Copyright information.
-copyright: Copyright © 2026 Julien Piron. Licence MIT.
+copyright: Copyright © 2026 Julien Piron. MIT License.
 
 
 # ==================================================================================================
@@ -68,7 +68,7 @@ minimumLoupedeckVersion: 6.4
 license: MIT
 
 # URL of the plugin license.
-licenseUrl: https://opensource.org/licenses/MIT
+licenseUrl: https://github.com/pironjulien/mx-keypad-ai-agents/blob/main/LICENSE
 
 # URL of the support page where the users can send improvement suggestions and report bugs.
 # The URL is shown in Loupedeck Marketplace. The page can be for example a GitHub issues page.
