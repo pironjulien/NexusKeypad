@@ -136,9 +136,11 @@ namespace Loupedeck.TrinitePlugin
                     : [];
                 if (groupes.Count == 0)
                 {
-                    // Ancien format, sans détail : une fenêtre par valeur, remise à zéro au bout de sa durée.
-                    groupes = [.. new[] { (true, Valeur("cinq")), (false, Valeur("semaine")) }
-                        .Where(v => v.Item2 is not null).Select(v => new GroupeQuota(v.Item1, v.Item2.Value, null))];
+                    // Ancien format, sans détail : une fenêtre par valeur, remise à zéro à son heure gardée (finCinq,
+                    // finSemaine), sinon au bout de sa durée.
+                    DateTime? Fin(String nom) => r.TryGetProperty(nom, out var f) && f.ValueKind == JsonValueKind.String ? f.GetDateTime().ToUniversalTime() : null;
+                    groupes = [.. new[] { (true, Valeur("cinq"), Fin("finCinq")), (false, Valeur("semaine"), Fin("finSemaine")) }
+                        .Where(v => v.Item2 is not null).Select(v => new GroupeQuota(v.Item1, v.Item2.Value, v.Item3))];
                 }
 
                 return Actuel(new(Valeur("cinq"), Valeur("semaine")) { Groupes = groupes }, lu);

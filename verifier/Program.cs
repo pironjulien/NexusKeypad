@@ -108,6 +108,23 @@ var groupes = new Quota(null, null)
 var actuel = QuotaAntigravity.Actuel(groupes, instant.AddDays(-8));
 Vrai(actuel.Cinq == 0.5 && actuel.Semaine == 0, "remise à zéro par groupe ; sans heure, au bout de sa durée");
 Vrai(QuotaAntigravity.Actuel(groupes, instant).Semaine == 0.6, "semaine sans heure, lue à l'instant : gardée");
+// Ancien cache (sans groupes) avec ses heures de remise à zéro : elles restent appliquées.
+var cache = Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "", "NexusKeypad", "quota-antigravity.json");
+var avant = File.Exists(cache) ? File.ReadAllText(cache) : null;
+try
+{
+    Directory.CreateDirectory(Path.GetDirectoryName(cache));
+    File.WriteAllText(cache, JsonSerializer.Serialize(new
+    {
+        cinq = 0.97, semaine = 0.4, finCinq = instant.AddMinutes(-1), finSemaine = instant.AddDays(3), lu = instant.AddMinutes(-15),
+    }));
+    var garde = QuotaAntigravity.Garde(out _);
+    Vrai(garde?.Cinq == 0 && garde?.Semaine == 0.4, "ancien cache : heure de remise à zéro gardée appliquée");
+}
+finally
+{
+    if (avant is null) { File.Delete(cache); } else { File.WriteAllText(cache, avant); }
+}
 Vrai(QuotaAntigravity.Delai("it will fully refresh in 4 days, 23 hours.") == new TimeSpan(4, 23, 0, 0)
     && QuotaAntigravity.Delai("Weekly Limit Remaining") is null, "délai de remise à zéro lu en jours, heures, minutes");
 

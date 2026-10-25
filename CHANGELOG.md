@@ -38,7 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - NexusBrowser Gmail total dated by its oldest source (no count kept past 3 minutes);
   - native clipboard (Win32 API: PNG, CF_DIB, CF_HDROP) instead of a PowerShell kept open (60 to 80 MB); live test:
     `dotnet run --project verifier -- presse-papiers`;
-  - plugin shutdown: an error in the updates task is logged, never thrown.
+  - plugin shutdown: an error in the updates task is logged, never thrown;
+  - older Antigravity quota cache: its reset times still apply; resuming the Store is scheduled from the previous try
+    (a slow poll no longer skips it).
 - No Gmail badge when Gmail is open in a Chrome tab: tab titles (Chrome's tab strip, read through UI Automation even
   with the window behind) count like window titles; read every 3 s, off the animation thread.
 - Updates key: it only searched, then the Store and Windows Update offered their updates without installing them. It

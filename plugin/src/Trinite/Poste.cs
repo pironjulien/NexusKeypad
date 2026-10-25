@@ -241,6 +241,7 @@ namespace Loupedeck.TrinitePlugin
                 Gestes.DerriereSansActiver(fenetre);
                 var recherchee = false;
                 var debut = Environment.TickCount64;
+                var reprise = debut + 2000; // prochaine reprise de l'appli si aucun bouton n'a encore répondu
                 Int64? recherche = null;
                 while (Environment.TickCount64 - debut < attente * 1000L && !arret.IsCancellationRequested)
                 {
@@ -256,9 +257,10 @@ namespace Loupedeck.TrinitePlugin
                     {
                         recherchee = Uia.CliquerDans(fenetre, rechercher);
                         recherche = recherchee ? Environment.TickCount64 : null;
-                        if (!recherchee && (Environment.TickCount64 - debut) % 2000 < 600)
+                        if (!recherchee && Environment.TickCount64 >= reprise)
                         {
                             Paquets.Reprendre(fenetre);
+                            reprise = Environment.TickCount64 + 2000;
                         }
                     }
                     else if (recherche is Int64 r && Environment.TickCount64 - r > 8000 && aJour.Length > 0 && Uia.Affiche(fenetre, aJour))
