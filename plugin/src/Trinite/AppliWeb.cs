@@ -18,13 +18,13 @@ namespace Loupedeck.TrinitePlugin
     // une fenêtre d'appli, 24/10 : sans raccourci, une fenêtre --app.)
     // AuDebut : le titre doit COMMENCER par un de ses mots (le site : « JulienPiron.fr - … ») ; sinon il le contient. Le titre
     // de Gmail contient l'adresse du compte, qui peut contenir le nom du site : la touche du site ramenait Gmail (25/10).
-    // Sans titre (site sans titre donné) : sa fenêtre est celle que la touche a ouverte. Le titre d'une page ne commence
-    // presque jamais par le nom de son hôte (« Example Domain », « GitHub - … ») : chercher l'hôte ne la trouvait jamais
-    // (6 s d'attente et une fenêtre de plus à chaque appui ; relecture de Codex et d'Antigravity, 25/10).
+    // Sans titre (site sans titre donné) : sa fenêtre est une fenêtre d'appli de Chrome dont la page est sur l'hôte demandé,
+    // adresse relue par UI Automation (valeur de son document) à chaque appui, avant de la ramener ou de la fermer. Le titre
+    // d'une page ne commence presque jamais par le nom de son hôte (« Example Domain », « GitHub - … ») : chercher l'hôte
+    // dans le titre ne la trouvait jamais (6 s d'attente et une fenêtre de plus à chaque appui), et retenir « la nouvelle
+    // fenêtre de Chrome » pouvait prendre une autre appli ouverte entre-temps (relectures de Codex et d'Antigravity, 25/10).
     public sealed record AppliWeb(String Url, String[] Titres, String[] Raccourcis, Boolean AuDebut = false)
     {
-        // Fenêtre ouverte par la touche, par adresse (sites sans titre donné).
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<String, IntPtr> Ouvertes = new();
 
         // Titres stricts : « … - Gmail » (fenêtre, onglet) et le nom complet de Google Messages pour le Web ; un onglet
         // « (2) Issues · …/nexus-gmail » ou « Questions sur l'API Gmail » allumait une fausse pastille (relecture
@@ -39,15 +39,19 @@ namespace Loupedeck.TrinitePlugin
 
         private static readonly String Local = Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "";
 
-        // Sa fenêtre ouverte (appli installée ou fenêtre d'appli), zéro sinon. Sans titre : celle que la touche a ouverte,
-        // si elle est toujours là.
-        public IntPtr Fenetre() => this.Titres.Length == 0
-            ? Ouvertes.TryGetValue(this.Url, out var h) && Uia.Fenetres("chrome").Contains(h) ? h : IntPtr.Zero
-            : Uia.Fenetres("chrome").FirstOrDefault(h => this.Reconnue(Uia.Titre(h)));
+        // Sa fenêtre ouverte (appli installée ou fenêtre d'appli), zéro sinon : par son titre, ou sans titre donné par
+        // l'adresse de sa page.
+        public IntPtr Fenetre() =>
+            Uia.Fenetres("chrome").FirstOrDefault(h => this.Titres.Length == 0 ? this.MemeSite(h) : this.Reconnue(Uia.Titre(h)));
 
-        // Fenêtre d'appli de Chrome apparue depuis « avant » (pas une fenêtre d'onglets, titrée « … - Google Chrome »).
-        private static IntPtr Nouvelle(System.Collections.Generic.HashSet<IntPtr> avant) =>
-            Uia.Fenetres("chrome").FirstOrDefault(h => !avant.Contains(h) && !Uia.Titre(h).EndsWith(" - Google Chrome", StringComparison.Ordinal));
+        // Fenêtre d'appli de Chrome (pas une fenêtre d'onglets, titrée « … - Google Chrome ») dont la page est sur l'hôte
+        // de l'adresse (« www. » ignoré : une redirection vers lui ou depuis lui reste le même site).
+        private Boolean MemeSite(IntPtr h) =>
+            !Uia.Titre(h).EndsWith(" - Google Chrome", StringComparison.Ordinal)
+            && Uri.TryCreate(Uia.AdresseDocument(h), UriKind.Absolute, out var page)
+            && String.Equals(SansWww(page.Host), SansWww(new Uri(this.Url).Host), StringComparison.OrdinalIgnoreCase);
+
+        private static String SansWww(String hote) => hote.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? hote[4..] : hote;
 
         private Boolean Reconnue(String titre) =>
             !titre.EndsWith(" - Google Chrome", StringComparison.Ordinal) && this.Titres.Any(t => this.AuDebut
@@ -71,16 +75,10 @@ namespace Loupedeck.TrinitePlugin
 
             if (fenetre == IntPtr.Zero)
             {
-                var avant = Uia.Fenetres("chrome").ToHashSet();
                 this.Lancer();
-                for (var i = 0; i < 30 && (fenetre = this.Titres.Length == 0 ? Nouvelle(avant) : this.Fenetre()) == IntPtr.Zero; i++)
+                for (var i = 0; i < 30 && (fenetre = this.Fenetre()) == IntPtr.Zero; i++)
                 {
                     Thread.Sleep(200);
-                }
-
-                if (fenetre != IntPtr.Zero && this.Titres.Length == 0)
-                {
-                    Ouvertes[this.Url] = fenetre;
                 }
             }
 

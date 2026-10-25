@@ -11,8 +11,11 @@ The controller of this policy is **Julien Piron** ("the Developer"), author of t
 
 ## What the Plugin reads, on your computer only
 
-The Plugin reads data only to draw the keypad keys and to perform the action of a key you press, and only while its
-keys are shown on the keypad:
+The Plugin reads data only to draw the keypad keys and to perform the action of a key you press. Chrome window titles
+and phone notifications are read only while its keys are shown on the keypad. Sound, processor and memory are also read
+once a second while the Plugin runs, even when its keys are not shown: the Logi service does not tell a plugin which
+page is shown, and a changed image is what wakes up a shown key whose picture had stopped changing (a muted key, for
+instance).
 
 - **Sound**: the volume level, the mute state and the current peak level of the default audio output (Windows audio
   API). Volume keys send the Windows volume keys; the mute key mutes or unmutes that output.

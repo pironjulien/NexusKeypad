@@ -35,11 +35,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Review by Codex and Antigravity of the Marketplace editions (October 25), sent again to Logitech as AI Coding Agents
   1.1.1, PC Dashboard 1.0.1 and AI Coding Agents + PC 1.1.1:
-  - website key without a window title: it now recognizes the window it opened itself; it looked for a window whose
-    title starts with the site's host name, which a page title almost never does (6 s wait and one more window at
-    each press). With a title given, its window must still start with it (no Gmail false positive);
-  - PC Dashboard no longer opens any agent file (not even the kept Antigravity quota), and reads nothing while its keys
-    are not shown on the keypad (it re-read the PC every second);
+  - website key without a window title: its window is a Chrome app window whose page is on the requested host, the
+    page address being read again (UI Automation) at each press before it is brought back or closed; it looked for a
+    window whose title starts with the site's host name, which a page title almost never does (6 s wait and one more
+    window at each press). With a title given, its window must still start with it (no Gmail false positive);
+  - PC Dashboard no longer opens any agent file (not even the kept Antigravity quota). With its keys not requested by
+    the keypad, it only reads sound, processor and memory once a second (no Chrome, no phone): that is what wakes up a
+    shown key whose image had stopped changing; the privacy policy now says so;
   - the Marketplace edition has its own intermediate build folder, like the other two;
   - French action names of the quota keys: "Quota de Codex" instead of "Codex n°2";
   - privacy policy: with a phone reachable over adb, new photos are copied as soon as they are taken (to show them on

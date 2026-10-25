@@ -22,6 +22,7 @@ namespace Loupedeck.TrinitePlugin
         private const Int32 FocusClavier = 30008; // UIA_HasKeyboardFocusPropertyId
         private const Int32 TypeEdit = 50004; // UIA_EditControlTypeId
         private const Int32 TypeBouton = 50000; // UIA_ButtonControlTypeId
+        private const Int32 TypeDocument = 50030; // UIA_DocumentControlTypeId
         private const Int32 MotifInvoke = 10000;
         private const Int32 MotifToggle = 10015;
         private const Int32 MotifDefilement = 10004; // UIA_ScrollPatternId
@@ -186,6 +187,21 @@ namespace Loupedeck.TrinitePlugin
         // Fenêtre dont le titre commence par ce texte (Codex LB : « Codex LB - 127.0.0.1 » depuis le 25/10).
         public static IntPtr FenetreTitreDebut(String processus, String debut) =>
             Fenetres(processus).FirstOrDefault(h => Titre(h).StartsWith(debut, StringComparison.Ordinal));
+
+        // Adresse de la page d'une fenêtre de Chrome : la valeur de son document (UI Automation) ; null si illisible.
+        public static String AdresseDocument(IntPtr fenetre)
+        {
+            try
+            {
+                var uia = Nouveau();
+                return uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, uia.CreatePropertyCondition(TypePropriete, TypeDocument))
+                    ?.GetCurrentPropertyValue(ValeurPropriete) as String;
+            }
+            catch (Exception)
+            {
+                return null; // fenêtre fermée entre-temps
+            }
+        }
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern Int32 GetWindowText(IntPtr h, System.Text.StringBuilder texte, Int32 max);

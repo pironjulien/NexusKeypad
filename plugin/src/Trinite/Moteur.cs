@@ -528,17 +528,27 @@ namespace Loupedeck.TrinitePlugin
                 // images qui ont changé partent au pad, chacune coûte cher au service Logi.
                 if (this._page == 2)
                 {
-                    // Édition PC Dashboard : ses touches peuvent n'être sur aucune page affichée du pad. Toutes animées, elles
-                    // sont redemandées sans cesse quand elles sont affichées ; sans demande depuis 3 s, rien n'est relu ni
-                    // dessiné (ni le poste, ni Chrome, ni le téléphone). Le pad redemande les images d'une page dès qu'il
-                    // l'affiche, ce qui relance tout.
-                    if (Premiere >= 9 && this._horloge.Elapsed.TotalSeconds - this._demande > 3)
+                    // Édition PC Dashboard : ses touches peuvent n'être sur aucune page affichée du pad, et le service ne dit
+                    // pas quelle page il montre. Une touche affichée dont l'image ne change pas (Son coupé, volume stable,
+                    // silence) n'est plus redemandée : l'absence de demande ne prouve pas que la page est cachée (relecture
+                    // de Codex, 25/10). Sans demande depuis 3 s, seul un relevé léger continue, une fois par seconde (son,
+                    // processeur, mémoire ; ni Chrome ni le téléphone) : une image qui change part au service, qui la
+                    // redemande si sa page est affichée, et tout reprend.
+                    var sansDemande = Premiere >= 9 && this._horloge.Elapsed.TotalSeconds - this._demande > 3;
+                    if (sansDemande && this._tic % 8 != 0)
                     {
                         return;
                     }
 
-                    this.LireNotifications();
-                    this._poste = this.LirePoste();
+                    if (sansDemande)
+                    {
+                        this._poste = Releve.Lire() with { Mails = this._poste?.Mails, Messages = this._poste?.Messages };
+                    }
+                    else
+                    {
+                        this.LireNotifications();
+                        this._poste = this.LirePoste();
+                    }
 
                     for (var t = VolumeMoins; t < Touches; t++)
                     {
