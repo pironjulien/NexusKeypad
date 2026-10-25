@@ -154,6 +154,90 @@ class Regles(unittest.TestCase):
                 etat.RACINE = ancienne
 
 
+# Exécutable natif livré dans le paquet (hook/, sans Python) : mêmes règles que etat.py, cas par cas. test.ps1 le compile
+# et donne son chemin ; lancé seul, ce test est sauté.
+HOOK = os.environ.get("NEXUSKEYPAD_HOOK", "")
+
+
+@unittest.skipUnless(HOOK and Path(HOOK).exists(), "nexuskeypad-hook.exe non compilé (lancer test.ps1)")
+class Parite(unittest.TestCase):
+    def test_memes_etats_que_etat_py(self):
+        with tempfile.TemporaryDirectory() as d:
+            journal = Path(d) / "t.jsonl"
+            morceaux = Path(d) / "chunks"
+            morceaux.mkdir()
+            (morceaux / "00000001.jsonl").write_text(json.dumps({"type": "PLANNER_RESPONSE", "content": "Je relance ?"}) + "\n", encoding="utf-8")
+
+            def ligne(texte):
+                return json.dumps({"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": texte}]}})
+
+            cas = [
+                ("claude", "UserPromptSubmit", {}, "wait", None),
+                ("claude", "PreToolUse", {"tool_name": "AskUserQuestion"}, None, None),
+                ("claude", "PreToolUse", {"tool_name": etat.CHOIX, "tool_input": {"ask": "On y va ?"}}, None, None),
+                ("claude", "PreToolUse", {"tool_name": etat.CHOIX, "tool_input": {}}, None, None),
+                ("claude", "PostToolUse", {"tool_name": etat.CHOIX}, "ask", None),
+                ("claude", "PostToolUse", {"tool_name": "Bash"}, "perm", None),
+                ("claude", "PostToolUseFailure", {"tool_name": "Bash"}, "perm", None),
+                ("claude", "Notification", {"notification_type": "permission_prompt"}, None, None),
+                ("claude", "Notification", {"message": "Claude needs your Permission"}, None, None),
+                ("claude", "Notification", {"message": "idle"}, "run", None),
+                ("claude", "StopFailure", {"error": "rate_limit"}, None, None),
+                ("claude", "StopFailure", {"error_type": "billing_error"}, None, None),
+                ("claude", "StopFailure", {"error_type": "server_error"}, None, None),
+                ("claude", "Stop", {}, "ask", None),
+                ("claude", "Stop", {}, "perm", None),
+                ("claude", "Stop", {}, None, "C'est fait."),
+                ("claude", "Stop", {}, None, "On le pousse ?"),
+                ("claude", "Stop", {}, None, "Tu valides **?**"),
+                ("claude", "Stop", {}, None, "« Prêt ? »"),
+                ("claude", "SessionEnd", {}, "run", None),
+                ("antigravity", "PreInvocation", {}, "done", None),
+                ("antigravity", "PreToolUse", {"toolCall": {"name": "ask_question"}}, None, None),
+                ("antigravity", "PreToolUse", {"toolCall": {"name": "run_command"}}, None, None),
+                ("antigravity", "Stop", {"fullyIdle": False}, None, None),
+                ("antigravity", "Stop", {"transcriptPath": str(morceaux)}, None, None),
+                ("antigravity", "Inconnu", {}, "run", None),
+            ]
+            for i, (agent, evenement, charge, avant, texte) in enumerate(cas):
+                charge = {**charge, "session_id" if agent == "claude" else "conversationId": f"s{i}"}
+                if texte is not None:
+                    journal.write_text(ligne(texte) + "\n", encoding="utf-8")
+                    charge["transcript_path"] = str(journal)
+                precedent = {"state": avant, "at": 1.0, "event": "x"} if avant else {}
+                dossier = Path(d) / ".nexus" / "trinite" / agent
+                dossier.mkdir(parents=True, exist_ok=True)
+                fichier = dossier / f"s{i}.json"
+                if avant:
+                    fichier.write_text(json.dumps(precedent), encoding="utf-8")
+                attendu = "end" if evenement == "SessionEnd" else etat.etat_pour(evenement, charge, precedent)
+                sortie = subprocess.run([HOOK, agent, evenement], input=json.dumps(charge), text=True, encoding="utf-8",
+                                        capture_output=True, env={**os.environ, "USERPROFILE": d}, check=True)
+                voulu = {"decision": "allow"} if agent == "antigravity" and evenement == "PreToolUse" else {}
+                self.assertEqual(json.loads(sortie.stdout), voulu, (agent, evenement))
+                obtenu = json.loads(fichier.read_text(encoding="utf-8"))["state"] if fichier.exists() else None
+                self.assertEqual(obtenu, attendu if attendu is not None else avant, (agent, evenement, charge, avant, texte))
+            self.assertEqual({f.suffix for f in (Path(d) / ".nexus" / "trinite" / "claude").iterdir()}, {".json"})  # ni verrou ni temporaire
+
+    def test_evenement_en_retard_ignore(self):
+        with tempfile.TemporaryDirectory() as d:
+            dossier = Path(d) / ".nexus" / "trinite" / "claude"
+            dossier.mkdir(parents=True)
+            (dossier / "s1.json").write_text(json.dumps({"state": "done", "at": 9e12, "event": "Stop"}), encoding="utf-8")
+            subprocess.run([HOOK, "claude", "PreToolUse"], input=json.dumps({"session_id": "s1", "tool_name": "Bash"}),
+                           text=True, capture_output=True, env={**os.environ, "USERPROFILE": d}, check=True)
+            self.assertEqual(json.loads((dossier / "s1.json").read_text(encoding="utf-8"))["state"], "done")
+            self.assertEqual([f.name for f in dossier.iterdir()], ["s1.json"])  # ni verrou ni temporaire
+
+    def test_entree_vide_ou_illisible(self):
+        with tempfile.TemporaryDirectory() as d:
+            for entree in ("", "pas du json"):
+                sortie = subprocess.run([HOOK, "claude", "Stop"], input=entree, text=True, capture_output=True,
+                                        env={**os.environ, "USERPROFILE": d}, check=True)
+                self.assertEqual(sortie.stdout.strip(), "{}")
+            self.assertEqual(json.loads((Path(d) / ".nexus" / "trinite" / "claude" / "defaut.json").read_text(encoding="utf-8"))["state"], "done")
+
+
 def installer_claude_evenements():
     import importlib.util as iu
     chemin = Path(__file__).resolve().parents[1] / "outils" / "installer_hooks.py"

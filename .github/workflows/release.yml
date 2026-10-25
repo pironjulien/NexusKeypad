@@ -1,0 +1,62 @@
+# Release: on a vX.Y.Z tag, builds the three Logi Marketplace editions (.lplug4, checked by the official Logi Plugin
+# Tool), attests their build provenance (verify with `gh attestation verify <file> --repo pironjulien/NexusKeypad`),
+# and publishes them with SHA256SUMS.txt as the "NexusKeypad X.Y.Z" GitHub release.
+# Actions pinned by commit SHA; Dependabot (github-actions) keeps them up to date.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Tests (test.ps1)
+        shell: pwsh
+        run: ./test.ps1
+      - name: Packages
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          dotnet tool install -g LogiPluginTool --version 6.4.2.3599
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+          $version = $env:TAG.TrimStart('v')
+          foreach ($e in 'Marketplace', 'Poste', 'Complete') { ./outils/paquet_marketplace.ps1 -Edition $e }
+          New-Item -ItemType Directory dist | Out-Null
+          $suffixe = $version -replace '\.', '_'
+          $fichiers = @(Get-ChildItem "$env:LOCALAPPDATA\NexusKeypad\marketplace" -File -Filter "*_$suffixe.lplug4")
+          if ($fichiers.Count -ne 3) { throw "Expected 3 packages at version $version, got $($fichiers.Count)." }
+          $fichiers | Copy-Item -Destination dist
+          Get-ChildItem dist -File | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |
+            Set-Content dist/SHA256SUMS.txt -Encoding utf8NoBOM
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: dist/*
+      - name: GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $version = $env:TAG.TrimStart('v')
+          $lignes = Get-Content CHANGELOG.md
+          $debut = [Array]::FindIndex($lignes, [Predicate[string]] { param($l) $l -like "## ``[$version``]*" })
+          if ($debut -lt 0) { throw "CHANGELOG.md has no [$version] section." }
+          $fin = [Array]::FindIndex($lignes, $debut + 1, [Predicate[string]] { param($l) $l -like '## *' })
+          if ($fin -lt 0) { $fin = $lignes.Count }
+          $lignes[($debut + 1)..($fin - 1)] | Set-Content notes.md -Encoding utf8NoBOM
+          gh release create $env:TAG (Get-ChildItem dist -File).FullName --title "NexusKeypad $version" --notes-file notes.md --verify-tag

@@ -1,7 +1,7 @@
 # Contrôle complet du projet, hors ligne et sans effet de bord (convention Nexus : test.ps1 à la racine).
 # Compile le plugin à part (NexusTest : ni lien posé, ni rechargement du plugin en service), puis l'aperçu, qui
 # compile les mêmes sources et dessine les 9 touches dans chaque situation ; les règles de la logique (verifier) ;
-# enfin la syntaxe des scripts Python et les règles des hooks (tests).
+# enfin la syntaxe des scripts Python et les règles des hooks (tests), etat.py et le hook natif livré dans le paquet.
 # Tout ce qui est produit va dans %LOCALAPPDATA%\NexusKeypad\test, rien dans OneDrive.
 [CmdletBinding()]
 param()
@@ -43,7 +43,9 @@ $python = (Get-Command python -ErrorAction Stop).Source
 $scripts = @(Get-ChildItem (Join-Path $PSScriptRoot 'etat'), (Join-Path $PSScriptRoot 'outils') -Filter *.py | ForEach-Object FullName)
 & $python -I -B -c "import ast, sys; [ast.parse(open(f, encoding='utf-8').read(), f) for f in sys.argv[1:]]" @scripts
 if ($LASTEXITCODE) { throw 'Un script Python ne se lit pas.' }
-# -B : pas de __pycache__ dans OneDrive.
+# -B : pas de __pycache__ dans OneDrive. NEXUSKEYPAD_HOOK : l'exécutable natif compilé avec le plugin, comparé à etat.py.
+$env:NEXUSKEYPAD_HOOK = Join-Path $sortie 'hook-build\publish\nexuskeypad-hook.exe'
+if (-not (Test-Path $env:NEXUSKEYPAD_HOOK)) { throw "Le hook natif n'a pas été compilé." }
 & $python -I -B -m unittest discover -s (Join-Path $PSScriptRoot 'tests') -q
 if ($LASTEXITCODE) { throw 'Une règle des hooks ne tient plus.' }
 

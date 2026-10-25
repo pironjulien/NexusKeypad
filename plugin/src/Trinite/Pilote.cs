@@ -12,6 +12,7 @@ namespace Loupedeck.TrinitePlugin
     //   appui <1-18>  → appui simulé sur la touche à cette place du pad (même chemin qu'un vrai appui) ; répond son issue
     //   etat          → résumé de la dernière lecture (conversations, états, quotas)
     //   releve        → relevé du quota d'Antigravity sur sa page Settings › Models, sans attendre l'inactivité
+    //   etats-en-direct → la question de l'action « Live states » (poser ou retirer les hooks), comme un appui sur elle
     public sealed class Pilote : IDisposable
     {
         public const String Nom = "nexus-trinite-pad";
@@ -99,8 +100,13 @@ namespace Loupedeck.TrinitePlugin
                     return this._moteur.Resume ?? "";
                 case "releve":
                     return this._moteur.ReleverAntigravity();
+#if !POSTE
+                case "etats-en-direct":
+                    EtatsEnDirect.Basculer();
+                    return EtatsEnDirect.Poses() ? "question posée : retirer les états en direct" : "question posée : poser les états en direct";
+#endif
                 default:
-                    return "commandes : capture | appui <1-18> | etat | releve";
+                    return "commandes : capture | appui <1-18> | etat | releve | etats-en-direct";
             }
         }
 

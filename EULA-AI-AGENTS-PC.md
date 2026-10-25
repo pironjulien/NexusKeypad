@@ -1,6 +1,6 @@
 # End User License Agreement
 
-**AI Coding Agents + PC** (plugin `AiAgentsPc`, project "MX Keypad AI Agents") · Effective October 25, 2026
+**AI Coding Agents + PC** (plugin `AiAgentsPc`, project "NexusKeypad") · Effective October 25, 2026
 
 AI Coding Agents + PC ("the Plugin") is the complete edition of the project: page 1 is the
 [AI Coding Agents](https://github.com/pironjulien/NexusKeypad/blob/main/EULA.md) plugin and page 2 the

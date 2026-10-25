@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**AI Coding Agents** (plugin `TrinitePad`, project "MX Keypad AI Agents") · Effective October 25, 2026
+**AI Coding Agents** (plugin `TrinitePad`, project "NexusKeypad") · Effective October 25, 2026
 
 **In short: the Plugin collects no personal data. Everything it reads stays on your computer; nothing is sent to the
 Developer or to anyone else.** It has no account, no analytics, no telemetry, no advertising and no server.
@@ -16,9 +16,9 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 - **AI agent sessions**: conversation titles, states and timestamps from the local files of the apps you use
   (Claude Desktop: `%LOCALAPPDATA%\Claude-Data\…\claude-code-sessions` and its `config.json` to know the signed-in
   account; Codex: `~/.codex` session index and logs; Antigravity: its sidebar, read through its local debugging port),
-  and the states written by the optional hooks in `~/.nexus/trinite`. Only titles, states, event types and timestamps
-  are used; message contents are neither kept nor logged (the optional hook script looks at the last answer of a turn
-  only to tell a question from a finished turn, and does not store it).
+  and the states written by the optional live-state hooks in `~/.nexus/trinite`. Only titles, states, event types and
+  timestamps are used; message contents are neither kept nor logged (the hook program looks at the last answer of a
+  turn only to tell a question from a finished turn, and does not store it).
 - **Usage quotas**: the percentages shown by each app (Claude's "Usage" button, Codex logs or a local codex-lb on
   `127.0.0.1:2455`, Antigravity's *Settings › Models* page).
 - **Windows**: window titles and buttons of these apps, through Windows UI Automation, to find the app in front and
@@ -36,7 +36,12 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 ## What the Plugin writes, on your computer only
 
 - `~/.nexus/trinite`: the last 5 screen captures and the last 5 phone photos with their reduced copies (older ones are
-  deleted), and the hook states if you installed the hooks.
+  deleted), and the hook states if you turned live states on.
+- **Live states, only after you answer Yes** (a question at first start, then the *Live states* action): the Plugin
+  copies its hook program to `%LOCALAPPDATA%\NexusKeypad\hook\nexuskeypad-hook.exe` and adds its hooks to
+  `~/.claude/settings.json` and to the `trinite-pad` entry of `~/.gemini/config/hooks.json` (other tools' hooks are
+  kept). Your answer to the first question is kept in `%LOCALAPPDATA%\NexusKeypad\etats-en-direct.json`. Answering No
+  changes nothing; the *Live states* action removes the hooks the same way.
 - `%LOCALAPPDATA%\NexusKeypad\quota-antigravity.json`: the last Antigravity quota read.
 - The plugin log of the Logi Plugin Service (`…\LogiPluginService\Logs\plugin_logs\TrinitePad.log`): technical events,
   which can include conversation titles and file names. It stays on your computer.
@@ -53,8 +58,9 @@ what the AI apps then do with them is governed by their own privacy policies.
 ## Your data, your control
 
 All the data above stays under your control on your computer. To remove it: uninstall the Plugin from Logi Options+,
-then delete `~/.nexus/trinite` and `%LOCALAPPDATA%\NexusKeypad` (and, if you installed them, the hooks that call
-`etat.py` from `~/.claude/settings.json` and the `trinite-pad` entry of `~/.gemini/config/hooks.json`). Since the
+then delete `~/.nexus/trinite` and `%LOCALAPPDATA%\NexusKeypad`. If you turned live states on, remove them first with
+the *Live states* action (or delete the hooks that call `nexuskeypad-hook.exe` or `etat.py` from
+`~/.claude/settings.json` and the `trinite-pad` entry of `~/.gemini/config/hooks.json`). Since the
 Developer receives no data, there is nothing to request, correct or delete on the Developer's side.
 
 ## Children

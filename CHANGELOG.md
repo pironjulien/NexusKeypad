@@ -5,7 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-25 — NexusKeypad: live states without Python, one version for everything
+
 ### Added
+- Live states without Python: `nexuskeypad-hook.exe`, a native program (Native AOT, no .NET runtime to install) shipped
+  in the plugin package, writes the hook states with the same rules as `etat/etat.py` (compared case by case in the
+  tests). The plugin asks once, at first start, whether to turn live states on (default: No); the *Live states* action
+  of the AI agents group sets them up or removes them, always after a Yes. Nothing changes on No or on any error.
+- Release workflow: on a `vX.Y.Z` tag, the three packages are built, checked by the Logi Plugin Tool, attested (build
+  provenance) and published with `SHA256SUMS.txt` as the "NexusKeypad X.Y.Z" release.
 - Animations: waiting and done states of their own for Codex (tilted head, terminal typing "?"; check mark, hops and
   confetti) and Antigravity (radar waves; landing and fireworks); new states for all three: permission requested
   (padlock), error (crossed eyes, bolt, shake, red ring; Claude through the new `StopFailure` hook), usage limit

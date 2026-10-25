@@ -58,6 +58,9 @@ namespace Loupedeck.TrinitePlugin
         {
             PluginLog.Info("moteur démarré");
             this.Moteur.Demarrer();
+#if !POSTE
+            EtatsEnDirect.Demarrer(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.AssemblyFilePath) ?? "", EtatsEnDirect.NomExe));
+#endif
         }
 
         // Sans cet arrêt, chaque rechargement laisserait l'ancien moteur tourner.

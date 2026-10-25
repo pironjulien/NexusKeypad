@@ -178,6 +178,55 @@ using (var carre = new BitmapBuilder(Rendu.T, Rendu.T))
 Vrai(!Rendu.Image(Moteur.Photo, S(0.1, instantane with { Photo = null })).Pixels.AsSpan().SequenceEqual(Rendu.Image(Moteur.Photo, S(0.6, instantane with { Photo = null })).Pixels), "sans téléphone : horloge animée");
 Vrai(!Rendu.Image(0, S(0.1)).Pixels.AsSpan().SequenceEqual(Rendu.Image(0, S(0.6)).Pixels), "tête qui travaille animée");
 
+// États en direct : pose et retrait des hooks par le plugin (ceux des autres outils gardés, idempotent), format
+// d'Antigravity, et rien de modifié quand la pose échoue.
+{
+    System.Text.Json.Nodes.JsonObject J(String s) => (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse(s);
+    var autre = """{"type": "command", "command": "& share-session.ps1", "timeout": 30}""";
+    var ancien = """{"type": "command", "command": "python -I -B (Join-Path $env:OneDrive 'Documents\\NexusHarness\\NexusKeypad\\etat\\etat.py') claude SessionEnd"}""";
+    var reglages = J("{\"model\": \"x\", \"hooks\": {\"SessionEnd\": [{\"hooks\": [" + ancien + ", " + autre + "]}], \"Stop\": [{\"hooks\": [" + autre + "]}]}}");
+    EtatsEnDirect.ArrangerClaude(reglages, pose: true);
+    EtatsEnDirect.ArrangerClaude(reglages, pose: true);
+    var commandes = reglages["hooks"]!.AsObject().SelectMany(p => p.Value!.AsArray()).SelectMany(g => g!["hooks"]!.AsArray())
+        .Select(h => h!["command"]!.GetValue<String>()).ToList();
+    Vrai(commandes.Count(c => c == "& share-session.ps1") == 2 && commandes.Count(c => c.Contains("nexuskeypad-hook")) == EtatsEnDirect.EvenementsClaude.Length
+        && !commandes.Any(c => c.Contains("etat.py")) && reglages["model"]!.GetValue<String>() == "x",
+        "états en direct : un hook du pad par événement, etat.py remplacé, ceux des autres gardés, idempotent");
+    Vrai(EtatsEnDirect.ClaudeAvecPad(reglages) && reglages["hooks"]!["Stop"]!.AsArray().Last()!["hooks"]![0]!["async"]!.GetValue<Boolean>(),
+        "états en direct : hooks de Claude en tâche de fond");
+    EtatsEnDirect.ArrangerClaude(reglages, pose: false);
+    Vrai(!EtatsEnDirect.ClaudeAvecPad(reglages) && reglages["hooks"]!.AsObject().Count == 2
+        && reglages["hooks"]!.AsObject().All(p => p.Value!.AsArray().Count == 1),
+        "états en direct : retrait = seulement ceux du pad, événements vidés retirés");
+    Vrai(!EtatsEnDirect.DuPad(J("""{"command": "pwsh -File audit.ps1 -Project NexusKeypad"}""")), "états en direct : un outil qui cite le projet n'est pas du pad");
+    var agy = J("""{"autre-outil": {}}""");
+    EtatsEnDirect.ArrangerAntigravity(agy, @"C:\X\nexuskeypad-hook.exe");
+    var entree = agy[EtatsEnDirect.CleAntigravity]!;
+    Vrai(agy.ContainsKey("autre-outil") && entree["PreToolUse"]![0]!["matcher"]!.GetValue<String>() == "*"
+        && entree["Stop"]![0]!["command"]!.GetValue<String>() == @"C:\X\nexuskeypad-hook.exe antigravity Stop",
+        "états en direct : format d'Antigravity (outils en enveloppe { matcher, hooks }, sinon gestionnaires directs)");
+
+    var dossier = Directory.CreateTempSubdirectory("nexus-etats").FullName;
+    var claude = Path.Combine(dossier, ".claude", "settings.json");
+    var gemini = Path.Combine(dossier, ".gemini", "config", "hooks.json");
+    Directory.CreateDirectory(Path.GetDirectoryName(claude));
+    Directory.CreateDirectory(Path.GetDirectoryName(gemini));
+    File.WriteAllText(claude, """{"hooks": {}}""");
+    var paquet = Path.Combine(dossier, "paquet", "nexuskeypad-hook.exe");
+    var exe = Path.Combine(dossier, "local avec espace", "nexuskeypad-hook.exe");
+    Vrai(!EtatsEnDirect.Appliquer(paquet, true, claude, gemini, exe) && File.ReadAllText(claude) == """{"hooks": {}}""" && !File.Exists(gemini),
+        "états en direct : pose échouée (exécutable absent) → rien de modifié");
+    Directory.CreateDirectory(Path.GetDirectoryName(paquet));
+    File.WriteAllText(paquet, "exe");
+    Vrai(EtatsEnDirect.Appliquer(paquet, true, claude, gemini, exe) && File.Exists(exe)
+        && EtatsEnDirect.ClaudeAvecPad(J(File.ReadAllText(claude))) && !J(File.ReadAllText(gemini))[EtatsEnDirect.CleAntigravity]!.ToJsonString().Contains("avec espace"),
+        "états en direct : pose (exécutable copié, Claude, Antigravity par un chemin sans espace)");
+    Vrai(EtatsEnDirect.Appliquer(paquet, false, claude, gemini, exe) && !EtatsEnDirect.ClaudeAvecPad(J(File.ReadAllText(claude)))
+        && !J(File.ReadAllText(gemini)).ContainsKey(EtatsEnDirect.CleAntigravity),
+        "états en direct : retrait chez les deux");
+    Directory.Delete(dossier, true);
+}
+
 foreach (var e in echecs)
 {
     Console.WriteLine($"ÉCHEC : {e}");

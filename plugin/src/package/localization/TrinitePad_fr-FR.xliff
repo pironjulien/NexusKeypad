@@ -20,6 +20,14 @@
   <file original="$TrinitePad___main" source-language="en-US" target-language="fr-FR" datatype="plaintext">
     <body>
       <group id="@commands">
+        <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.LiveStatesCommand" translate="yes">
+          <source>Live states</source>
+          <target>États en direct</target>
+        </trans-unit>
+        <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.LiveStatesCommand###description" translate="yes">
+          <source>Sets up or removes live states for Claude and Antigravity (asks first).</source>
+          <target>Pose ou retire les états en direct de Claude et d'Antigravity (demande d'abord).</target>
+        </trans-unit>
         <group id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand">
           <trans-unit id="$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t1" translate="yes">
             <source>Key 1 · Codex</source>

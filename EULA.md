@@ -1,6 +1,6 @@
 # End User License Agreement
 
-**AI Coding Agents** (plugin `TrinitePad`, project "MX Keypad AI Agents") · Effective October 25, 2026
+**AI Coding Agents** (plugin `TrinitePad`, project "NexusKeypad") · Effective October 25, 2026
 
 This End User License Agreement ("EULA") is between you and **Julien Piron** ("the Developer"), the author and licensor
 of the AI Coding Agents plugin for the Logi Plugin Service ("the Plugin"), whether you obtain it from the Logitech

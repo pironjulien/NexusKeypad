@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**AI Coding Agents + PC** (plugin `AiAgentsPc`, project "MX Keypad AI Agents") · Effective October 25, 2026
+**AI Coding Agents + PC** (plugin `AiAgentsPc`, project "NexusKeypad") · Effective October 25, 2026
 
 **In short: the Plugin collects no personal data. Everything it reads stays on your computer; nothing is sent to the
 Developer or to anyone else.** It has no account, no analytics, no telemetry, no advertising and no server.

@@ -1,4 +1,4 @@
-# MX Keypad AI Agents
+# NexusKeypad
 
 [![Tests](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pironjulien/NexusKeypad/badge)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusKeypad)
@@ -140,7 +140,8 @@ flowchart LR
 
 - Windows 11, a **Logitech MX Creative Console keypad** (MX Keypad) and **Logi Options+** with Logi Plugin Service 6.4
   or later.
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) and Python 3.11+ (hook writer and setup scripts).
+- From source only: [.NET 10 SDK](https://dotnet.microsoft.com/download) and Python 3.11+ (setup scripts). The
+  Marketplace editions need neither.
 - Any of: **Claude Desktop** (Claude Code), **Codex** desktop app, **Antigravity**. A missing app just sleeps on its key.
 - Optional: an Android phone with USB or wireless debugging and `adb` on the `PATH` (photo key, Messages badge), and
   [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (Gmail badge with Gmail closed). See the table above for
@@ -157,9 +158,11 @@ the local test pipe. Install it from Logi Options+, then in Options+ open the ke
 It works out of the box with what is installed: states come from the agents' own session files and windows, quotas
 from their own usage displays. Two optional extras make it livelier:
 
-- **Live states for Claude and Antigravity** (working, waiting, done, as they happen): install Python 3.11+, download
-  this repository and run `python -I outils\installer_hooks.py $env:USERPROFILE\.claude\settings.json`. Without the
-  hooks, Claude and Antigravity heads stay at rest and still show their conversations, quotas and closed state.
+- **Live states for Claude and Antigravity** (working, waiting, done, as they happen): at its first start the plugin
+  asks whether to turn them on (default: No). Answer Yes and it adds its hooks to Claude's and Antigravity's settings,
+  with a small native program shipped in the package (no Python, nothing to install). Change your mind at any time
+  with the **Live states** action of the *AI agents* group (drag it onto a key, press it, answer the question). Without
+  the hooks, Claude and Antigravity heads stay at rest and still show their conversations, quotas and closed state.
 - **Debugging ports** for opening Codex and Antigravity conversations and dictating into them (see below).
 
 Package it yourself with `pwsh -File outils\paquet_marketplace.ps1` (builds the Marketplace edition, packs it and
@@ -186,6 +189,15 @@ install it instead of the two plugins above, then drag **Key 1** to **Key 9** of
 `pwsh -File outils\paquet_marketplace.ps1 -Edition Complete`. Terms:
 [EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-AI-AGENTS-PC.md); data:
 [Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-AI-AGENTS-PC.md).
+
+### Packages from a GitHub release
+
+Each [release](https://github.com/pironjulien/NexusKeypad/releases) carries the three packages (`.lplug4`), built by
+GitHub Actions from the tagged source, with `SHA256SUMS.txt` and a build provenance attestation
+(`gh attestation verify <file> --repo pironjulien/NexusKeypad`). Logi Options+ does not install a package opened
+from a file (double-clicking it does nothing): install from the Marketplace when you can. Developers can install a
+package with the official Logi Plugin Tool (`dotnet tool install -g LogiPluginTool`, then
+`logiplugintool install <file>`).
 
 ### From source (both pages)
 

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**PC Dashboard** (plugin `PcDashboard`, project "MX Keypad AI Agents") · Effective October 25, 2026
+**PC Dashboard** (plugin `PcDashboard`, project "NexusKeypad") · Effective October 25, 2026
 
 **In short: the Plugin collects no personal data. Everything it reads stays on your computer; nothing is sent to the
 Developer or to anyone else.** It has no account, no analytics, no telemetry, no advertising and no server.
