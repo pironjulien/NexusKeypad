@@ -9,7 +9,7 @@ type: plugin4
 name: PcDashboard
 
 # Plugin name that is shown to the user.
-displayName: PC Dashboard
+displayName: NexusKeypad – PC Dashboard
 
 # Short description of the plugin.
 description: Your PC at a glance on animated keys - volume and mute, unread Gmail and Messages, calendar, PC health, Store and Windows Update, and a website of your choice.

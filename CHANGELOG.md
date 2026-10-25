@@ -39,6 +39,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pad.py capture 2`: picture of page 2, read and drawn fresh even while it is hidden.
 
 ### Changed
+- Marketplace display names carry the NexusKeypad brand from the next submitted version: "NexusKeypad – AI Coding
+  Agents", "NexusKeypad – PC Dashboard" and "NexusKeypad – AI Coding Agents + PC" (plugin identifiers unchanged).
 - The repository is now `pironjulien/NexusKeypad` (formerly `mx-keypad-ai-agents`; GitHub redirects the old
   address). Links in the README, EULAs, privacy policies and Marketplace metadata follow.
 - Agent heads: one persistent state sign above the head, the same for all three (working: cyan spinner; question:

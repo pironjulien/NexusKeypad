@@ -9,7 +9,7 @@ type: plugin4
 name: TrinitePad
 
 # Plugin name that is shown to the user.
-displayName: AI Coding Agents
+displayName: NexusKeypad – AI Coding Agents
 
 # Short description of the plugin.
 description: Claude, Codex and Antigravity as animated pixel-art status keys, with quota gauges and one-press access to the conversation that needs you.

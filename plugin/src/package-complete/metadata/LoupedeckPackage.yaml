@@ -9,7 +9,7 @@ type: plugin4
 name: AiAgentsPc
 
 # Plugin name that is shown to the user.
-displayName: AI Coding Agents + PC
+displayName: NexusKeypad – AI Coding Agents + PC
 
 # Short description of the plugin.
 description: Two keypad pages - Claude, Codex and Antigravity as animated status keys with quotas, plus your PC - volume, Gmail, Calendar, Messages, PC health, updates and a website.
