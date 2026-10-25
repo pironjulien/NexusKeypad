@@ -175,18 +175,6 @@ namespace Loupedeck.TrinitePlugin
         public const Byte VolumeMoins = 0xAE;
         public const Byte VolumePlus = 0xAF;
 
-        public static void Lancer(String cible)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo(cible) { UseShellExecute = true });
-            }
-            catch (Exception e)
-            {
-                PluginLog.Error(e, $"lancement de {cible}");
-            }
-        }
-
         // Touche des mises à jour : TOUT mettre à jour d'un appui, sans rien amener au premier plan. Rechercher seulement ne
         // suffisait pas : le Store et Windows Update proposaient ensuite leurs mises à jour sans les installer (25/10).
         // Aucune API sans droits d'administrateur (Store : E_ACCESSDENIED ; Windows Update : installation réservée aux
@@ -215,7 +203,7 @@ namespace Loupedeck.TrinitePlugin
         {
             try
             {
-                Lancer(adresse);
+                Gestes.Lancer(adresse);
                 IntPtr fenetre = IntPtr.Zero;
                 for (var i = 0; i < 40 && fenetre == IntPtr.Zero; i++)
                 {

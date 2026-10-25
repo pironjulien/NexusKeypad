@@ -582,7 +582,8 @@ namespace Loupedeck.TrinitePlugin
         [DllImport("user32.dll")]
         private static extern Boolean BringWindowToTop(IntPtr hWnd);
 
-        private static void Lancer(String cible)
+        // Ouvre une appli, un lien ou une adresse (shell:… par l'Explorateur), sans attendre ; le seul lanceur du plugin.
+        public static void Lancer(String cible)
         {
             if (cible == CodexOfficiel)
             {
