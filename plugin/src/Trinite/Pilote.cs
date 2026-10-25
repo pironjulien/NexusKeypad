@@ -25,8 +25,9 @@ namespace Loupedeck.TrinitePlugin
 
         public Pilote(Moteur moteur) => this._moteur = moteur;
 
-#if MARKETPLACE || POSTE || COMPLETE
-        // Éditions du Logi Marketplace (AI Coding Agents, PC Dashboard, AI Coding Agents + PC) : pas d'outils d'essai, donc pas de tube ouvert.
+#if MARKETPLACE || POSTE || COMPLETE || STREAMDECK
+        // Éditions du Logi Marketplace (AI Coding Agents, PC Dashboard, AI Coding Agents + PC) et Stream Deck (le tube est
+        // celui du plugin Logi) : pas d'outils d'essai, donc pas de tube ouvert.
         public void Demarrer()
         {
         }

@@ -25,7 +25,7 @@ def sous_onedrive() -> str | None:
         return None
 
 # PostToolUse : après un accord ou une réponse de l'utilisateur, le tour reprend (sinon « t'attend » restait jusqu'au Stop).
-EVENEMENTS_CLAUDE = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest", "Notification", "Stop", "StopFailure", "SessionEnd"]
+EVENEMENTS_CLAUDE = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "Stop", "StopFailure", "SessionEnd"]
 # Antigravity (antigravity.google/docs/hooks) : ni UserPromptSubmit ni Notification ; PreInvocation, avant chaque appel du
 # modèle, marque la reprise d'un tour.
 EVENEMENTS_AGY = ["PreInvocation", "PreToolUse", "PostToolUse", "Stop"]
@@ -62,9 +62,8 @@ def commande_claude(evenement: str) -> dict:
         "type": "command",
         "shell": "powershell",
         "command": f"python -I -B {script} claude {evenement}",
-        # PermissionRequest rend une décision (touches Approuver / Refuser du pad) : synchrone, jusqu'à 10 min.
-        "async": evenement != "PermissionRequest",
-        "timeout": 610 if evenement == "PermissionRequest" else 10,
+        "async": True,
+        "timeout": 10,
     }
 
 

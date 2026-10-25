@@ -5,11 +5,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Added
-- Approve or deny Claude's permission requests from the keypad: row 3 turns into ✓ Approve, the request, ✗ Deny, through
-  Claude Code's documented `PermissionRequest` hook (desktop app only; the app's own card stays, the first answer
-  wins). No "always allow" from the keypad.
-
 ### Fixed
 - `get.ps1` reads the latest version from the `releases/latest` redirect instead of the GitHub API (its anonymous limit
   of 60 requests an hour per IP broke on shared IPs); the API stays as a fallback.

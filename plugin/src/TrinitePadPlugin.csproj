@@ -103,7 +103,7 @@
     <HookProjet>$(MSBuildThisFileDirectory)..\..\hook\</HookProjet>
     <HookSortie>$(NexusBuild)hook-build\publish\</HookSortie>
   </PropertyGroup>
-  <Target Name="HookPublie" Inputs="$(HookProjet)Program.cs;$(HookProjet)PluginLog.cs;$(HookProjet)Touches.cs;$(HookProjet)Demandes.cs;$(HookProjet)hook.csproj;$(MSBuildThisFileDirectory)Trinite\EtatsEnDirect.cs" Outputs="$(HookSortie)nexuskeypad-hook.exe"
+  <Target Name="HookPublie" Inputs="$(HookProjet)Program.cs;$(HookProjet)PluginLog.cs;$(HookProjet)Touches.cs;$(HookProjet)hook.csproj;$(MSBuildThisFileDirectory)Trinite\EtatsEnDirect.cs" Outputs="$(HookSortie)nexuskeypad-hook.exe"
           Condition="'$(Edition)' != 'Poste'">
     <Exec Command="set &quot;PATH=$(MSBuildProgramFiles32)\Microsoft Visual Studio\Installer;%PATH%&quot; &amp;&amp; dotnet publish &quot;$(HookProjet)hook.csproj&quot; -c Release -nologo -v q -o &quot;$(HookSortie)&quot;"
           EnvironmentVariables="DOTNET_CLI_TELEMETRY_OPTOUT=1" />

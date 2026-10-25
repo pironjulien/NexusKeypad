@@ -60,15 +60,6 @@ public static class Program
                 charge = [];
             }
 
-            if (agent == "claude" && evenement == "PermissionRequest")
-            {
-                // Demande d'autorisation : notée tout de suite, puis réponse du pad attendue (appli de bureau seulement).
-                Noter(agent, evenement, charge, debut);
-                Console.Out.Write(Demandes.Attendre(charge, debut) + "\n");
-                Console.Out.Flush();
-                return 0;
-            }
-
             // Antigravity : son PreToolUse exige une décision (sans « allow », l'outil est REFUSÉ). Ailleurs, « {} ».
             Console.Out.Write(agent == "antigravity" && evenement == "PreToolUse" ? "{\"decision\": \"allow\"}\n" : "{}\n");
             Console.Out.Flush();
@@ -249,8 +240,6 @@ public static class Program
     {
         switch (evenement)
         {
-            case "PermissionRequest":
-                return "perm"; // à l'instant même (la notification permission_prompt n'arrive qu'après ~6 s)
             case "Notification":
             {
                 var genre = Texte(charge["notification_type"]);
@@ -305,27 +294,19 @@ public static class Program
     private static double Nombre(JsonNode? n) =>
         n is JsonValue v && v.TryGetValue<double>(out var d) ? d : 0;
 
-    // Dossier des états (~/.nexus/trinite).
-    public static string DossierEtats => Racine;
-
-    // Nom de fichier de la session : son identifiant, réduit aux lettres, chiffres, - et _ (80 au plus).
-    public static string Session(JsonObject charge)
-    {
-        var brut = Texte(charge["session_id"], charge["conversationId"], charge["cascadeId"]);
-        var session = new string((brut.Length > 0 ? brut : "defaut").Where(c => char.IsLetterOrDigit(c) || c is '-' or '_').ToArray());
-        session = session.Length > 80 ? session[..80] : session;
-        return session.Length == 0 ? "defaut" : session;
-    }
-
-    public static double Nombre(JsonNode? n, double defaut) =>
-        n is JsonValue v && v.TryGetValue<double>(out var d) ? d : defaut;
-
     // Écrit l'état de la session, sous son verrou ; un événement parti avant celui déjà noté est ignoré.
     public static void Noter(string agent, string evenement, JsonObject charge, double debut, string? racine = null)
     {
         var dossier = Path.Combine(racine ?? Racine, agent);
         Directory.CreateDirectory(dossier);
-        var session = Session(charge);
+        var brut = Texte(charge["session_id"], charge["conversationId"], charge["cascadeId"]);
+        var session = new string((brut.Length > 0 ? brut : "defaut").Where(c => char.IsLetterOrDigit(c) || c is '-' or '_').ToArray());
+        session = session.Length > 80 ? session[..80] : session;
+        if (session.Length == 0)
+        {
+            session = "defaut";
+        }
+
         var fichier = Path.Combine(dossier, session + ".json");
         var verrou = Path.Combine(dossier, session + ".lock");
         var pris = false;

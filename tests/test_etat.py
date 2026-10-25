@@ -5,7 +5,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
@@ -160,13 +159,6 @@ class Regles(unittest.TestCase):
 HOOK = os.environ.get("NEXUSKEYPAD_HOOK", "")
 
 
-def sans_bureau(**plus):
-    """Environnement des essais : jamais celui d'une session de l'appli de bureau (le hook PermissionRequest y attendrait
-    la réponse du pad 10 minutes)."""
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_ENTRYPOINT"}
-    return {**env, **plus}
-
-
 @unittest.skipUnless(HOOK and Path(HOOK).exists(), "nexuskeypad-hook.exe non compilé (lancer test.ps1)")
 class Parite(unittest.TestCase):
     def test_memes_etats_que_etat_py(self):
@@ -206,7 +198,6 @@ class Parite(unittest.TestCase):
                 ("antigravity", "Stop", {"fullyIdle": False}, None, None),
                 ("antigravity", "Stop", {"transcriptPath": str(morceaux)}, None, None),
                 ("antigravity", "Inconnu", {}, "run", None),
-                ("claude", "PermissionRequest", {"tool_name": "Bash", "tool_input": {"command": "ls"}}, "run", None),
             ]
             for i, (agent, evenement, charge, avant, texte) in enumerate(cas):
                 charge = {**charge, "session_id" if agent == "claude" else "conversationId": f"s{i}"}
@@ -221,7 +212,7 @@ class Parite(unittest.TestCase):
                     fichier.write_text(json.dumps(precedent), encoding="utf-8")
                 attendu = "end" if evenement == "SessionEnd" else etat.etat_pour(evenement, charge, precedent)
                 sortie = subprocess.run([HOOK, agent, evenement], input=json.dumps(charge), text=True, encoding="utf-8",
-                                        capture_output=True, env=sans_bureau(USERPROFILE=d), check=True)
+                                        capture_output=True, env={**os.environ, "USERPROFILE": d}, check=True)
                 voulu = {"decision": "allow"} if agent == "antigravity" and evenement == "PreToolUse" else {}
                 self.assertEqual(json.loads(sortie.stdout), voulu, (agent, evenement))
                 obtenu = json.loads(fichier.read_text(encoding="utf-8"))["state"] if fichier.exists() else None
@@ -234,7 +225,7 @@ class Parite(unittest.TestCase):
             dossier.mkdir(parents=True)
             (dossier / "s1.json").write_text(json.dumps({"state": "done", "at": 9e12, "event": "Stop"}), encoding="utf-8")
             subprocess.run([HOOK, "claude", "PreToolUse"], input=json.dumps({"session_id": "s1", "tool_name": "Bash"}),
-                           text=True, capture_output=True, env=sans_bureau(USERPROFILE=d), check=True)
+                           text=True, capture_output=True, env={**os.environ, "USERPROFILE": d}, check=True)
             self.assertEqual(json.loads((dossier / "s1.json").read_text(encoding="utf-8"))["state"], "done")
             self.assertEqual([f.name for f in dossier.iterdir()], ["s1.json"])  # ni verrou ni temporaire
 
@@ -242,78 +233,9 @@ class Parite(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             for entree in ("", "pas du json"):
                 sortie = subprocess.run([HOOK, "claude", "Stop"], input=entree, text=True, capture_output=True,
-                                        env=sans_bureau(USERPROFILE=d), check=True)
+                                        env={**os.environ, "USERPROFILE": d}, check=True)
                 self.assertEqual(sortie.stdout.strip(), "{}")
             self.assertEqual(json.loads((Path(d) / ".nexus" / "trinite" / "claude" / "defaut.json").read_text(encoding="utf-8"))["state"], "done")
-
-
-class Demandes(unittest.TestCase):
-    """Touches Approuver / Refuser : le hook PermissionRequest dépose la demande et attend la réponse du pad (appli de
-    bureau seulement), ou la laisse tomber quand elle est tranchée à l'écran ; etat.py et l'exécutable natif pareil."""
-
-    def lanceurs(self):
-        yield "etat.py", [sys.executable, "-I", "-B", str(ETAT)]
-        if HOOK and Path(HOOK).exists():
-            yield "natif", [HOOK]
-
-    def lancer(self, commande, d, bureau, charge):
-        env = sans_bureau(USERPROFILE=d, **({"CLAUDE_CODE_ENTRYPOINT": "claude-desktop"} if bureau else {}))
-        return subprocess.Popen(commande + ["claude", "PermissionRequest"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                text=True, encoding="utf-8", env=env)
-
-    def attendre(self, fichier):
-        for _ in range(100):
-            if fichier.exists():
-                try:
-                    return json.loads(fichier.read_text(encoding="utf-8"))
-                except ValueError:
-                    pass
-            time.sleep(0.05)
-        self.fail(f"{fichier} jamais écrit")
-
-    def test_hors_appli_de_bureau_aucune_attente(self):
-        for nom, commande in self.lanceurs():
-            with tempfile.TemporaryDirectory() as d:
-                p = self.lancer(commande, d, False, {})
-                sortie, _ = p.communicate(json.dumps({"session_id": "s1", "tool_name": "Bash"}), timeout=10)
-                self.assertEqual(sortie.strip(), "{}", nom)
-                etat_ = json.loads((Path(d) / ".nexus" / "trinite" / "claude" / "s1.json").read_text(encoding="utf-8"))
-                self.assertEqual(etat_["state"], "perm", nom)
-                self.assertFalse((Path(d) / ".nexus" / "trinite" / "claude" / "demandes" / "s1.json").exists(), nom)
-
-    def test_reponse_du_pad(self):
-        for nom, commande in self.lanceurs():
-            for choix in ("allow", "deny"):
-                with tempfile.TemporaryDirectory() as d:
-                    p = self.lancer(commande, d, True, {})
-                    p.stdin.write(json.dumps({"session_id": "s1", "tool_name": "Bash", "tool_input": {"command": "rm -rf build"}}))
-                    p.stdin.close()
-                    dossier = Path(d) / ".nexus" / "trinite" / "claude" / "demandes"
-                    demande = self.attendre(dossier / "s1.json")
-                    self.assertEqual((demande["outil"], demande["resume"]), ("Bash", "rm -rf build"), nom)
-                    (dossier / "s1.decision.json").write_text(json.dumps({"id": "autre", "behavior": "allow"}), encoding="utf-8")
-                    time.sleep(0.5)
-                    self.assertIsNone(p.poll(), f"{nom} : une réponse à une autre demande ne compte pas")
-                    (dossier / "s1.decision.json").write_text(json.dumps({"id": demande["id"], "behavior": choix}), encoding="utf-8")
-                    with p.stdout:
-                        sortie = json.loads(p.stdout.read())
-                    p.wait(timeout=10)
-                    self.assertEqual(sortie["hookSpecificOutput"]["decision"]["behavior"], choix, nom)
-                    self.assertEqual(list(dossier.iterdir()), [], f"{nom} : demande et réponse retirées")
-
-    def test_tranchee_a_l_ecran(self):
-        for nom, commande in self.lanceurs():
-            with tempfile.TemporaryDirectory() as d:
-                p = self.lancer(commande, d, True, {})
-                p.stdin.write(json.dumps({"session_id": "s1", "tool_name": "Bash"}))
-                p.stdin.close()
-                demande = self.attendre(Path(d) / ".nexus" / "trinite" / "claude" / "demandes" / "s1.json")
-                etat_ = Path(d) / ".nexus" / "trinite" / "claude" / "s1.json"
-                etat_.write_text(json.dumps({"state": "run", "at": demande["at"] + 1, "event": "PostToolUse"}), encoding="utf-8")
-                with p.stdout:
-                    self.assertEqual(p.stdout.read().strip(), "{}", nom)
-                p.wait(timeout=10)
-                self.assertFalse((Path(d) / ".nexus" / "trinite" / "claude" / "demandes" / "s1.json").exists(), nom)
 
 
 def installer_claude_evenements():
