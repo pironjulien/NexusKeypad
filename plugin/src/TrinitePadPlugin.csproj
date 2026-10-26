@@ -45,9 +45,9 @@
   </PropertyGroup>
 
   <!-- Édition « AI Coding Agents + PC » (outils\paquet_marketplace.ps1 -Edition Complete) : les deux pages, comme la
-       version de Julien, troisième plugin du Logi Marketplace, sans tube d'essais ni réglage du site du poste. -->
+       version complète, troisième plugin du Logi Marketplace, sans tube d'essais ni réglage du site du poste. -->
   <!-- Édition complète hors Marketplace (outils\paquet_marketplace.ps1 -Edition Nexus, installée par get.ps1) : tout ce
-       que fait la version de Julien (deux pages, réglage du site du poste, tube d'essais local), sous son propre nom
+       que fait la version des sources (deux pages, réglage du site du poste, tube d'essais local), sous son propre nom
        (NexusKeypad) pour qu'Options+ ne la confonde jamais avec une fiche de la Marketplace. -->
   <PropertyGroup Condition="'$(Edition)' == 'Nexus'">
     <BaseOutputPath>$(NexusBuild)nexus\bin\</BaseOutputPath>
@@ -58,6 +58,14 @@
     <PluginShortName>NexusKeypad</PluginShortName>
     <Paquet>package-nexus</Paquet>
   </PropertyGroup>
+
+  <!-- PC Dashboard ne compile que ce qui sert au poste : rien qui lise les applis d'IA (audit du 26/10 : un relecteur qui
+       décompile ne doit voir que la fonction déclarée). -->
+  <ItemGroup Condition="'$(Edition)' == 'Poste'">
+    <Compile Remove="Trinite\Etats.Claude.cs;Trinite\Etats.Codex.cs;Trinite\Etats.Antigravity.cs;Trinite\QuotaAntigravity.cs" />
+    <Compile Remove="Trinite\Rendu.Personnages.cs;Trinite\ImageIa.cs;Trinite\Js.cs;Trinite\Cdp.cs;Trinite\EtatsEnDirect.cs" />
+    <Compile Remove="Trinite\Ecran.cs;Trinite\PressePapiers.cs;Actions\LiveStatesCommand.cs" />
+  </ItemGroup>
 
   <PropertyGroup Condition="'$(Edition)' == 'Complete'">
     <BaseOutputPath>$(NexusBuild)complete\bin\</BaseOutputPath>
@@ -121,7 +129,7 @@
   <!-- Installé comme un vrai paquet (Plugins\TrinitePad), pas par un lien .link : avec le lien, le service ne chargeait
        pas le plugin quand Logi démarrait avec Windows (pad sur le logo Logi) ; le paquet se charge toujours. -->
   <!-- Garde-fou (règle du 25/10, après un essai qui a touché le vrai dossier des plugins) : la compilation n'installe dans
-       le vrai dossier de Logi qu'avec -p:Reel=true, sur l'accord de Julien. -->
+       le vrai dossier de Logi qu'avec -p:Reel=true, sur l'accord de l'utilisateur. -->
   <Target Name="PostBuild" AfterTargets="CopyPackage" Condition="'$(NexusTest)' != 'true' And '$(Reel)' == 'true'">
     <ItemGroup>
       <Paquet Include="$(BaseOutputPath)$(Configuration)\**\*" />

@@ -199,12 +199,14 @@ namespace Loupedeck.TrinitePlugin
             this._demande = this._horloge.Elapsed.TotalSeconds;
         }
 
+#if !POSTE
         // Relevé forcé du quota d'Antigravity (pilote) : rend ce qui a été lu.
         public String ReleverAntigravity()
         {
             var q = this._observateur.ReleverAntigravity();
             return q is null ? "rien lu (fenêtre d'Antigravity fermée, ou autre dialogue ouvert)" : $"5 h {q.Cinq * 100:0} % utilisés, semaine {q.Semaine * 100:0} % utilisés";
         }
+#endif
 
         // Résumé de la dernière lecture (journal et pilote).
         public String Resume => this._resume;
@@ -364,6 +366,7 @@ namespace Loupedeck.TrinitePlugin
                 {
                     switch (touche)
                     {
+#if !POSTE
                         case Capture:
                             // L'écran tel que l'utilisateur le voit (capturé avant de changer d'appli).
                             this.CollerDansIa("Capture", () => Ecran.Capturer() is { } capture
@@ -414,9 +417,11 @@ namespace Loupedeck.TrinitePlugin
                             }
 
                             break;
+#endif
                         case >= VolumeMoins:
                             this.Page2(touche, site);
                             break;
+#if !POSTE
                         default:
                             // Ligne des jauges : le détail des quotas de l'IA ; appli pas encore prête, elle est seulement
                             // lancée ou ramenée (un appui rejoué plus tard pouvait reprendre le premier plan après un geste
@@ -427,6 +432,7 @@ namespace Loupedeck.TrinitePlugin
                             }
 
                             break;
+#endif
                     }
                 }
                 catch (Exception e)
@@ -630,6 +636,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+#if !POSTE
         // Conversation qu'ouvre une tête : celle qui clignote, si elle n'est pas déjà affichée ; appli devant, la suivante
         // de la liste (chats du relais compris : ils ne clignotent pas, mais l'utilisateur peut les lire), en boucle. Null : l'appli
         // seule (fermée, derrière sans alerte, ou une seule conversation, déjà affichée).
@@ -709,6 +716,7 @@ namespace Loupedeck.TrinitePlugin
                 collee();
             }
         }
+#endif
 
         // Page 2 : gestes immédiats sur le poste.
         private void Page2(Int32 touche, Signet site)
@@ -816,6 +824,7 @@ namespace Loupedeck.TrinitePlugin
             });
         }
 
+#if !POSTE
         // Après une tête : son appli doit être devant avant le geste suivant ; sinon les gestes déjà pressés sont abandonnés.
         private Boolean Devant(Int32 agent)
         {
@@ -828,6 +837,7 @@ namespace Loupedeck.TrinitePlugin
             PluginLog.Warning($"tête {agent + 1} : l'appli n'est pas venue devant en 3 s");
             return false;
         }
+#endif
 
         public void Dispose()
         {

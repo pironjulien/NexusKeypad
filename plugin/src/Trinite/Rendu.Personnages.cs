@@ -60,7 +60,7 @@ namespace Loupedeck.TrinitePlugin
             Liaison(b, agent, s);
         }
 
-        // Étoiles qui montent derrière une IA qui travaille (idée de Julien, 25/10) : six petites étoiles à quatre branches,
+        // Étoiles qui montent derrière une IA qui travaille : six petites étoiles à quatre branches,
         // à sa couleur (Claude pêche, Codex lavande, Antigravity or), qui montent en ondulant et scintillent avant de
         // s'effacer, chacune à son rythme.
         private static void Etoiles(BitmapBuilder b, Int32 agent, Double t)
@@ -91,7 +91,7 @@ namespace Loupedeck.TrinitePlugin
         // Écart entre deux touches voisines, en pixels du contenu (marges des deux touches et bord du pad entre elles).
         private const Int32 EcartTouches = 36;
 
-        // Relais (choix de Julien, 25/10) : des messagers font le va-et-vient du tout premier relais. Un mini-Clawd part du
+        // Relais : des messagers font le va-et-vient du tout premier relais. Un mini-Clawd part du
         // flanc de Claude, traverse les touches jusqu'au flanc du pair qui travaille pour lui (Codex ou Antigravity) et lui
         // envoie une décharge électrique ; puis un mini-pair repart vers Claude et le secoue d'une décharge à son tour. En
         // boucle, 3,6 s : aller (40 %), décharge sur le pair (10 %), retour (40 %), décharge sur Claude (10 %). Avec les deux
@@ -261,7 +261,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Clignotement d'une IA qui appelle l'utilisateur, sous le contenu, en anneau arrondi : jusqu'à ce qu'il ouvre la
         // conversation. Claude, le métronome de la Trinité, garde ses propres couleurs (rose pour une question ou une
-        // autorisation, cyan pour une fin : choix de Julien) ; une erreur pulse rouge, doucement.
+        // autorisation, cyan pour une fin) ; une erreur pulse rouge, doucement.
         private static void Signal(BitmapBuilder b, Int32 agent, Conversation c, Double t, Arrondis rayon)
         {
             if (c?.Alerte != true)
@@ -299,7 +299,7 @@ namespace Loupedeck.TrinitePlugin
                 default: DessinerArche(b, x0, y0, p, dessin, t, teinte, depuis); break;
             }
 
-            // Fini : deux feux d'artifice éclatent de part et d'autre, pour les trois (idée de Julien, 25/10), à l'arrivée.
+            // Fini : deux feux d'artifice éclatent de part et d'autre, pour les trois, à l'arrivée.
             if (etat == Etat.Fini && depuis < 4 && teinte is Teinte.Vive or Teinte.Lasse)
             {
                 Feux(b, x0, y0, p, t);
@@ -328,7 +328,7 @@ namespace Loupedeck.TrinitePlugin
                 case Etat.Fini:
                     Carte(b, Coche, cx - 12, y + p + flotte, 2, Vert);
                     break;
-                case Etat.Erreur: // un peu plus haut : il touchait la tête (remarque de Julien, 25/10)
+                case Etat.Erreur: // un peu plus haut : il touchait la tête
                     var haut = Math.Max(0, y - 3);
                     Carte(b, Triangle, cx - 10, haut, 2, Rouge);
                     b.FillRectangle(cx - 1, haut + 5, 2, 6, BitmapColor.White);
@@ -567,7 +567,7 @@ namespace Loupedeck.TrinitePlugin
                 }
             }
 
-            // Fini : lunettes noires pour les trois, comme Clawd (idée de Julien, 25/10) ; verres de 4 cases si les yeux sont
+            // Fini : lunettes noires pour les trois, comme Clawd ; verres de 4 cases si les yeux sont
             // écartés (Codex), de 3 sinon (Antigravity), un pont entre les deux, un reflet qui passe.
             if (etat == Etat.Fini && teinte is Teinte.Vive or Teinte.Lasse)
             {

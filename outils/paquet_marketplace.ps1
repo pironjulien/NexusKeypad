@@ -2,7 +2,7 @@
 # (logiplugintool, outil .NET global : dotnet tool install -g LogiPluginTool). Rien n'est installé ni rechargé.
 #   -Edition Marketplace (défaut) : AI Coding Agents, la page 1 seule (la Trinité, sans le poste ni le tube d'essais).
 #   -Edition Poste : PC Dashboard, second plugin, la page 2 seule (le poste) et la touche du site à régler.
-#   -Edition Complete : AI Coding Agents + PC, troisième plugin, les deux pages comme la version de Julien.
+#   -Edition Complete : AI Coding Agents + PC, troisième plugin, les deux pages, comme la version complète.
 #   -Edition Nexus : NexusKeypad, la version complète hors Marketplace (release GitHub, installée par get.ps1).
 # Sortie : %LOCALAPPDATA%\NexusKeypad\marketplace\<nom>_<version>.lplug4 (nom conseillé par Logitech : nom_version).
 #Requires -Version 7

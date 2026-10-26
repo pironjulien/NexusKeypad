@@ -100,8 +100,10 @@ namespace Loupedeck.TrinitePlugin
                     return issue.Wait(TimeSpan.FromSeconds(20)) ? issue.Result : "en cours depuis plus de 20 s";
                 case "etat":
                     return this._moteur.Resume ?? "";
+#if !POSTE
                 case "releve":
                     return this._moteur.ReleverAntigravity();
+#endif
 #if NEXUS
                 case "update":
                     return MiseAJour.Lancer(this._moteur, demande: true) ? "started" : "already running";

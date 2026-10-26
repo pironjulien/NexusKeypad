@@ -1,5 +1,5 @@
 """Garde-fous (règle du 25/10, après un essai qui a touché le vrai dossier des plugins) : les outils qui agissent sur
-l'environnement réel de Julien (profil d'Options+, réglages des IA, vrai pad) refusent sans --reel, avant toute écriture.
+l'environnement réel de l'utilisateur (profil d'Options+, réglages des IA, vrai pad) refusent sans --reel, avant toute écriture.
 python -I -m unittest discover -s tests"""
 import os
 import subprocess

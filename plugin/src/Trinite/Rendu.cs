@@ -110,10 +110,12 @@ namespace Loupedeck.TrinitePlugin
                 b.FillRectangle(0, 0, T, T, Fond);
                 // Les touches du haut à gauche et à droite ont un coin très arrondi : anneau plus rond pour elles.
                 var rayon = CoinsDe(touche);
+#if !POSTE
                 if (touche < 3)
                 {
                     Signal(b, touche, scene.Instantane.Premiere(touche), scene.Temps, rayon);
                 }
+#endif
 
                 if (scene.Appui(touche))
                 {
@@ -135,7 +137,9 @@ namespace Loupedeck.TrinitePlugin
                 {
                     case Moteur.Capture: ToucheCapture(b, scene); break;
                     case Moteur.Dictee: ToucheDictee(b, scene); break;
+#if !POSTE
                     case < 3: ToucheIA(b, touche, scene); break;
+#endif
                     case >= Moteur.VolumeMoins: TouchePage2(b, touche, scene); break;
                     default: ToucheInfos(b, touche - 3, scene); break;
                 }

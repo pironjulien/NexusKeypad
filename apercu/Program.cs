@@ -246,3 +246,23 @@ for (var v = 0; v < postes.Length; v++)
 
 File.WriteAllBytes(Path.Combine(sortie, "page2.png"), page2.ToArray(BitmapImageFormat.Png));
 Console.WriteLine("page2.png");
+
+// Les 18 touches d'un coup d'œil, par situation : page 1 à gauche, page 2 à droite (pour les planches avant/après).
+foreach (var (nom, instantane, temps) in situations)
+{
+    using var pad = new BitmapBuilder((2 * ((3 * 116) + 32)) + 24, (3 * 116) + 64);
+    pad.Clear(new BitmapColor(217, 214, 207));
+    var scene = new Scene
+    {
+        Instantane = instantane, Temps = temps[1], Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9,
+        CaptureCollee = -9, Poste = postes[0].P, MiseAJour = -99,
+    };
+    for (var k = 0; k < 18; k++)
+    {
+        var x = 16 + (k / 9 * ((3 * 116) + 40)) + (k % 3 * 118);
+        pad.DrawImage(Rendu.Png(Moteur.Disposition[k], scene), x, 16 + (k % 9 / 3 * 118), BitmapRotation.None);
+    }
+
+    File.WriteAllBytes(Path.Combine(sortie, $"pad-{nom}.png"), pad.ToArray(BitmapImageFormat.Png));
+    Console.WriteLine($"pad-{nom}.png");
+}

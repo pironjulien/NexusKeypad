@@ -16,6 +16,7 @@ namespace Loupedeck.TrinitePlugin
         // pendant ce temps (Dictée, Photo, Capture juste après la tête) se perdait. Il attend la fin du changement.
         private static Int64 _claudeOuvert = Int64.MinValue / 2;
 
+#if !POSTE
         public static void AttendreClaude()
         {
             var reste = 2500 - (Environment.TickCount64 - _claudeOuvert);
@@ -236,6 +237,7 @@ namespace Loupedeck.TrinitePlugin
             _ = System.Threading.Tasks.Task.Run(() => AgrandirALOuverture(() => Uia.FenetreTitreDebut("chrome", Titre)));
         }
 
+#endif
         // Échéance réelle (une lecture lente compte dans le budget : la file des gestes reste sous le verrou pendant ce temps).
         private static Boolean Attendre(Func<Boolean> condition, Int32 ms)
         {
@@ -259,6 +261,7 @@ namespace Loupedeck.TrinitePlugin
 
             return false;
         }
+#if !POSTE
 
         // Photo ou capture d'écran : déjà dans le presse-papiers, collée (Ctrl+V, sans envoyer) dans le champ de l'IA au
         // premier plan, à la suite de ce que l'utilisateur a pu écrire.
@@ -456,6 +459,9 @@ namespace Loupedeck.TrinitePlugin
 
             Devant(fenetre);
         }
+#else
+        public static Double LanceIlYA(Int32 agent) => 99; // aucun agent lancé dans PC Dashboard
+#endif
 
         // Fenêtre posée sur une moitié de l'écran où travaille l'utilisateur (gauche ou droite de sa zone de travail),
         // au-dessus des autres mais sans prendre le clavier ; son appli reprise si Windows l'a suspendue. Les marges
@@ -708,11 +714,13 @@ namespace Loupedeck.TrinitePlugin
         // Ouvre une appli, un lien ou une adresse (shell:… par l'Explorateur), sans attendre ; le seul lanceur du plugin.
         public static void Lancer(String cible)
         {
+#if !POSTE
             if (cible == CodexOfficiel)
             {
                 ActiverCodex();
                 return;
             }
+#endif
 
             try
             {
@@ -725,6 +733,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+#if !POSTE
         // Appli Codex du Store, lancée avec son port de débogage (une appli empaquetée ne prend ses arguments que par
         // l'activation de Windows) ; sur un fil STA, comme l'attend ce service COM.
         private static void ActiverCodex()
@@ -750,6 +759,7 @@ namespace Loupedeck.TrinitePlugin
             fil.Start();
             fil.Join(10000);
         }
+#endif
 
         [ComImport]
         [Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C")]

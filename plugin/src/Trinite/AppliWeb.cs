@@ -16,7 +16,7 @@ namespace Loupedeck.TrinitePlugin
     // Raccourcis : noms de son raccourci d'appli Chrome (« … --app-id=… », menu Démarrer ou Bureau), qui retrouve l'appli
     // installée sans en figer l'identifiant. (L'id « Gmail » des anciennes applis par défaut de Chrome ouvre un onglet, pas
     // une fenêtre d'appli, 24/10 : sans raccourci, une fenêtre --app.)
-    // AuDebut : le titre doit COMMENCER par un de ses mots (le site : « JulienPiron.fr - … ») ; sinon il le contient. Le titre
+    // AuDebut : le titre doit COMMENCER par un de ses mots (le site : « Exemple.org - … ») ; sinon il le contient. Le titre
     // de Gmail contient l'adresse du compte, qui peut contenir le nom du site : la touche du site ramenait Gmail (25/10).
     // Sans titre (site sans titre donné) : sa fenêtre est une fenêtre d'appli de Chrome dont la page est sous l'adresse
     // demandée (Sous), adresse relue par UI Automation (valeur de son document) à chaque appui, avant de la ramener et

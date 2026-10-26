@@ -28,6 +28,7 @@ namespace Loupedeck.TrinitePlugin
         public const String Plugin = "NexusKeypad";
 
         private static readonly String Local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+#if !(MARKETPLACE || POSTE || COMPLETE)
         private static readonly HttpClient Http = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(60) };
         private static Int32 _enCours;
         private static Timer _quotidien;
@@ -42,6 +43,7 @@ namespace Loupedeck.TrinitePlugin
             Ecrire(Version(dossierPlugin), null, "idle", "");
             _quotidien = new Timer(_ => Lancer(moteur, demande: false), null, TimeSpan.FromMinutes(2), TimeSpan.FromDays(1));
         }
+#endif
 
         public static String FichierEtat => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nexus", "status", "keypad.json");
 
@@ -118,6 +120,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+#if !(MARKETPLACE || POSTE || COMPLETE)
         // Dernière version publiée : la redirection de releases/latest (…/releases/tag/vX.Y.Z), sans l'API GitHub.
         public static async Task<String> Derniere()
         {
@@ -255,5 +258,6 @@ namespace Loupedeck.TrinitePlugin
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
             return await client.GetStringAsync(url);
         }
+#endif
     }
 }

@@ -208,6 +208,7 @@ namespace Loupedeck.TrinitePlugin
         // Image et fichier dans le presse-papiers (PressePapiers : API Win32, sans processus).
         private String _copiee; // fichier publié dans le presse-papiers : jamais élagué
 
+#if !POSTE
         public Boolean Copier()
         {
             var photo = this.Derniere;
@@ -258,6 +259,7 @@ namespace Loupedeck.TrinitePlugin
                 }
             }
         }
+#endif
 
         public void Dispose()
         {

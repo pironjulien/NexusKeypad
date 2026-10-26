@@ -17,6 +17,9 @@
     <Compile Include="..\plugin\src\Helpers\PluginLog.cs" />
   </ItemGroup>
 
+  <!-- Maquettes privées (dossier absent du dépôt public). -->
+  <Import Project="maquette-c/maquette.props" Condition="Exists('maquette-c/maquette.props')" />
+
   <ItemGroup Condition="Exists('$(LogiService)PluginApi.dll')">
     <Reference Include="PluginApi" HintPath="$(LogiService)PluginApi.dll" />
     <Reference Include="SkiaSharp" HintPath="$(LogiService)SkiaSharp.dll" />

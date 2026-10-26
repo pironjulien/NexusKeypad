@@ -46,7 +46,7 @@ GESTES = ("appui", "releve")
 if __name__ == "__main__":
     mots = [a for a in sys.argv[1:] if a != "--reel"]
     if mots and mots[0] in GESTES and "--reel" not in sys.argv:
-        sys.exit(f"« {mots[0]} » agit sur le vrai pad : ajouter --reel, sur l'accord de Julien.")
+        sys.exit(f"« {mots[0]} » agit sur le vrai pad : ajouter --reel, sur l'accord de l'utilisateur.")
     try:
         print(commande(" ".join(mots) or "aide"))
     except FileNotFoundError:

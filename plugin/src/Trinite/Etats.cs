@@ -55,6 +55,7 @@ namespace Loupedeck.TrinitePlugin
 
         public Telephone Telephone { get; } = new();
 
+#if !POSTE
         // Relevé forcé (pilote) : la page Settings › Models est ouverte un instant, comme au relevé automatique.
         public Quota ReleverAntigravity()
         {
@@ -159,6 +160,7 @@ namespace Loupedeck.TrinitePlugin
             return agent == 1 ? this._selectionCodex : this._selectionAgy;
         }
 
+#endif
         // Un appui du pad, noté par le moteur : la page Models d'Antigravity n'est jamais ouverte pendant un geste ni dans
         // les 10 s qui suivent (une interface ouverte prenait le clavier du geste, 23/10).
         public void NoterGeste() => this._dernierGeste = DateTime.UtcNow;
@@ -167,6 +169,7 @@ namespace Loupedeck.TrinitePlugin
 
         private Boolean SansGesteRecent() => DateTime.UtcNow - this._dernierGeste > TimeSpan.FromSeconds(10);
 
+#if !POSTE
         public void MarquerVu(Int32 agent, String id) => this._vues[$"{agent}:{id}"] = DateTime.UtcNow;
 
         public Instantane Lire()
@@ -331,6 +334,7 @@ namespace Loupedeck.TrinitePlugin
             _ => Etat.Repos,
         };
 
+#endif
         private static String Champ(String json, String nom)
         {
             var m = Regex.Match(json, $"\"{nom}\":(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\]]+))");
