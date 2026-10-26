@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-26 — The complete edition updates itself
+
 ### Added
 - The complete edition updates itself once a day (SHA-256 checked against the release, swapped in only while the
   keypad is idle, previous version put back on failure); `{"miseAJourAuto": false}` turns it off. State for the Nexus
