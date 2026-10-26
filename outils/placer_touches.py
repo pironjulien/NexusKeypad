@@ -17,7 +17,7 @@ import uuid
 from pathlib import Path
 
 PROFILS = Path(os.environ["LOCALAPPDATA"]) / "Logi" / "LogiPluginService" / "Applications" / "Loupedeck70" / "@_defaultwin" / "Profiles"
-ACTION = "$TrinitePad___Loupedeck.TrinitePlugin.ToucheCommand___t{}"
+ACTION = "$NexusKeypad___Loupedeck.TrinitePlugin.ToucheCommand___t{}"
 
 
 def main() -> None:

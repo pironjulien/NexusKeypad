@@ -130,6 +130,11 @@
        pas le plugin quand Logi démarrait avec Windows (pad sur le logo Logi) ; le paquet se charge toujours. -->
   <!-- Garde-fou (règle du 25/10, après un essai qui a touché le vrai dossier des plugins) : la compilation n'installe dans
        le vrai dossier de Logi qu'avec -p:Reel=true, sur l'accord de l'utilisateur. -->
+  <!-- Le pad de l'utilisateur tourne sur l'édition NexusKeypad depuis le 26/10 : une autre édition installée à côté
+       ferait tourner deux moteurs (même tube d'essais). -->
+  <Target Name="ReelNexus" BeforeTargets="Build" Condition="'$(NexusTest)' != 'true' And '$(Reel)' == 'true' And '$(Edition)' != 'Nexus'">
+    <Error Text="-p:Reel=true installe le plugin du pad : ajouter -p:Edition=Nexus (édition NexusKeypad, celle du pad)." />
+  </Target>
   <Target Name="PostBuild" AfterTargets="CopyPackage" Condition="'$(NexusTest)' != 'true' And '$(Reel)' == 'true'">
     <ItemGroup>
       <Paquet Include="$(BaseOutputPath)$(Configuration)\**\*" />

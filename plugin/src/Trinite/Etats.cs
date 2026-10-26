@@ -297,7 +297,7 @@ namespace Loupedeck.TrinitePlugin
 
         private Boolean Vu(Int32 agent, String id, DateTime depuis) => this._vues.TryGetValue($"{agent}:{id}", out var quand) && quand > depuis;
 
-        // État noté par les hooks (etat.py) pour une session ; null si aucun.
+        // État noté par les hooks (nexuskeypad-hook.exe) pour une session ; null si aucun.
         private static (String Etat, DateTime Quand)? Hook(String agent, String session)
         {
             try
@@ -308,7 +308,7 @@ namespace Loupedeck.TrinitePlugin
                     return null;
                 }
 
-                // Partage complet : etat.py remplace le fichier (os.replace) pendant qu'on le lit, sans échec ni perte.
+                // Partage complet : le hook remplace le fichier pendant qu'on le lit, sans échec ni perte.
                 using var flux = new FileStream(fichier, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using var doc = JsonDocument.Parse(flux);
                 var quand = DateTimeOffset.FromUnixTimeMilliseconds((Int64)(doc.RootElement.GetProperty("at").GetDouble() * 1000)).UtcDateTime;

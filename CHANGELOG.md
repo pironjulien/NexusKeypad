@@ -5,6 +5,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-10-26 — Nexus family icon
+
+### Changed
+- Nexus family icon: the keypad pictogram in the julienpiron.fr medallion, the same on the site and in every Nexus
+  product. It replaces the three characters (AI Coding Agents, AI Coding Agents + PC, NexusKeypad) and the four keys
+  (PC Dashboard) in each edition's `metadata/Icon256x256.png`, drawn in the central 192 px on a transparent background
+  (`dotnet run --project apercu -- icone <nexuskeypad-mark-256.png> <png>`; `icone-poste` removed). Key templates
+  (`DefaultIconTemplate.ict`) are unchanged.
+
+### Fixed
+- `test.ps1` failed in this repository: it ran a test of a private, unpublished part. That test is no longer
+  published.
+
+### Added
+- Preview tool: `sprites <folder>` mode, exporting the characters in every state, the relay messengers and the
+  situation boards as 30 fps PNG sequences with `index.json` (for videos). The shipped plugin does not change.
+
+### Removed
+- `etat/etat.py` and `outils/installer_hooks.py`: replaced by the native hook `nexuskeypad-hook.exe`, whose rules are
+  kept case by case by `tests/test_hook.py`.
+
 ## [1.4.2] - 2026-10-26 — Antigravity quota back, get.ps1 attached to the release
 
 ### Fixed

@@ -3,7 +3,7 @@
 # Pourquoi détaché : lancé par Start-Process depuis une session de Claude, l'agent entre dans l'objet tâche (job) de
 # l'appli Claude et meurt avec elle (23/10 : pad sur le logo Logi et raccourcis du clavier perdus à la fermeture de
 # Claude). CREATE_BREAKAWAY_FROM_JOB l'en sort.
-# Le plugin est installé en paquet (Plugins\TrinitePad) : il se charge quel que soit le lanceur (avec l'ancien lien .link,
+# Le plugin est installé en paquet (Plugins\NexusKeypad) : il se charge quel que soit le lanceur (avec l'ancien lien .link,
 # l'agent lancé par WMI ou une tâche planifiée démarrait sans charger le plugin).
 [CmdletBinding()]
 param()
@@ -48,7 +48,7 @@ if ($processus) {
     Write-Host "Agent Logi relancé par WMI (pid $($r.ProcessId)), hors du job de l'appli lanceuse."
 }
 
-$journal = Join-Path $env:LOCALAPPDATA 'Logi\LogiPluginService\Logs\plugin_logs\TrinitePad.log'
+$journal = Join-Path $env:LOCALAPPDATA 'Logi\LogiPluginService\Logs\plugin_logs\NexusKeypad.log'
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 2
     if ((Test-Path $journal) -and (Get-Item $journal).LastWriteTime -gt $debut) {

@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Écrivain d'état des hooks de Claude et d'Antigravity, sans Python : un exécutable natif (Native AOT, aucun
-       runtime .NET à installer, démarrage en quelques millisecondes) livré dans le paquet du plugin. Mêmes règles que
-       etat/etat.py, tenues à l'identique par tests/test_etat.py. -->
+       runtime .NET à installer, démarrage en quelques millisecondes) livré dans le paquet du plugin. Règles tenues
+       cas par cas par tests/test_hook.py. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>

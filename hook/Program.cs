@@ -1,7 +1,7 @@
 // Note l'état d'une IA de la Trinité pour le pad (appelé par les hooks de Claude et d'Antigravity), sans Python.
 //
 // Usage : nexuskeypad-hook <agent> <evenement>   (le JSON du hook arrive sur stdin)
-// Même travail et mêmes règles que etat/etat.py (tests/test_etat.py les compare cas par cas) : écrit
+// Règles tenues cas par cas par tests/test_hook.py (relevées sur etat.py, la version Python d'origine) : écrit
 // %USERPROFILE%\.nexus\trinite\<agent>\<session>.json = {"state", "at", "event"} sous un verrou par session, sans jamais
 // remplacer un état noté par un événement parti après lui ; rend « {} » sur stdout (« {"decision": "allow"} » au
 // PreToolUse d'Antigravity, qui refuse l'outil sans décision) ; ne lève jamais.

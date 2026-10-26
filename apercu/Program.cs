@@ -17,39 +17,16 @@ AssemblyLoadContext.Default.Resolving += (_, nom) =>
     return File.Exists(chemin) ? AssemblyLoadContext.Default.LoadFromAssemblyPath(chemin) : null;
 };
 
-// Icône du plugin (metadata/Icon256x256.png) : nos trois personnages au repos, dessinés par le plugin lui-même, sur fond
-// transparent ; dessin dans les 192 px du centre (règle de Logitech pour Options+ et le Marketplace).
-// Usage : dotnet run -- icone <fichier.png>
-if (args is ["icone", var icone])
+// Icône de chaque édition (metadata/Icon256x256.png) : l'icône de la famille Nexus, le pad dans le médaillon de
+// julienpiron.fr (kit NexusPublish\communication\icones, nexuskeypad-mark-256.png), réduite dans les 192 px du centre
+// sur fond transparent (règle de Logitech pour Options+ et le Marketplace).
+// Usage : dotnet run -- icone <nexuskeypad-mark-256.png> <fichier.png>
+if (args is ["icone", var marque, var icone])
 {
     using var b = new BitmapBuilder(256, 256);
     b.Clear(new BitmapColor(0, 0, 0, 0));
-    Rendu.Personnage(b, 1, 32, 58, 5, Etat.Repos, 0.4);    // Codex, derrière à gauche comme sur le pad
-    Rendu.Personnage(b, 2, 144, 54, 5, Etat.Repos, 0.4);   // Antigravity, derrière à droite
-    Rendu.Personnage(b, 0, 80, 140, 6, Etat.Repos, 0.4);   // Clawd, au milieu et devant
+    b.DrawImage(BitmapImage.FromArray(File.ReadAllBytes(marque)), 32, 32, 192, 192, BitmapRotation.None);
     File.WriteAllBytes(icone, b.ToArray(BitmapImageFormat.Png));
-    return;
-}
-
-// Icône de l'édition PC Dashboard (package-poste/metadata/Icon256x256.png) : quatre de ses touches en carré (volume, son coupé,
-// santé du PC, site), sans logo de tiers, dessinées par le plugin, dans les 192 px du centre sur fond transparent.
-// Usage : dotnet run -- icone-poste <fichier.png>
-if (args is ["icone-poste", var iconePoste])
-{
-    using var b = new BitmapBuilder(256, 256);
-    b.Clear(new BitmapColor(0, 0, 0, 0));
-    var scene = new Scene
-    {
-        Instantane = Instantane.Vide, Temps = 20.4, Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9,
-        CaptureCollee = -9, Poste = new(0.6, false, 0.5, 0.3, 0.55) { Mails = 3, Messages = 1 }, Site = Signet.Generique,
-    };
-    int[] touches = [Moteur.VolumePlus, Moteur.Muet, Moteur.Sante, Moteur.Site];
-    for (var k = 0; k < 4; k++)
-    {
-        b.DrawImage(BitmapImage.FromArray(Rendu.Png(touches[k], scene, 92)), 32 + (k % 2 * 100), 32 + (k / 2 * 100), 92, 92, BitmapRotation.None);
-    }
-
-    File.WriteAllBytes(iconePoste, b.ToArray(BitmapImageFormat.Png));
     return;
 }
 
@@ -103,6 +80,229 @@ if (args is ["animations", var dossierAnim])
         Console.WriteLine(nom);
     }
 
+    return;
+}
+
+// Sprites pour la vidéo de l'écosystème : les trois personnages dans chaque état, les messagers du relais et les planches
+// des situations, en suites de PNG à 30 i/s couvrant un cycle d'animation, + index.json. Dessinés par le plugin lui-même
+// à sa taille (aucun redessin), puis agrandis au plus proche voisin (pixel art net, sans lissage) ; fond transparent
+// sauf pour les planches. Le cycle est cherché image par image : la plus courte période qui se répète à l'identique
+// (« exacte »), sinon celle qui retombe au plus près de la première image : à l'identique (« fermée ») ou presque
+// (« approchée », écart en part de pixels). Usage : dotnet run -- sprites <dossier>
+// Avec --photo <photo.jpg> : seulement la planche « photo » (la situation active, cette photo sur la touche Photo, en
+// miniature du plugin lui-même), ajoutée à l'index.json existant.
+if (args is ["sprites", _] or ["sprites", _, "--photo", _])
+{
+    var dossierSprites = args[1];
+    var photoSprites = args.Length > 3 ? new Photo("/sdcard/DCIM/Camera/x.jpg", args[3], Telephone.Miniature(args[3])) : null;
+    const Int32 Fps = 30, MaxImages = 12 * Fps;
+    var d = DateTime.UtcNow;
+    var fichierIndex = Path.Combine(dossierSprites, "index.json");
+    var index = photoSprites is not null && File.Exists(fichierIndex)
+        ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(fichierIndex))!.AsObject()
+        : new System.Text.Json.Nodes.JsonObject { ["fps"] = Fps, ["sequences"] = new System.Text.Json.Nodes.JsonArray() };
+
+    // Rend la suite (dessin natif de largeur × hauteur, agrandi × echelle), cherche son cycle, écrit les images du cycle.
+    void Suite(String chemin, Int32 largeur, Int32 hauteur, Int32 echelle, Boolean transparent, Func<Double, Byte[]> dessin, Boolean boucle = true, Int32 images = 0)
+    {
+        SkiaSharp.SKBitmap Agrandi(Byte[] png)
+        {
+            using var natif = SkiaSharp.SKBitmap.Decode(png);
+            return natif.Resize(new SkiaSharp.SKImageInfo(largeur * echelle, hauteur * echelle, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Unpremul), SkiaSharp.SKFilterQuality.None);
+        }
+
+        var natifs = new List<Byte[]>();
+        var empreintes = new List<String>();
+        var n = images;
+        var exacte = true;
+        var ecart = 0.0;
+        if (boucle)
+        {
+            Byte[] premiers = null;
+            var meilleur = (N: 0, Ecart: Double.MaxValue);
+            for (var f = 0; f < 2 * MaxImages; f++)
+            {
+                var png = dessin(10 + ((Double)f / Fps));
+                natifs.Add(png);
+                using var bmp = SkiaSharp.SKBitmap.Decode(png);
+                var octets = bmp.Bytes;
+                empreintes.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(octets)));
+                premiers ??= octets;
+                if (f >= Fps && f <= MaxImages)
+                {
+                    var differents = 0;
+                    for (var k = 0; k < octets.Length; k += 4)
+                    {
+                        if (octets[k] != premiers[k] || octets[k + 1] != premiers[k + 1] || octets[k + 2] != premiers[k + 2] || octets[k + 3] != premiers[k + 3])
+                        {
+                            differents++;
+                        }
+                    }
+
+                    var part = differents / (octets.Length / 4.0);
+                    if (part < meilleur.Ecart)
+                    {
+                        meilleur = (f, part);
+                    }
+                }
+
+            }
+
+            // Période exacte : la plus courte p telle que toutes les images rendues (24 s) se répètent avec un décalage p.
+            // (Les animations avancent par paliers : des images voisines identiques ne font pas une période.)
+            for (var p = 1; p <= MaxImages && n == 0; p++)
+            {
+                if (Enumerable.Range(0, empreintes.Count - p).All(k => empreintes[k] == empreintes[k + p]))
+                {
+                    n = p;
+                }
+            }
+
+            if (n == 0)
+            {
+                (n, exacte, ecart) = (meilleur.N, false, meilleur.Ecart);
+            }
+        }
+        else
+        {
+            for (var f = 0; f < n; f++)
+            {
+                natifs.Add(dessin((Double)f / Fps));
+            }
+        }
+
+        Directory.CreateDirectory(Path.Combine(dossierSprites, chemin));
+        var (bas, gauche, droite) = (0, Int32.MaxValue, 0);
+        for (var f = 0; f < n; f++)
+        {
+            using var grand = Agrandi(natifs[f]);
+            if (transparent)
+            {
+                for (var y = 0; y < grand.Height; y++)
+                {
+                    for (var x = 0; x < grand.Width; x++)
+                    {
+                        if (grand.GetPixel(x, y).Alpha > 0)
+                        {
+                            (bas, gauche, droite) = (Math.Max(bas, y + 1), Math.Min(gauche, x), Math.Max(droite, x + 1));
+                        }
+                    }
+                }
+            }
+
+            using var fichier = File.Create(Path.Combine(dossierSprites, chemin, $"{f:D3}.png"));
+            grand.Encode(fichier, SkiaSharp.SKEncodedImageFormat.Png, 100);
+        }
+
+        var entree = new System.Text.Json.Nodes.JsonObject
+        {
+            ["chemin"] = chemin.Replace('\\', '/'), ["images"] = n, ["duree_s"] = Math.Round((Double)n / Fps, 3),
+            ["largeur"] = largeur * echelle, ["hauteur"] = hauteur * echelle, ["echelle"] = echelle,
+            ["boucle"] = !boucle ? "non" : exacte ? "exacte" : ecart == 0 ? "fermée" : "approchée",
+        };
+        if (boucle && !exacte && ecart > 0)
+        {
+            entree["ecart_boucle"] = Math.Round(ecart, 4);
+        }
+
+        if (transparent && bas > 0)
+        {
+            entree["ancrage_sol"] = new System.Text.Json.Nodes.JsonObject { ["x"] = (gauche + droite) / 2, ["y"] = bas };
+        }
+
+        var sequences = index["sequences"]!.AsArray();
+        foreach (var ancienne in sequences.Where(x => x!["chemin"]!.GetValue<String>() == entree["chemin"]!.GetValue<String>()).ToList())
+        {
+            sequences.Remove(ancienne);
+        }
+
+        sequences.Add(entree);
+        Console.WriteLine($"{chemin} : {n} images, boucle {entree["boucle"]}");
+    }
+
+    // 1. Les personnages, comme sur leur touche (dessin de 80 px de large, 5 px par case), dans un cadre de 160 × 160
+    // qui garde leurs signes et les feux d'artifice ; × 7 : personnage de 350 à 490 px de haut, cadre de 1120 px.
+    String[] noms = ["clawd", "codex", "antigravity"];
+    var tout = photoSprites is null;
+    var etatsSprites = new (String Nom, Etat Etat, Boolean Dort)[]
+    {
+        ("repos", Etat.Repos, false), ("travaille", Etat.Travaille, false), ("attend", Etat.Attend, false), ("fini", Etat.Fini, false),
+        ("autorisation", Etat.Autorisation, false), ("erreur", Etat.Erreur, false), ("limite", Etat.Limite, false), ("dort", Etat.Repos, true),
+    };
+    const Int32 Cadre = 160;
+    for (var a = 0; a < 3 && tout; a++)
+    {
+        var hauteurDessin = a switch { 0 => 10, 1 => 12, _ => 14 } * 5;
+        var (x0, y0) = ((Cadre - 80) / 2, (Cadre - hauteurDessin) / 2);
+        foreach (var (nomEtat, etat, dort) in etatsSprites)
+        {
+            var agent = a;
+            Byte[] Dessin(Double t, Double depuis)
+            {
+                using var b = new BitmapBuilder(Cadre, Cadre);
+                b.Clear(new BitmapColor(0, 0, 0, 0));
+                Rendu.Personnage(b, agent, x0, y0, 5, etat, t, dort, depuis);
+                return b.ToArray(BitmapImageFormat.Png);
+            }
+
+            Suite(Path.Combine(noms[a], nomEtat), Cadre, Cadre, 7, true, t => Dessin(t, 99));
+            if (etat == Etat.Fini)
+            {
+                // L'arrivée du « fini » (feux d'artifice des 4 premières secondes), une fois, sans boucle.
+                Suite(Path.Combine(noms[a], "fini-arrivee"), Cadre, Cadre, 7, true, t => Dessin(t, t), boucle: false, images: 4 * Fps);
+            }
+        }
+    }
+
+    // 2. Les messagers du relais (2 px par case sur le pad), qui trottent ou sautillent ; cadre 40 × 32, × 24 : messager
+    // d'environ 480 px de haut.
+    var petitClawd = typeof(Rendu).GetMethod("PetitClawd", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+    var petitPair = typeof(Rendu).GetMethod("PetitPair", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+    for (var a = 0; a < 3 && tout; a++)
+    {
+        var agent = a;
+        Suite(Path.Combine("messagers", noms[a]), 40, 32, 24, true, t =>
+        {
+            using var b = new BitmapBuilder(40, 32);
+            b.Clear(new BitmapColor(0, 0, 0, 0));
+            _ = agent == 0 ? petitClawd.Invoke(null, [b, 20, 6, t]) : petitPair.Invoke(null, [b, agent, 20, 6, t]);
+            return b.ToArray(BitmapImageFormat.Png);
+        });
+    }
+
+    // 3. Les planches 9 touches des situations (celles de l'aperçu), horloge figée pour que la boucle se referme ; × 2.
+    Conversation S(Int32 a, String titre, Etat e, Double depuisS = 5, Boolean relaisChat = false) =>
+        new(a, "id", titre, e, d.AddSeconds(-depuisS), d, false, relaisChat);
+    Quota[] q = [new(0.15, 0.70), new(0.27, 0.07), new(0.63, null)];
+    Conversation[][] actifs = [[S(0, "Configuration", Etat.Attend), S(0, "Session", Etat.Travaille)], [S(1, "Revue", Etat.Fini), S(1, "Relais", Etat.Travaille)], [S(2, "Analyse", Etat.Attend)]];
+    var planches = !tout ? [("photo", new Instantane(actifs, [5, 2, 1], q, [true, true, true], false, photoSprites, 0))] : new (String Nom, Instantane I)[]
+    {
+        ("actif", new(actifs, [5, 2, 1], q, [true, true, true], false, null, 0)),
+        ("relais", new([[S(0, "Revue", Etat.Travaille)], [S(1, "Relais · nexuskeypad", Etat.Travaille, 60, true)], [S(2, "Relais · nexuskeypad", Etat.Travaille, 60, true)]], [1, 1, 1], q, [true, true, true], false, null, -1)),
+        ("calme", new([[S(0, "Configuration", Etat.Fini, 300)], [S(1, "Relais · nexuswindows", Etat.Travaille, 120, true)], []], [3, 0, 0], [q[0], q[1], null], [true, true, false], false, null, -1)),
+    };
+    const Int32 Tp = 116, Ep = 16, Grille = (3 * Tp) + (2 * Ep);
+    foreach (var (nom, instantane) in planches)
+    {
+        Suite(Path.Combine("planches", nom), Grille, Grille, 2, false, t =>
+        {
+            using var b = new BitmapBuilder(Grille, Grille);
+            b.Clear(new BitmapColor(0, 0, 0, 0));
+            var scene = new Scene
+            {
+                Instantane = instantane, Temps = t, Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9,
+                Maintenant = d.ToLocalTime(),
+            };
+            for (var k = 0; k < 9; k++)
+            {
+                b.DrawImage(Rendu.Png(Moteur.Disposition[k], scene), k % 3 * (Tp + Ep), k / 3 * (Tp + Ep), BitmapRotation.None);
+            }
+
+            return b.ToArray(BitmapImageFormat.Png);
+        });
+    }
+
+    File.WriteAllText(fichierIndex, index.ToJsonString(new() { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
     return;
 }
 
