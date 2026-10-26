@@ -160,6 +160,12 @@ administrator rights):
 irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1 | iex
 ```
 
+Prefer not to pipe a script into `iex`? Releases after 1.4.1 also carry `get.ps1`, listed in its
+`SHA256SUMS.txt` and attested like the packages: download it from the
+[latest release](https://github.com/pironjulien/NexusKeypad/releases/latest), check it
+(`gh attestation verify get.ps1 -R pironjulien/NexusKeypad`, or compare its SHA-256), then right-click it >
+**Run with PowerShell** (or `powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1`, add `-Remove` to remove).
+
 It downloads the latest release's `NexusKeypad` package (checked against the release's `SHA256SUMS.txt`), copies it
 into Logi Options+'s plugin folder (`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad`), where the Logi Plugin
 Service loads it, and offers to place the 18 keys for you (your keypad profile is backed up first and Logi Options+

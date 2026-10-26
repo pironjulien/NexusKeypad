@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- The release also carries `get.ps1` (in `SHA256SUMS.txt`, attested): install from a downloaded, checked file
+  instead of piping into `iex` (README).
+
 ## [1.4.1] - 2026-10-26 — PC Dashboard without any AI agents code
 
 ### Fixed
