@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Antigravity's quota stayed empty when a "Conversation Archived … Undo" notification was on screen (it is a dialog
+  too): the reading now targets the settings window that has the Models tab.
+
 ### Added
 - The release also carries `get.ps1` (in `SHA256SUMS.txt`, attested): install from a downloaded, checked file
   instead of piping into `iex` (README).

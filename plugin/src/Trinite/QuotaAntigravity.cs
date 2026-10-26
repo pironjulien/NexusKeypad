@@ -13,19 +13,22 @@ namespace Loupedeck.TrinitePlugin
         // Page Models ou boîte « View Usage » déjà ouverte par l'utilisateur (ou par la touche de quota) : lue sans rien toucher ;
         // sinon null.
         private const String Passif =
-            "(() => { const d = document.querySelector('[role=dialog]'); const t = d ? d.innerText : '';" +
+            "(() => { const d = [...document.querySelectorAll('[role=dialog]')].find(x => [...x.querySelectorAll('button')].some(b => (b.innerText || '').trim() === 'Models'));" +
+            " const t = d ? d.innerText : '';" +
             " if (t.includes('Models & Usage') && t.includes('%')) return t;" +
             " const b = [...document.querySelectorAll('[role=menu]:not([data-closed])')].map(m => m.innerText).find(m => m.includes('Limit Remaining') && m.includes('%'));" +
             " return b ?? null })()";
 
         // Ouvre Settings › Models, lit le texte, puis rend la vue d'origine (retour arrière, puis Fermer sur SON dialogue).
-        // Ne touche à rien si un dialogue existe déjà (même vide) ; si l'utilisateur clique ou tape pendant le relevé, le script
-        // renonce à tout rangement : la vue est à lui ; de même si le pad ouvre une conversation pendant ce temps (ses clics
+        // Lit la fenêtre des réglages si elle est déjà ouverte, sans rien toucher ; si l'utilisateur clique ou tape pendant le
+        // relevé, le script renonce à tout rangement : la vue est à lui ; de même si le pad ouvre une conversation pendant ce temps (ses clics
         // ne sont pas des événements « de confiance » : il pose window.__nexusRepris). Mêmes gestes que le relevé du relais.
         private const String Actif = """
             (async () => {
               const pause = ms => new Promise(r => setTimeout(r, ms));
-              const dialogue = () => document.querySelector('[role=dialog]');
+              // La fenêtre des réglages (celle qui porte l'onglet Models), jamais le premier dialogue venu : une notification
+              // « Conversation Archived … Undo » est aussi un [role=dialog] qui reste dans le DOM (constaté le 26/10).
+              const dialogue = () => [...document.querySelectorAll('[role=dialog]')].find(d => [...d.querySelectorAll('button')].some(b => (b.innerText || '').trim() === 'Models'));
               const nom = b => (b.getAttribute('aria-label') || b.innerText || '').trim();
               const deja = dialogue();
               if (deja) { const t = deja.innerText || ''; return t.includes('Models & Usage') && t.includes('%') ? t : null; }

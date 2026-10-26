@@ -128,6 +128,13 @@ finally
 }
 Vrai(QuotaAntigravity.Delai("it will fully refresh in 4 days, 23 hours.") == new TimeSpan(4, 23, 0, 0)
     && QuotaAntigravity.Delai("Weekly Limit Remaining") is null, "délai de remise à zéro lu en jours, heures, minutes");
+// Relevé du quota : la fenêtre des réglages (onglet Models), jamais le premier [role=dialog] venu (une notification
+// « Conversation Archived … Undo » en est un aussi et bloquait le relevé, 26/10).
+foreach (var script in new[] { "Passif", "Actif" })
+{
+    var code = (String)typeof(QuotaAntigravity).GetField(script, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.GetValue(null)!;
+    Vrai(!code.Contains("document.querySelector('[role=dialog]')") && code.Contains("=== 'Models'"), $"quota d'Antigravity ({script}) : vise la fenêtre des réglages");
+}
 
 // Ouverture d'une conversation d'Antigravity : l'identifiant reste une chaîne JSON (pas d'injection dans le script).
 var js = Js.OuvrirAntigravity("abc'); alert(1); ('", route: true);
