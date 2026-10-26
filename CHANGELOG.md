@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-10-26 — Antigravity quota back, get.ps1 attached to the release
+
 ### Fixed
 - Antigravity's quota stayed empty when a "Conversation Archived … Undo" notification was on screen (it is a dialog
   too): the reading now targets the settings window that has the Models tab.
