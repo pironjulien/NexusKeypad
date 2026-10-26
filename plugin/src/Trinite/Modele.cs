@@ -53,8 +53,10 @@ namespace Loupedeck.TrinitePlugin
 
         public Conversation Premiere(Int32 agent) => this.Conversations[agent].Length > 0 ? this.Conversations[agent][0] : null;
 
+#if !POSTE
         // Codex ou Antigravity travaille pour Claude par le relais (au moins un de ses chats du relais tourne).
         public Boolean PourClaude(Int32 agent) => this.Conversations[agent].Any(c => c is { Relais: true, Etat: Etat.Travaille });
+#endif
 
         // État d'ensemble d'une IA : sa conversation la plus pressante.
         public Etat EtatIA(Int32 agent) =>

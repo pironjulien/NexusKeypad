@@ -32,12 +32,14 @@ namespace Loupedeck.TrinitePlugin
         private const Int32 DefilementVertical = 30058; // UIA_ScrollVerticallyScrollablePropertyId (30057 : horizontal)
         private const Int32 SousChaine = 2; // PropertyConditionFlags_MatchSubstring
 
+#if !POSTE
         // Libellés de Claude, en français et en anglais (ses fichiers de langue fr-FR et en-US, ion-dist/i18n) : l'appli
         // suit la langue de Windows.
         private static readonly String[] ArretDictee = ["Arrêter la dictée", "Stop dictation"];
         private static readonly String[] Micro = ["Maintenez appuyé pour enregistrer", "Press and hold to record"];
         private static readonly String[] Utilisation = ["Utilisation :", "Usage:"]; // début du nom : « Utilisation : <quotas> »
         private static readonly String[] Renommer = [", renommer la session", ", rename session"]; // « <titre>, renommer la session »
+#endif
 
         // Bouton dont le nom est l'un de ces libellés (exact, ou contenu si sousChaine) : un seul parcours de l'arbre.
         private static IUIAutomationCondition Bouton(IUIAutomation uia, String[] noms, Boolean sousChaine = false) =>
@@ -48,6 +50,7 @@ namespace Loupedeck.TrinitePlugin
         private static IUIAutomation Nouveau() =>
             (IUIAutomation)Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("ff48dba4-60ef-4201-aa87-54103eef594e")));
 
+#if !POSTE
         // Donne le focus au champ de la fenêtre de Claude ; renvoie null si c'est prêt, sinon la raison.
         // vide : refusé si l'utilisateur a déjà commencé à écrire ; sinon le texte s'ajoute au sien (Photo, Capture).
         public static String PreparerSaisieClaude(IntPtr fenetre, Boolean vide)
@@ -88,6 +91,7 @@ namespace Loupedeck.TrinitePlugin
 
             return "le champ de Claude n'a pas pris le focus";
         }
+#endif
 
         // Clic natif (UI Automation, comme le lecteur d'écran) sur le premier bouton visible au nom donné, dans les
         // fenêtres d'un processus ; vrai s'il a été cliqué. Antigravity n'ouvre son micro que sur un clic de ce genre
@@ -237,6 +241,7 @@ namespace Loupedeck.TrinitePlugin
         [DllImport("user32.dll")]
         private static extern Int32 GetWindowTextLength(IntPtr h);
 
+#if !POSTE
         // Titre de la conversation affichée dans Claude : son en-tête « <titre>, renommer la session » ; null si illisible.
         public static String TitreClaudeAffiche()
         {
@@ -420,6 +425,7 @@ namespace Loupedeck.TrinitePlugin
 
             return null;
         }
+#endif
 
         // Interfaces COM d'UIAutomationCore : seules les entrées utilisées sont typées, les autres tiennent leur place dans la vtable.
         [ComImport, Guid("30cbe57d-d9d0-452a-ab13-7ac5ac4825ee"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]

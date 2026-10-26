@@ -12,11 +12,11 @@ namespace Loupedeck.TrinitePlugin
     {
         private static readonly String Local = Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "";
 
+#if !POSTE
         // Dernière conversation de Claude ouverte par le pad : Claude change de vue pendant ~2 s ; un geste dans son champ
         // pendant ce temps (Dictée, Photo, Capture juste après la tête) se perdait. Il attend la fin du changement.
         private static Int64 _claudeOuvert = Int64.MinValue / 2;
 
-#if !POSTE
         public static void AttendreClaude()
         {
             var reste = 2500 - (Environment.TickCount64 - _claudeOuvert);

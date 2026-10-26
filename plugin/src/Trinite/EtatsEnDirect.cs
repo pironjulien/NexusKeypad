@@ -268,10 +268,10 @@ namespace Loupedeck.TrinitePlugin
                 var poser = francais
                     ? "Afficher en direct ce que font Claude et Antigravity (travaille, t'attend, fini) ?\n\n" +
                       "NexusKeypad ajoute ses hooks à leurs réglages (~/.claude/settings.json, ~/.gemini/config/hooks.json). Ils lancent un petit programme du plugin, copié dans %LOCALAPPDATA%\\NexusKeypad\\hook, qui note seulement leur état dans ~/.nexus/trinite, sur ce PC. Pour Claude s'ajoute un module (nexuskeypad-quota) qui note son quota exact au même endroit. Rien n'est envoyé.\n\n" +
-                      "Pour changer d'avis plus tard : l'action « Live states » du groupe AI agents dans Logi Options+."
+                      "Pour changer d'avis plus tard : l'action « Live states » du groupe Trinité dans Logi Options+."
                     : "Show what Claude and Antigravity are doing, live (working, waiting for you, done)?\n\n" +
                       "NexusKeypad adds its hooks to their settings (~/.claude/settings.json, ~/.gemini/config/hooks.json). They run a small program from the plugin, copied to %LOCALAPPDATA%\\NexusKeypad\\hook, that only writes their state to ~/.nexus/trinite on this PC. For Claude, a module (nexuskeypad-quota) also writes its exact usage there. Nothing is sent anywhere.\n\n" +
-                      "To change your mind later: the \"Live states\" action in the AI agents group of Logi Options+.";
+                      "To change your mind later: the \"Live states\" action in the Trinity group of Logi Options+.";
                 var accord = Oui(poser);
                 if (premiereFois)
                 {

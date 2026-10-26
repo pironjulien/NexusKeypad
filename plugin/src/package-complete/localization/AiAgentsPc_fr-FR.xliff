@@ -114,8 +114,8 @@
       </group>
       <group id="@adjustments" />
       <group id="@groups">
-        <trans-unit id="$AiAgentsPc___GroupName___E300284EAB7192930009" translate="yes">
-          <source>AI agents</source>
+        <trans-unit id="$AiAgentsPc___GroupName___B87B0CE78DB3042E0007" translate="yes">
+          <source>Trinity</source>
           <target>Trinité</target>
         </trans-unit>
       </group>

@@ -15,11 +15,15 @@ namespace Loupedeck.TrinitePlugin
     // Lit les conversations actives des trois IA, l'écran et le téléphone ; appelé chaque seconde hors du fil de dessin.
     public sealed partial class Observateur
     {
+#if !POSTE
         public static readonly String[] Agents = ["claude", "codex", "antigravity"];
         public static readonly String[] Processus = ["claude", "ChatGPT", "Antigravity"];
+#endif
 
+        // Édition PC Dashboard : aucun agent lu, aucun de leurs fichiers ouvert, rien d'eux compilé.
         private static readonly String Maison = Environment.GetEnvironmentVariable("USERPROFILE") ?? "";
         private static readonly String Local = Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "";
+#if !POSTE
         private static readonly String DossierEtats = Path.Combine(Maison, ".nexus", "trinite");
         private static readonly String DossierCodex = Path.Combine(Maison, ".codex");
         private static readonly String DossierRelais = Path.Combine(Maison, ".nexus", "relay", "v1");
@@ -28,30 +32,24 @@ namespace Loupedeck.TrinitePlugin
 
         private readonly ConcurrentDictionary<String, DateTime> _vues = new(); // agent:id → dernier regard de l'utilisateur
         private readonly Dictionary<String, (DateTime Ecrit, String Meta)> _cacheClaude = [];
+#endif
         private TimeSpan _delaiEcran = TimeSpan.FromMinutes(10); // relu auprès de Windows (DelaiEcran)
         private DateTime _delaiLu = DateTime.MinValue;
+#if !POSTE
         private (DateTime Ecrit, Dictionary<String, String> Noms) _indexCodex = (DateTime.MinValue, []);
         private List<(String Id, String Titre, DateTime Activite, Boolean Selection)> _lignesAgy = [];
         private readonly Dictionary<String, String> _sujets = [];
-#if POSTE
-        // Édition PC Dashboard : aucun agent lu, aucun de leurs fichiers ouvert (pas même le quota gardé d'Antigravity).
-        private readonly Quota[] _quotas = new Quota[3];
-#else
         private readonly Quota[] _quotas = [null, null, QuotaAntigravity.Garde(out _)];
-#endif
         private readonly Process[] _lancees = new Process[3];
         private readonly DateTime[] _recherche = new DateTime[3];
         private readonly DateTime[] _vueLancee = new DateTime[3];
-#if POSTE
-        private DateTime _quotaAgyLu = DateTime.MinValue;
-#else
         private DateTime _quotaAgyLu = QuotaAntigravity.Lu(); // dernière lecture réussie de sa page Settings › Models
-#endif
         private DateTime _quotaAgyEssai = DateTime.MinValue;
         private String _selectionCodex;
         private String _selectionAgy;
         private Int64 _tour;
         private (DateTime Ecrit, String Compte) _compteClaude = (DateTime.MinValue, null);
+#endif
 
         public Telephone Telephone { get; } = new();
 

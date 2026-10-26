@@ -9,11 +9,19 @@ namespace Loupedeck.TrinitePlugin
     {
         // Noms en anglais, langue source du SDK ; le français vient de package/localization/TrinitePad_fr-FR.xliff (Options+ en
         // français). Le nom anglais sert d'identifiant à sa traduction : le changer oblige à refaire le XLIFF.
+#if POSTE
+        // PC Dashboard : les noms de la page 2 seule (Moteur.Premiere = 9).
+        private const Int32 PremierNom = 9;
+        private static readonly String[] Noms =
+        [
+#else
+        private const Int32 PremierNom = 0;
         private static readonly String[] Noms =
         [
             "Codex", "Claude", "Antigravity",
             "Codex quota", "Claude quota", "Antigravity quota",
             "Screen capture", "Phone photo", "Dictation",
+#endif
             "Volume down", "Mute", "Volume up",
             "Gmail", "Calendar", "Messages",
             "PC health", "Store and Windows Update", "Website",
@@ -22,7 +30,7 @@ namespace Loupedeck.TrinitePlugin
 #if POSTE
         public const String Groupe = "PC Dashboard";
 #else
-        public const String Groupe = "AI agents";
+        public const String Groupe = "Trinity";
 #endif
 
         private readonly Boolean[] _dessinees = new Boolean[Moteur.Touches];
@@ -32,7 +40,7 @@ namespace Loupedeck.TrinitePlugin
         {
             for (var i = 0; i < Moteur.Proposees; i++)
             {
-                this.AddParameter($"t{i + 1}", $"Key {i + 1} · {Noms[Moteur.Premiere + i]}", Groupe);
+                this.AddParameter($"t{i + 1}", $"Key {i + 1} · {Noms[Moteur.Premiere - PremierNom + i]}", Groupe);
             }
         }
 

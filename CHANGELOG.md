@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-26 — PC Dashboard without any AI agents code
+
+### Fixed
+- PC Dashboard 1.4.0 still carried a few AI agents functions (unused there): removed. The tests now check that its DLL
+  names no AI app.
+
+### Changed
+- The keys' group in Logi Options+ is now called "Trinity" in English ("Trinité" in French).
+
 ## [1.4.0] - 2026-10-26 — The complete edition updates itself
 
 ### Added

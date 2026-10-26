@@ -163,7 +163,7 @@ irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1 | iex
 It downloads the latest release's `NexusKeypad` package (checked against the release's `SHA256SUMS.txt`), copies it
 into Logi Options+'s plugin folder (`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad`), where the Logi Plugin
 Service loads it, and offers to place the 18 keys for you (your keypad profile is backed up first and Logi Options+
-restarts for a few seconds; otherwise drag **Key 1** to **Key 18** of the *AI agents* group yourself). At its first
+restarts for a few seconds; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). At its first
 start the plugin asks whether to turn on the live states. Run the same command to update. To remove it (plugin, live
 states and keys; Logi Options+ is left alone):
 
@@ -185,7 +185,7 @@ default website).
 
 The Marketplace edition, **AI Coding Agents**, is the agents page alone (the 9 keys above), without page 2 and without
 the local test pipe. Install it from Logi Options+, then in Options+ open the keypad's profile and drag the actions
-**Key 1** to **Key 9** of the *AI agents* group onto the 9 keys, in order (the plugin decides what each place shows).
+**Key 1** to **Key 9** of the *Trinity* group onto the 9 keys, in order (the plugin decides what each place shows).
 
 It works out of the box with what is installed: states come from the agents' own session files and windows, quotas
 from their own usage displays. Two optional extras make it livelier:
@@ -193,7 +193,7 @@ from their own usage displays. Two optional extras make it livelier:
 - **Live states for Claude and Antigravity** (working, waiting, done, as they happen): at its first start the plugin
   asks whether to turn them on (default: No). Answer Yes and it adds its hooks to Claude's and Antigravity's settings,
   with a small native program shipped in the package (no Python, nothing to install). Change your mind at any time
-  with the **Live states** action of the *AI agents* group (drag it onto a key, press it, answer the question). Without
+  with the **Live states** action of the *Trinity* group (drag it onto a key, press it, answer the question). Without
   the hooks, Claude and Antigravity heads stay at rest and still show their conversations, quotas and closed state.
 - **Debugging ports** for opening Codex and Antigravity conversations and dictating into them (see below).
 
@@ -216,7 +216,7 @@ Package it yourself with `pwsh -File outils\paquet_marketplace.ps1 -Edition Post
 ### From the Logitech Marketplace: AI Coding Agents + PC (both pages)
 
 **AI Coding Agents + PC** is both pages in one plugin, like the source build below without the local test pipe:
-install it instead of the two plugins above, then drag **Key 1** to **Key 9** of the *AI agents* group onto page 1 and
+install it instead of the two plugins above, then drag **Key 1** to **Key 9** of the *Trinity* group onto page 1 and
 **Key 10** to **Key 17** onto page 2, and **Website** onto the last key: type the address it opens in its settings, as
 in PC Dashboard (no website is set by default). Package it yourself with
 `pwsh -File outils\paquet_marketplace.ps1 -Edition Complete`. Terms:

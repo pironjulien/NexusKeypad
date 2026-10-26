@@ -592,8 +592,12 @@ namespace Loupedeck.TrinitePlugin
                 var horloge = this._observateur.Telephone.Derniere is null;
                 for (var t = 0; t < 9; t++)
                 {
+#if POSTE
+                    var vive = false; // aucune IA sur PC Dashboard
+#else
                     var vive = t < 3 && (i.EtatIA(t) is not (Etat.Repos or Etat.Ferme or Etat.Fini) || i.Premiere(t)?.Alerte == true
                         || i.PourClaude(1) || i.PourClaude(2) || i.DicteeIa == t || Gestes.LanceIlYA(t) < 15);
+#endif
                     if ((t != Photo || horloge) && (vive || this._tic % 2 == 0))
                     {
                         this.Envoyer(t);

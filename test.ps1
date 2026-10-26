@@ -22,6 +22,10 @@ if ($LASTEXITCODE) { throw "L'édition du Marketplace ne compile pas." }
 # Édition PC Dashboard (page 2 seule, second plugin du Marketplace) : elle doit compiler aussi.
 dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Release -nologo -v q -p:NexusTest=true -p:Edition=Poste -p:NexusBuild=$sortie
 if ($LASTEXITCODE) { throw "L'édition PC Dashboard ne compile pas." }
+# Et elle ne contient rien des agents (audit du 26/10) : ni nom, ni chaîne, ni fonction qui lise ou pilote leurs applis.
+$octets = [IO.File]::ReadAllBytes((Join-Path $sortie 'poste\bin\Release\bin\PcDashboardPlugin.dll'))
+$texte = [Text.Encoding]::ASCII.GetString($octets) + [Text.Encoding]::Unicode.GetString($octets)
+if ($texte -match '(?i)claude|codex|antigravity|gemini|anthropic|openai') { throw "PC Dashboard contient du code des agents : « $($Matches[0]) »." }
 # Édition AI Coding Agents + PC (les deux pages, troisième plugin du Marketplace) : elle doit compiler aussi.
 dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Release -nologo -v q -p:NexusTest=true -p:Edition=Complete -p:NexusBuild=$sortie
 if ($LASTEXITCODE) { throw "L'édition AI Coding Agents + PC ne compile pas." }

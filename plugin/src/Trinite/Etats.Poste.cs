@@ -42,6 +42,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+#if !POSTE
         // Appli d'une IA lancée : le processus déjà trouvé vit encore, sinon une recherche par nom (le plus ancien, celui
         // de l'appli, pas d'un onglet), au plus toutes les 3 s quand elle est fermée. Chercher par nom énumère tous les
         // processus : 70 ms chaque seconde pour les trois quand c'était fait à chaque tour.
@@ -107,6 +108,7 @@ namespace Loupedeck.TrinitePlugin
             this._lancees[agent] = aine;
             return aine is not null;
         }
+#endif
 
         // Temps depuis la dernière touche ou le dernier mouvement de souris de l'utilisateur.
         private static TimeSpan Inactif()
