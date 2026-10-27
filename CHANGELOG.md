@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-10-27 — Sharper icon
+
+### Changed
+- Icon of the four editions (`metadata/Icon256x256.png`) rebuilt from the high-definition kit: the julienpiron.fr medallion rebuilt at 600 px in the icon kit, sharp up to 512 px instead of a 240 px picture enlarged.
+
 ## [1.4.3] - 2026-10-26 — Nexus family icon
 
 ### Changed
