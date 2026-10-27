@@ -70,6 +70,13 @@ namespace Loupedeck.TrinitePlugin
             "..bbb....f.", "bbbbbbbbbbb", "bbbbooobbbb", "bbbocccobbb", "bbbocccobbb", "bbbbooobbbb", "bbbbbbbbbbb",
         ];
 
+        // Triangle d'alerte (erreur d'une IA, allure du quota trop rapide), un « ! » blanc dessiné par-dessus.
+        private static readonly String[] Triangle =
+        [
+            "....##....", "...####...", "...####...", "..######..", "..######..", ".########.", ".########.", "##########",
+            "##########",
+        ];
+
         private static readonly String[] Coche =
         [
             "..........##", ".........##.", "........##..", ".......##...", "##....##....", ".##..##.....", "..####......", "...##.......",

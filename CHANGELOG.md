@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-10-27
+
+### Changed
+- Quota pace: no more pink gauges. An animated sign next to the open-conversation count shows the usage projected at
+  reset (busiest window): green thumb (under 80%), blue check (80–100%), orange hourglass (100–125%), red warning
+  triangle (over 125%); no sign when it cannot be judged.
+
 ## [1.7.0] - 2026-10-27
 
 ### Added

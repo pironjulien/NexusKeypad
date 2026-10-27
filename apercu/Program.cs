@@ -365,25 +365,28 @@ foreach (var (nom, instantane, temps) in situations)
     Console.WriteLine($"{nom}.png");
 }
 
-// Les trois états d'une jauge, sur la ligne d'informations : Claude au rythme (vert à ambre, selon ce qui reste), Codex
-// trop rapide (rose : vide avant la remise à zéro, 5 h et semaine), Antigravity sans donnée (vide et sombre).
-Quota[] rythmes =
-[
-    new(0.30, 0.30) { FinCinq = maintenant.AddHours(2), FinSemaine = maintenant.AddDays(3) },
-    new(0.60, 0.48) { FinCinq = maintenant.AddHours(3), FinSemaine = maintenant.AddDays(4.5) },
-    null,
-];
-using (var jauges = new BitmapBuilder((3 * 116) + (2 * 16) + 48, (3 * 116) + (2 * 16) + 48))
+// Les allures du quota, à droite du nombre de conversations (touches de quota 4 à 6, 4 instants) : une ligne par
+// niveau sur les trois IA (pouce vert, coche bleue, sablier orange, triangle rouge), puis sans donnée (aucun signe).
+Double[] charges = [0.30, 0.45, 0.55, 0.75];
+Double[] tempsSignes = [0.0, 0.5, 1.0, 1.5];
+using (var jauges = new BitmapBuilder(24 + (tempsSignes.Length * ((3 * 116) + 24)), 24 + ((charges.Length + 1) * (116 + 16))))
 {
     jauges.Clear(new BitmapColor(217, 214, 207));
-    var scene = new Scene
+    for (var ligne = 0; ligne <= charges.Length; ligne++)
     {
-        Instantane = new(calmes, [3, 1, 0], rythmes, [true, true, true], false, photo, -1), Temps = 0.3,
-        Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9, Maintenant = maintenant.ToLocalTime(),
-    };
-    for (var k = 0; k < 9; k++)
-    {
-        jauges.DrawImage(Rendu.Png(Moteur.Disposition[k], scene), 24 + (k % 3 * (116 + 16)), 24 + (k / 3 * (116 + 16)), BitmapRotation.None);
+        var quota = ligne < charges.Length ? new Quota(charges[ligne], 0.2) { FinCinq = maintenant.AddHours(2.5), FinSemaine = maintenant.AddDays(3.5) } : null;
+        for (var c = 0; c < tempsSignes.Length; c++)
+        {
+            var scene = new Scene
+            {
+                Instantane = new(calmes, ligne == 0 ? [99, 999, 1000] : [3, 1, 0], [quota, quota, quota], [true, true, true], false, photo, -1), Temps = tempsSignes[c],
+                Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9, Maintenant = maintenant.ToLocalTime(),
+            };
+            for (var k = 3; k < 6; k++)
+            {
+                jauges.DrawImage(Rendu.Png(Moteur.Disposition[k], scene), 24 + (c * ((3 * 116) + 24)) + ((k - 3) * 116), 24 + (ligne * (116 + 16)), BitmapRotation.None);
+            }
+        }
     }
 
     File.WriteAllBytes(Path.Combine(sortie, "jauges.png"), jauges.ToArray(BitmapImageFormat.Png));

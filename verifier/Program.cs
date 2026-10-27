@@ -143,6 +143,17 @@ Vrai(Rythme.Trop(0.48, rythme.AddDays(4.5), false, rythme), "semaine : 48 % en 2
 Vrai(!Rythme.Trop(0.30, rythme.AddDays(4.5), false, rythme), "semaine : 30 % en 2,5 j → tient");
 var rapide = new Quota(0.60, 0.30) { FinCinq = rythme.AddHours(3), FinSemaine = rythme.AddDays(4.5) };
 Vrai(rapide.Rapide(true, rythme) && !rapide.Rapide(false, rythme), "chaque fenêtre jugée à part");
+// Allure de l'IA (signe à droite du nombre de conversations), par charge projetée : < 80 % large, jusqu'à 100 % juste,
+// jusqu'à 125 % tendu, au-delà critique ; la fenêtre la plus chargée l'emporte ; rien quand aucune ne se juge.
+Allure? A(Double u) => new Quota(u, null) { FinCinq = rythme.AddHours(2.5) }.Niveau(rythme); // mi-fenêtre : charge = 2u
+Vrai(A(0.30) == Allure.Large && A(0.45) == Allure.Juste && A(0.50) == Allure.Juste && A(0.55) == Allure.Tendu
+    && A(0.625) == Allure.Tendu && A(0.75) == Allure.Critique, "quatre niveaux, seuils 80 / 100 / 125 % inclus au niveau du dessous");
+Vrai(A(0.40) == Allure.Juste && Rythme.Niveau(0.7999) == Allure.Large, "80 % pile : juste");
+Vrai(rapide.Niveau(rythme) == Allure.Critique, "la fenêtre la plus chargée l'emporte (5 h à 150 %, semaine qui tient)");
+Vrai(new Quota(0.60, 0.90).Niveau(rythme) is null && new Quota(0.20, null) { FinCinq = rythme.AddMinutes(4 * 60 + 35) }.Niveau(rythme) is null,
+    "sans heure ou trop jeune → aucun signe");
+Vrai(Math.Abs((Rythme.ChargePool([Compte(0.60, 3)], true, rythme) ?? 0) - 1.5) < 1e-9, "pool d'un compte : charge = projection");
+Vrai(Rythme.ChargePool([Compte(0, 2.5)], true, rythme) == 0, "pool au débit connu et nul → charge 0 (pouce vert), comme un quota direct");
 Vrai(!new Quota(0.60, 0.90).Rapide(true, rythme) && !new Quota(0.60, 0.90).Rapide(false, rythme), "secours sans heures (menu de Claude) → rien");
 var parGroupe = new Quota(0.9, null) { Groupes = [new(true, 0.1, rythme.AddHours(4)), new(true, 0.9, rythme.AddHours(1))] };
 Vrai(parGroupe.Rapide(true, rythme), "Antigravity : un groupe qui s'épuise trop vite suffit (10 % en 1 h tient, 90 % en 4 h non)");

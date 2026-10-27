@@ -42,13 +42,25 @@ namespace Loupedeck.TrinitePlugin
         // Comptes (Codex LB) : chaque compte du cumul, avec sa propre fenêtre ; le cumul n'a pas de fenêtre commune.
         public System.Collections.Generic.IReadOnlyList<CompteQuota> Comptes { get; init; } = [];
 
-        // À ce rythme, la fenêtre (5 h ou semaine) sera vide avant sa remise à zéro. Avec le détail par groupe
-        // (Antigravity) : un groupe de modèles qui s'épuise trop vite suffit ; par compte (Codex LB) : le solde du pool.
-        public Boolean Rapide(Boolean cinq, DateTime maintenant) =>
-            this.Comptes.Any(c => c.Cinq == cinq) ? Rythme.Pool(this.Comptes.Where(c => c.Cinq == cinq), cinq, maintenant)
-            : this.Groupes.Count > 0 ? this.Groupes.Any(g => g.Cinq == cinq && Rythme.Trop(g.Utilise, g.Fin, cinq, maintenant))
-            : Rythme.Trop(cinq ? this.Cinq : this.Semaine, cinq ? this.FinCinq : this.FinSemaine, cinq, maintenant);
+        // Charge d'une fenêtre (5 h ou semaine) : part utilisée projetée à sa remise à zéro au rythme actuel (1 : vide pile
+        // à la remise à zéro) ; null, pas jugeable. Par groupe (Antigravity) : le groupe de modèles le plus chargé ; par
+        // compte (Codex LB) : le pool.
+        public Double? Charge(Boolean cinq, DateTime maintenant) =>
+            this.Comptes.Any(c => c.Cinq == cinq) ? Rythme.ChargePool(this.Comptes.Where(c => c.Cinq == cinq), cinq, maintenant)
+            : this.Groupes.Count > 0 ? this.Groupes.Where(g => g.Cinq == cinq).Select(g => Rythme.Projection(g.Utilise, g.Fin, cinq, maintenant)).Max()
+            : Rythme.Projection(cinq ? this.Cinq : this.Semaine, cinq ? this.FinCinq : this.FinSemaine, cinq, maintenant);
+
+        // Allure de l'IA, signe à droite du nombre de conversations : celle de sa fenêtre la plus chargée ; null quand
+        // aucune ne se juge (aucun signe).
+        public Allure? Niveau(DateTime maintenant) =>
+            new[] { this.Charge(true, maintenant), this.Charge(false, maintenant) }.Max() is Double charge ? Rythme.Niveau(charge) : null;
+
+        public Boolean Rapide(Boolean cinq, DateTime maintenant) => this.Charge(cinq, maintenant) > Rythme.Plein + 1e-9;
     }
+
+    // Allure du quota, par charge projetée à la remise à zéro : Large (< 80 %, pouce vert), Juste (80 à 100 %, coche
+    // bleue), Tendu (100 à 125 % : vide un peu avant, sablier orange), Critique (> 125 %, triangle rouge).
+    public enum Allure { Large, Juste, Tendu, Critique }
 
     // Rythme de consommation d'une fenêtre de quota : la part utilisée comparée à la part de la fenêtre déjà écoulée.
     // Projection à la remise à zéro = utilisé ÷ écoulé ; au-delà de 100 %, le quota sera vide avant (seuil : Plein).
@@ -59,6 +71,12 @@ namespace Loupedeck.TrinitePlugin
     {
         public const Double Jeune = 0.10;
         public const Double Plein = 1.0;
+        public const Double Large = 0.8;  // en dessous : allure large
+        public const Double Tendu = 1.25; // au-dessus : critique
+
+        // Tolérance : pile au seuil ne change pas de niveau par un arrondi flottant.
+        public static Allure Niveau(Double charge) =>
+            charge < Large - 1e-9 ? Allure.Large : charge <= Plein + 1e-9 ? Allure.Juste : charge <= Tendu + 1e-9 ? Allure.Tendu : Allure.Critique;
 
         public static TimeSpan Duree(Boolean cinq) => cinq ? TimeSpan.FromHours(5) : TimeSpan.FromDays(7);
 
@@ -81,7 +99,7 @@ namespace Loupedeck.TrinitePlugin
             return ecoule < Jeune ? null : u / ecoule;
         }
 
-        // Tolérance : pile au rythme (20 % en 1 h sur 5 h) ne doit pas passer au rose par un arrondi flottant.
+        // Tolérance : pile au rythme (20 % en 1 h sur 5 h) ne doit pas passer en alerte par un arrondi flottant.
         public static Boolean Trop(Double? utilise, DateTime? fin, Boolean cinq, DateTime maintenant) =>
             Projection(utilise, fin, cinq, maintenant) > Plein + 1e-9;
 
@@ -91,16 +109,22 @@ namespace Loupedeck.TrinitePlugin
         // seul compte, c'est la règle de Trop. Un compte remis à zéro depuis la lecture compte plein et sans débit. Aucun
         // signal si un compte a une part inconnue (Codex LB masque une fenêtre expirée : sa réserve est inconnue) ou si le
         // pool est déjà plein (moins de 0,5 % de sa capacité restant).
-        public static Boolean Pool(System.Collections.Generic.IEnumerable<CompteQuota> comptes, Boolean cinq, DateTime maintenant)
+        // Charge du pool : crédits utilisés plus ceux que les débits consommeront d'ici la première remise à zéro, sur sa
+        // capacité (un seul compte : la Projection).
+        public static Boolean Pool(System.Collections.Generic.IEnumerable<CompteQuota> comptes, Boolean cinq, DateTime maintenant) =>
+            ChargePool(comptes, cinq, maintenant) > Plein + 1e-9;
+
+        public static Double? ChargePool(System.Collections.Generic.IEnumerable<CompteQuota> comptes, Boolean cinq, DateTime maintenant)
         {
             var duree = Duree(cinq);
             Double solde = 0, debit = 0, capacite = 0; // crédits, crédits par heure
+            var mesure = false; // au moins un compte assez avancé dans sa fenêtre pour donner son débit (même nul)
             DateTime? prochaine = null;
             foreach (var c in comptes)
             {
                 if (c.Utilise is not Double part)
                 {
-                    return false;
+                    return null;
                 }
 
                 capacite += c.Capacite;
@@ -123,11 +147,14 @@ namespace Loupedeck.TrinitePlugin
                 var ecoule = 1 - (r / duree);
                 if (ecoule >= Jeune)
                 {
+                    mesure = true;
                     debit += c.Capacite * utilise / (ecoule * duree.TotalHours);
                 }
             }
 
-            return debit > 0 && solde / capacite > 0.005 + 1e-9 && prochaine is DateTime premiere && solde / debit < (premiere - maintenant).TotalHours - 1e-9;
+            return mesure && solde / capacite > 0.005 + 1e-9 && prochaine is DateTime premiere
+                ? (capacite - solde + (debit * (premiere - maintenant).TotalHours)) / capacite
+                : null;
         }
     }
 

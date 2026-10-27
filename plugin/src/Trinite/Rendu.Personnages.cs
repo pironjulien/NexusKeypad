@@ -354,12 +354,6 @@ namespace Loupedeck.TrinitePlugin
 
         private static readonly String[] Question = ["###", "..#", ".##", "...", ".#."];
 
-        private static readonly String[] Triangle =
-        [
-            "....##....", "...####...", "...####...", "..######..", "..######..", ".########.", ".########.", "##########",
-            "##########",
-        ];
-
         private static readonly String[] Anse = [".###.", "#...#", "#...#"];
 
         // Roue de chargement : huit cases en cercle, une tête vive et sa traîne qui tournent ; traine : cases allumées.
