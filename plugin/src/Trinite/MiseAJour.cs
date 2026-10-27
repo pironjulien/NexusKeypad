@@ -18,8 +18,9 @@ namespace Loupedeck.TrinitePlugin
     // Une fois par jour, et sur la commande « update » du tube local : dernière version lue par la redirection de
     // github.com/…/releases/latest (pas l'API GitHub), paquet NexusKeypad_X_Y_Z.lplug4 téléchargé, contrôlé contre
     // SHA256SUMS.txt de la release, déballé et vérifié dans un dossier de travail hors du dossier des plugins. L'échange des
-    // dossiers est fait par nexuskeypad-hook.exe, détaché (« swap ») : le service Logi décharge le plugin dès que son dossier
-    // change, le plugin ne peut pas finir l'échange lui-même. Un échec remet l'ancien dossier. Jamais pendant un appui :
+    // dossiers est fait par nexuskeypad-hook.exe, détaché (« swap ») : le service Logi garde les DLL du plugin ouvertes,
+    // l'échangeur l'arrête donc le temps de l'échange (comme get.ps1) puis relance l'agent Logi détaché ; le plugin ne peut
+    // pas finir l'échange lui-même. Un échec remet l'ancien dossier. Jamais pendant un appui :
     // le pad doit être au repos. Réglage pour la couper : %LOCALAPPDATA%\NexusKeypad\reglages.json {"miseAJourAuto": false}.
     // État pour l'appli Nexus : ~/.nexus/status/keypad.json {product, version, latest, state, checked_at, message}.
     public static class MiseAJour

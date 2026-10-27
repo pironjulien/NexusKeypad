@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-27
+
+### Fixed
+- Complete edition (NexusKeypad) automatic update: the folder swap failed for real, because Logi Plugin Service keeps
+  the plugin's DLLs open and does not unload it first. `nexuskeypad-hook swap` now, when the folder stays locked, stops
+  `LogiPluginService`, `LogiPluginServiceExt` and `logioptionsplus_agent` for the swap (keypad idle, as `get.ps1` does),
+  then restarts the agent detached, even on failure. Only the real Logi plugin folder triggers this.
+- A failed swap now reports the version actually in place (the previous one, restored) instead of `null`, and a
+  readable message instead of a raw resource key.
+
 ## [1.6.0] - 2026-10-27
 
 ### Added

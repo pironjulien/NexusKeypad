@@ -3,8 +3,10 @@ test.ps1 le compile et donne son chemin (NEXUSKEYPAD_HOOK) ; lancé seul, ce tes
 python -I -m unittest discover -s tests"""
 import json
 import os
+import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -98,25 +100,40 @@ class Etats(unittest.TestCase):
 @unittest.skipUnless(HOOK and Path(HOOK).exists(), "nexuskeypad-hook.exe non compilé (lancer test.ps1)")
 class Echange(unittest.TestCase):
     """Mise à jour de l'édition complète : l'exécutable échange le dossier du plugin, détaché du plugin ; un échec remet
-    l'ancien. Dossiers temporaires seulement (jamais le vrai dossier des plugins)."""
+    l'ancien. Dossiers temporaires seulement (jamais le vrai dossier des plugins, ni le vrai service Logi : hors du vrai
+    dossier, seuls les processus nommés par NEXUSKEYPAD_SWAP_PROCESSES sont arrêtés)."""
 
-    def echanger(self, d, nouveau_present=True):
+    @staticmethod
+    def paquet(dossier, version):
+        (dossier / "metadata").mkdir(parents=True)
+        (dossier / "metadata" / "LoupedeckPackage.yaml").write_text(f"type: plugin4\nversion: {version}\n", encoding="utf-8")
+
+    def echanger(self, d, nouveau_present=True, tenir=None, env=None):
         racine = Path(d)
         cible, nouveau, ancien = racine / "Plugins" / "NexusKeypad", racine / "maj" / "nouveau", racine / "maj" / "ancien"
-        cible.mkdir(parents=True)
-        (cible / "version.txt").write_text("1.3.0", encoding="utf-8")
+        self.paquet(cible, "1.3.0")
+        nouveau.parent.mkdir(parents=True)
         if nouveau_present:
-            nouveau.mkdir(parents=True)
-            (nouveau / "version.txt").write_text("1.3.1", encoding="utf-8")
+            self.paquet(nouveau, "1.3.1")
         etat = racine / "status" / "keypad.json"
-        sortie = subprocess.run([HOOK, "swap", str(nouveau), str(cible), str(ancien), str(etat), "1.3.1"], capture_output=True, timeout=60)
+        tenu = tenir(cible) if tenir else None  # le dossier tenu comme par le service Logi (DLL chargées)
+        try:
+            sortie = subprocess.run([HOOK, "swap", str(nouveau), str(cible), str(ancien), str(etat), "1.3.1"],
+                                    capture_output=True, timeout=90, env={**os.environ, **(env or {})})
+        finally:
+            if tenu is not None and hasattr(tenu, "close"):
+                tenu.close()
         return sortie.returncode, cible, ancien, json.loads(etat.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def version(cible):
+        return (cible / "metadata" / "LoupedeckPackage.yaml").read_text(encoding="utf-8").split("version: ")[1].strip()
 
     def test_reussi(self):
         with tempfile.TemporaryDirectory() as d:
             code, cible, ancien, etat_ = self.echanger(d)
             self.assertEqual(code, 0)
-            self.assertEqual((cible / "version.txt").read_text(encoding="utf-8"), "1.3.1")
+            self.assertEqual(self.version(cible), "1.3.1")
             self.assertFalse(ancien.exists(), "sauvegarde effacée")
             self.assertEqual((etat_["state"], etat_["version"], etat_["product"]), ("done", "1.3.1", "keypad"))
 
@@ -124,8 +141,56 @@ class Echange(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             code, cible, ancien, etat_ = self.echanger(d, nouveau_present=False)
             self.assertEqual(code, 1)
-            self.assertEqual((cible / "version.txt").read_text(encoding="utf-8"), "1.3.0", "ancienne version remise")
-            self.assertEqual(etat_["state"], "failed")
+            self.assertEqual(self.version(cible), "1.3.0", "ancienne version remise")
+            self.assertEqual((etat_["state"], etat_["version"], etat_["latest"]), ("failed", "1.3.0", "1.3.1"), "la version en place, pas null")
+            self.assertIn("putting the new version in place", etat_["message"])
+
+    def test_dossier_tenu_sans_service_a_arreter(self):
+        # 27/10 : fichier du plugin tenu, rien à arrêter : échec, ancienne version en place et dite, message lisible
+        # (pas la clé de ressource brute « UnauthorizedAccess_IODenied_Path »).
+        with tempfile.TemporaryDirectory() as d:
+            tenir = lambda cible: open(cible / "metadata" / "LoupedeckPackage.yaml", "rb")
+            code, cible, ancien, etat_ = self.echanger(d, tenir=tenir, env={"NEXUSKEYPAD_SWAP_PROCESSES": ""})
+            self.assertEqual(code, 1)
+            self.assertEqual(self.version(cible), "1.3.0")
+            self.assertEqual((etat_["state"], etat_["version"]), ("failed", "1.3.0"))
+            self.assertIn("moving the installed plugin aside", etat_["message"])
+            self.assertNotRegex(etat_["message"], r"[A-Za-z]+_[A-Za-z]+_", "clé de ressource brute")
+
+    def test_dossier_tenu_service_arrete_puis_relance(self):
+        # Le service Logi tient le dossier : il est arrêté le temps de l'échange, puis l'agent relancé détaché. Ici un faux
+        # service (copie de cmd.exe, dossier courant dans le plugin) et un faux agent qui laisse une trace.
+        with tempfile.TemporaryDirectory() as d:
+            faux = Path(d) / "outils" / "fauxlogi.exe"
+            faux.parent.mkdir()
+            shutil.copyfile(Path(os.environ["SystemRoot"]) / "System32" / "cmd.exe", faux)
+            trace = Path(d) / "relance.txt"
+            service = []
+
+            def tenir(cible):
+                service.append(subprocess.Popen([str(faux), "/k"], cwd=cible, stdin=subprocess.PIPE,
+                                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+                time.sleep(0.5)
+                return None
+
+            env = {"NEXUSKEYPAD_SWAP_PROCESSES": "fauxlogi", "NEXUSKEYPAD_SWAP_AGENT": f'"{faux}" /c echo relance>"{trace}"'}
+            try:
+                code, cible, ancien, etat_ = self.echanger(d, tenir=tenir, env=env)
+                self.assertEqual(code, 0, etat_)
+                self.assertEqual(self.version(cible), "1.3.1")
+                self.assertEqual((etat_["state"], etat_["version"]), ("done", "1.3.1"))
+                self.assertIsNotNone(service[0].poll(), "faux service arrêté")
+                for _ in range(50):
+                    if trace.exists():
+                        break
+                    time.sleep(0.1)
+                self.assertTrue(trace.exists(), "faux agent relancé")
+            finally:
+                for p in service:
+                    if p.poll() is None:
+                        p.kill()
+                    p.wait()
+                    p.stdin.close()
 
 
 if __name__ == "__main__":
