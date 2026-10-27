@@ -179,7 +179,9 @@ states and keys; Logi Options+ is left alone):
 
 **Updates.** The complete edition updates itself: once a day it looks at the latest release (the
 `github.com/pironjulien/NexusKeypad/releases/latest` redirect, no API), downloads its package, checks it against the
-release's `SHA256SUMS.txt`, and swaps it in only while the keypad is idle (no press for a minute). Logi Plugin
+release's `SHA256SUMS.txt`, itself signed offline by the maintainer (`SHA256SUMS.txt.sig`, ECDSA P-256; the public key
+is built into the plugin and the private key is never on GitHub, so even a compromised repository cannot push an
+update), and swaps it in only while the keypad is idle (no press for a minute). Logi Plugin
 Service keeps the plugin's files open, so Logi Options+ stops for a few seconds during the swap and restarts by
 itself, as with `get.ps1`; a failed swap puts the previous version back. Turn this off with `{"miseAJourAuto": false}` in `%LOCALAPPDATA%\NexusKeypad\reglages.json`.
 Its state is in `~/.nexus/status/keypad.json` (read by the Nexus app, which can also start an update).

@@ -219,6 +219,31 @@ Vrai(!Rendu.Image(0, S(0.1)).Pixels.AsSpan().SequenceEqual(Rendu.Image(0, S(0.6)
     Vrai(Refuse(() => MiseAJour.Preparer(paquet, sommes.Replace(empreinte, new String('1', 64)), "1.3.1", travail)), "mise à jour : empreinte différente refusée");
     Vrai(Refuse(() => MiseAJour.Preparer(paquet, "", "1.3.1", travail)), "mise à jour : paquet absent de SHA256SUMS refusé");
     Vrai(Refuse(() => MiseAJour.Preparer(paquet, sommes.Replace(MiseAJour.NomPaquet("1.3.1"), MiseAJour.NomPaquet("1.3.2")), "1.3.2", travail)), "mise à jour : autre version refusée");
+
+    // SHA256SUMS.txt signé (clé d'essai) : accepté ; modifié, signé par une autre clé, sans signature : refusé. La vraie
+    // clé embarquée se lit.
+    using (var cle = System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256))
+    using (var autreCle = System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256))
+    {
+        var publique = new[] { Convert.ToBase64String(cle.ExportSubjectPublicKeyInfo()) };
+        var contenu = System.Text.Encoding.UTF8.GetBytes(sommes);
+        String Signe(System.Security.Cryptography.ECDsa k, Byte[] c) => Convert.ToBase64String(k.SignData(c, System.Security.Cryptography.HashAlgorithmName.SHA256));
+        Vrai(MiseAJour.Sommes(contenu, Signe(cle, contenu) + "\n", publique) == sommes, "mise à jour : SHA256SUMS signé accepté");
+        var modifie = System.Text.Encoding.UTF8.GetBytes(sommes.Replace(empreinte, new String('1', 64)));
+        Vrai(Refuse(() => MiseAJour.Sommes(modifie, Signe(cle, contenu), publique)), "mise à jour : SHA256SUMS modifié refusé");
+        Vrai(Refuse(() => MiseAJour.Sommes(contenu, Signe(autreCle, contenu), publique)), "mise à jour : signé par une autre clé refusé");
+        Vrai(Refuse(() => MiseAJour.Sommes(contenu, "", publique)) && Refuse(() => MiseAJour.Sommes(contenu, "pas du base64 !", publique)), "mise à jour : sans signature refusé");
+        Vrai(Refuse(() => MiseAJour.Sommes(contenu, Signe(cle, contenu))), "mise à jour : clé d'essai refusée par les clés embarquées");
+    }
+
+    // Rechargement après un échange : « done » de cette version gardé ; sinon « idle » avec la dernière version connue.
+    MiseAJour.Ecrire("1.3.1", "1.3.1", "done", "updated", etat);
+    MiseAJour.Recharge("1.3.1", etat);
+    Vrai(JsonDocument.Parse(File.ReadAllText(etat)).RootElement.GetProperty("state").GetString() == "done", "mise à jour : « done » gardé au rechargement");
+    MiseAJour.Recharge("1.3.2", etat);
+    lu = JsonDocument.Parse(File.ReadAllText(etat)).RootElement;
+    Vrai(lu.GetProperty("state").GetString() == "idle" && lu.GetProperty("version").GetString() == "1.3.2" && lu.GetProperty("latest").GetString() == "1.3.1",
+        "mise à jour : rechargement d'une autre version en « idle », dernière version gardée");
     Directory.Delete(dossier, true);
 }
 

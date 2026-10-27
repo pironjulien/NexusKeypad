@@ -17,7 +17,9 @@ namespace Loupedeck.TrinitePlugin
     // l'appli Nexus du Store ne recopie jamais ses fichiers (une recopie depuis son paquet MSIX resterait dans son conteneur).
     // Une fois par jour, et sur la commande « update » du tube local : dernière version lue par la redirection de
     // github.com/…/releases/latest (pas l'API GitHub), paquet NexusKeypad_X_Y_Z.lplug4 téléchargé, contrôlé contre
-    // SHA256SUMS.txt de la release, déballé et vérifié dans un dossier de travail hors du dossier des plugins. L'échange des
+    // SHA256SUMS.txt de la release, lui-même signé hors ligne (SHA256SUMS.txt.sig, ECDSA P-256 : une des clés publiques de
+    // Cles ; la clé privée n'est jamais sur GitHub, un dépôt compromis ne peut donc pas pousser de mise à jour), déballé et
+    // vérifié dans un dossier de travail hors du dossier des plugins. L'échange des
     // dossiers est fait par nexuskeypad-hook.exe, détaché (« swap ») : le service Logi garde les DLL du plugin ouvertes,
     // l'échangeur l'arrête donc le temps de l'échange (comme get.ps1) puis relance l'agent Logi détaché ; le plugin ne peut
     // pas finir l'échange lui-même. Un échec remet l'ancien dossier. Jamais pendant un appui :
@@ -27,6 +29,10 @@ namespace Loupedeck.TrinitePlugin
     {
         public const String Depot = "https://github.com/pironjulien/NexusKeypad";
         public const String Plugin = "NexusKeypad";
+
+        // Clés publiques (SPKI, base64) qui signent les releases (NexusSecure\projects\nexuskeypad). Plusieurs pendant un
+        // changement de clé.
+        public static readonly String[] Cles = ["MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwSIk2pqKmyLcWfNgwY6uXVzS7qq6kj14BxckZIvSvE2R3tPqi4yITye4c8czlGrdEMYM1PrnIN8o3ba2APvbJQ=="];
 
         private static readonly String Local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 #if !(MARKETPLACE || POSTE || COMPLETE)
@@ -41,7 +47,7 @@ namespace Loupedeck.TrinitePlugin
         public static void Demarrer(Moteur moteur, String dossierPlugin)
         {
             DossierPlugin = dossierPlugin;
-            Ecrire(Version(dossierPlugin), null, "idle", "");
+            Recharge(Version(dossierPlugin));
             _quotidien = new Timer(_ => Lancer(moteur, demande: false), null, TimeSpan.FromMinutes(2), TimeSpan.FromDays(1));
         }
 #endif
@@ -94,6 +100,58 @@ namespace Loupedeck.TrinitePlugin
             }
 
             return false;
+        }
+
+        // Au chargement : l'état d'un échange qui vient d'installer cette version (« done ») reste lisible par l'appli Nexus
+        // jusqu'à la prochaine vérification ; sinon « idle », avec la dernière version déjà connue.
+        public static void Recharge(String version, String fichier = null)
+        {
+            fichier ??= FichierEtat;
+            String etat = null, derniere = null, avant = null;
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(fichier));
+                String Champ(String nom) => doc.RootElement.TryGetProperty(nom, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+                (etat, derniere, avant) = (Champ("state"), Champ("latest"), Champ("version"));
+            }
+            catch (Exception)
+            {
+                // pas d'état précédent
+            }
+
+            if (etat == "done" && avant == version)
+            {
+                return;
+            }
+
+            Ecrire(version, derniere, "idle", "", fichier);
+        }
+
+        // SHA256SUMS.txt d'une release, accepté seulement avec une signature valide (SHA256SUMS.txt.sig : ECDSA P-256,
+        // SHA-256, format IEEE P1363 en base64) d'une des clés. Rend son texte ; lève sinon.
+        public static String Sommes(Byte[] contenu, String signature, String[] cles = null)
+        {
+            Byte[] octets;
+            try
+            {
+                octets = Convert.FromBase64String((signature ?? "").Trim());
+            }
+            catch (FormatException)
+            {
+                throw new InvalidDataException("signature de SHA256SUMS.txt illisible");
+            }
+
+            foreach (var cle in cles ?? Cles)
+            {
+                using var ec = ECDsa.Create();
+                ec.ImportSubjectPublicKeyInfo(Convert.FromBase64String(cle), out _);
+                if (octets.Length > 0 && ec.VerifyData(contenu, octets, HashAlgorithmName.SHA256))
+                {
+                    return new UTF8Encoding(false).GetString(contenu);
+                }
+            }
+
+            throw new InvalidDataException("SHA256SUMS.txt sans signature valide : release refusée");
         }
 
         public static void Ecrire(String version, String derniere, String etat, String message, String fichier = null)
@@ -205,7 +263,7 @@ namespace Loupedeck.TrinitePlugin
                     var paquet = Path.Combine(Travail, NomPaquet(derniere));
                     var baseRelease = $"{Depot}/releases/download/v{derniere}/";
                     await Telecharger(baseRelease + NomPaquet(derniere), paquet);
-                    var sommes = await Texte(baseRelease + "SHA256SUMS.txt");
+                    var sommes = Sommes(await Octets(baseRelease + "SHA256SUMS.txt"), Encoding.UTF8.GetString(await Octets(baseRelease + "SHA256SUMS.txt.sig")));
                     var pret = Preparer(paquet, sommes, derniere, Travail);
 
                     // Jamais pendant un appui ni un geste : le pad au repos (10 min au plus, sinon au prochain passage).
@@ -254,10 +312,10 @@ namespace Loupedeck.TrinitePlugin
             await flux.CopyToAsync(sortie);
         }
 
-        private static async Task<String> Texte(String url)
+        private static async Task<Byte[]> Octets(String url)
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-            return await client.GetStringAsync(url);
+            return await client.GetByteArrayAsync(url);
         }
 #endif
     }

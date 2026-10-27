@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-10-27
+
+### Security
+- Complete edition automatic update: the release's `SHA256SUMS.txt` must carry a valid offline signature
+  (`SHA256SUMS.txt.sig`, ECDSA P-256), checked against the public key built into the plugin; the private key is never on
+  GitHub, so a compromised repository cannot push an update. Releases are created as drafts and published once signed.
+
+### Fixed
+- After an update, the reloaded plugin keeps the `done` state in `~/.nexus/status/keypad.json` until the next check, and
+  keeps the latest known version instead of `null`.
+
 ## [1.6.1] - 2026-10-27
 
 ### Fixed

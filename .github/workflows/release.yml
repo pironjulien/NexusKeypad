@@ -1,6 +1,8 @@
 # Release: on a vX.Y.Z tag, builds the three Logi Marketplace editions and the complete NexusKeypad edition installed by
 # get.ps1 (.lplug4, checked by the official Logi Plugin Tool), attests their build provenance (verify with `gh attestation verify <file> --repo pironjulien/NexusKeypad`),
-# and publishes them with SHA256SUMS.txt as the "NexusKeypad X.Y.Z" GitHub release.
+# and publishes them with SHA256SUMS.txt as the "NexusKeypad X.Y.Z" GitHub release, as a draft: the maintainer signs
+# SHA256SUMS.txt offline (outils/signer_release.ps1, key never on GitHub), then publishes it. The complete edition's
+# automatic update refuses a release without a valid SHA256SUMS.txt.sig.
 # Actions pinned by commit SHA; Dependabot (github-actions) keeps them up to date.
 name: Release
 
@@ -60,4 +62,4 @@ jobs:
           $fin = [Array]::FindIndex($lignes, $debut + 1, [Predicate[string]] { param($l) $l -like '## *' })
           if ($fin -lt 0) { $fin = $lignes.Count }
           $lignes[($debut + 1)..($fin - 1)] | Set-Content notes.md -Encoding utf8NoBOM
-          gh release create $env:TAG (Get-ChildItem dist -File).FullName --title "NexusKeypad $version" --notes-file notes.md --verify-tag
+          gh release create $env:TAG (Get-ChildItem dist -File).FullName --title "NexusKeypad $version" --notes-file notes.md --verify-tag --draft
