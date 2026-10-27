@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-10-27
+
+### Removed
+- Quota pace signs (1.7.0, 1.7.1): the gauges already show what is left. The quota row is back to its 1.6.2 look.
+
 ## [1.7.1] - 2026-10-27
 
 ### Changed

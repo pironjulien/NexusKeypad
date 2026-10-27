@@ -107,28 +107,26 @@ namespace Loupedeck.TrinitePlugin
 
                 var ecrit = r.TryGetProperty("at", out var at) && at.ValueKind == JsonValueKind.String
                     && DateTimeOffset.TryParse(at.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var e) ? e.UtcDateTime : DateTime.MinValue;
-                (Double? Part, DateTime? Remise) Fenetre(String nom, TimeSpan duree)
+                Double? Fenetre(String nom, TimeSpan duree)
                 {
                     if (!r.TryGetProperty(nom, out var f) || f.ValueKind != JsonValueKind.Object)
                     {
-                        return (null, null);
+                        return null;
                     }
 
                     if (!f.TryGetProperty("remise", out var rm) || rm.ValueKind != JsonValueKind.String)
                     {
                         // Sans date de remise : valable une fenêtre au plus après la mesure.
-                        return (DateTime.UtcNow - ecrit < duree ? f.GetProperty("pourcent").GetDouble() / 100 : null, null);
+                        return DateTime.UtcNow - ecrit < duree ? f.GetProperty("pourcent").GetDouble() / 100 : null;
                     }
 
-                    var remise = DateTimeOffset.TryParse(rm.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.UtcDateTime : (DateTime?)null;
-                    return (remise is { } quand && quand < DateTime.UtcNow ? 0 : f.GetProperty("pourcent").GetDouble() / 100, remise);
+                    var remise = f.TryGetProperty("remise", out var m) && m.ValueKind == JsonValueKind.String ? (DateTimeOffset.TryParse(m.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.UtcDateTime : (DateTime?)null) : null;
+                    return remise is { } quand && quand < DateTime.UtcNow ? 0 : f.GetProperty("pourcent").GetDouble() / 100;
                 }
 
                 valable = true;
-                var cinq = Fenetre("cinq", TimeSpan.FromHours(5));
-                var semaine = Fenetre("semaine", TimeSpan.FromDays(7));
-                return cinq.Part is not null || semaine.Part is not null
-                    ? new(cinq.Part, semaine.Part) { FinCinq = cinq.Remise, FinSemaine = semaine.Remise } : null;
+                return Fenetre("cinq", TimeSpan.FromHours(5)) is var cinq && Fenetre("semaine", TimeSpan.FromDays(7)) is var semaine && (cinq is not null || semaine is not null)
+                    ? new(cinq, semaine) : null;
             }
             catch (Exception)
             {

@@ -28,32 +28,16 @@ namespace Loupedeck.TrinitePlugin
             ".#............#.", "..#####..######.", "......#.#.......", ".......##.......", "........#.......", "................",
         ];
 
-        private static readonly BitmapColor OrangeVif = new(249, 115, 22);
-
-        private static readonly String[] SablierCadre =
-        [
-            "########", ".#....#.", ".#....#.", "..#..#..", "...##...", "...##...", "..#..#..", ".#....#.", ".#....#.", "########",
-        ];
-
-        // Pouce levé (allure du quota large), 10 × 10 comme le triangle d'alerte.
-        private static readonly String[] Pouce =
-        [
-            ".....#....", "....##....", "....##....", "...###....", "##.######.", "##.#######", "##.######.", "##.#######",
-            "##.######.", "##..#####.",
-        ];
-
         // Bout de l'aiguille de l'horloge (en pixels du cadran, depuis le centre) : 8 positions, un tour en 8 s.
         private static readonly (Int32 X, Int32 Y)[] Aiguille = [(0, -4), (3, -3), (4, 0), (3, 3), (0, 4), (-3, 3), (-4, 0), (-3, -3)];
 
         // Ligne d'informations, sans texte : une jauge pour la fenêtre de 5 h (horloge à l'aiguille qui tourne), une
         // pour la semaine (calendrier dont la case du jour avance), qui montrent ce qui reste ; en bas, une bulle et le
-        // nombre de conversations ouvertes, ses points ondulent quand l'IA travaille ; à sa droite, l'allure du quota
-        // (Quota.Niveau, rien quand elle ne se juge pas).
+        // nombre de conversations ouvertes, ses points ondulent quand l'IA travaille.
         private static void ToucheInfos(BitmapBuilder b, Int32 agent, Scene s)
         {
             var q = s.Instantane.Quotas[agent];
             var t = s.Temps + (agent * 0.7); // chaque IA à son rythme
-            var maintenant = s.Maintenant.ToUniversalTime();
             // Chaque jauge centrée sur son icône (horloge de 11 à 35 ; calendrier de 43 à 65, anneaux compris) : elles
             // étaient 1 à 2 px plus haut.
             HorlogeVivante(b, 4, 11, q?.Cinq is null ? null : t);
@@ -69,65 +53,7 @@ namespace Loupedeck.TrinitePlugin
                 b.FillRectangle(22 + ((3 + (k * 4)) * 2), 86 - leve, 4, 4, travaille ? Texte : Gris);
             }
 
-            // Entre la bulle et le signe d'allure (32 px) : la police rapetisse avec le nombre de chiffres pour ne
-            // chevaucher ni l'un ni l'autre.
-            var ouvertes = s.Instantane.Ouvertes[agent].ToString(System.Globalization.CultureInfo.InvariantCulture);
-            b.DrawText(ouvertes, 54, 74, 32, 34, Texte, ouvertes.Length switch { <= 2 => 24, 3 => 14, _ => 11 });
-            if (q?.Niveau(maintenant) is Allure allure)
-            {
-                SigneAllure(b, allure, t);
-            }
-        }
-
-        // Signe animé de l'allure du quota, dans la case de 86 à 112 × 79 à 103 : pouce vert qui rebondit (large), coche
-        // bleue qui pulse (juste), sablier orange qui s'écoule (tendu : vide un peu avant la remise à zéro), triangle rouge
-        // « ! » qui clignote (critique).
-        private static void SigneAllure(BitmapBuilder b, Allure allure, Double t)
-        {
-            switch (allure)
-            {
-                case Allure.Large:
-                    Carte(b, Pouce, 88, 81 - (2 * (Int32)Math.Round(Math.Abs(Math.Sin(t * Math.PI)))), 2, Vert);
-                    break;
-                case Allure.Juste:
-                    Carte(b, Coche, 87, 84, 2, Melange(Bleu, BitmapColor.White, 0.35 * (0.5 + (0.5 * Math.Sin(t * 4)))));
-                    break;
-                case Allure.Tendu:
-                    Sablier(b, 91, 81, t);
-                    break;
-                case Allure.Critique:
-                    var c = t % 1 < 0.6 ? Rouge : Melange(Rouge, Fond, 0.55);
-                    Carte(b, Triangle, 88, 82, 2, c);
-                    b.FillRectangle(97, 87, 2, 6, BitmapColor.White);
-                    b.FillRectangle(97, 95, 2, 2, BitmapColor.White);
-                    break;
-            }
-        }
-
-        // Sablier (8 × 10 cases de 2 px) : le sable passe du haut au bas en 2 s, par niveaux, un filet tombe entre les deux.
-        private static void Sablier(BitmapBuilder b, Int32 x0, Int32 y0, Double t)
-        {
-            Carte(b, SablierCadre, x0, y0, 2, OrangeVif);
-            var n = (Int32)(t / 2 % 1 * 4); // niveaux passés en bas : 0 à 3
-            (Int32 Y, Int32 X, Int32 L)[] haut = [(3, 3, 2), (2, 2, 4), (1, 2, 4)]; // du fond du haut vers sa surface
-            (Int32 Y, Int32 X, Int32 L)[] bas = [(8, 2, 4), (7, 2, 4), (6, 3, 2)];  // du fond du bas vers le col
-            for (var k = 0; k < 3; k++)
-            {
-                if (k < 3 - n)
-                {
-                    b.FillRectangle(x0 + (haut[k].X * 2), y0 + (haut[k].Y * 2), haut[k].L * 2, 2, Ambre);
-                }
-
-                if (k < n)
-                {
-                    b.FillRectangle(x0 + (bas[k].X * 2), y0 + (bas[k].Y * 2), bas[k].L * 2, 2, Ambre);
-                }
-            }
-
-            if (n < 3 && (Int32)(t * 6) % 2 == 0)
-            {
-                b.FillRectangle(x0 + 7, y0 + 8, 2, 4, Ambre); // filet au col
-            }
+            b.DrawText(s.Instantane.Ouvertes[agent].ToString(System.Globalization.CultureInfo.InvariantCulture), 58, 74, 50, 34, Texte, 24);
         }
 
         // Horloge : son aiguille avance d'un cran par seconde ; immobile (t null) quand le quota n'est pas lu.

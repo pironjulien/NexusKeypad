@@ -130,67 +130,12 @@ namespace Loupedeck.TrinitePlugin
                     && f.TryGetProperty("remainingPercent", out var r) && r.ValueKind == JsonValueKind.Number
                         ? 1 - (r.GetDouble() / 100)
                         : null;
-                // Pour le rythme, chaque compte et sa fenêtre : le cumul n'a pas de fenêtre commune (son resetAt est celui du
-                // premier compte remis à zéro ; relecture de Codex, 27/10).
-                return new(Part("primaryWindow"), Part("secondaryWindow")) { Comptes = ComptesCodexLb() };
+                return new(Part("primaryWindow"), Part("secondaryWindow"));
             }
             catch (Exception)
             {
                 return this.QuotaCodexJournaux(); // Codex LB arrêté
             }
-        }
-
-        // Comptes de Codex LB (/api/accounts) utilisables (ni en pause, ni désactivés, ni à reconnecter), par fenêtre :
-        // capacité, part utilisée, heure de remise à zéro gardée seulement si la fenêtre a la durée attendue. Vide si
-        // illisible : aucun signal de rythme.
-        private static List<CompteQuota> ComptesCodexLb()
-        {
-            try
-            {
-                using var doc = JsonDocument.Parse(CodexLb.GetStringAsync("http://127.0.0.1:2455/api/accounts").GetAwaiter().GetResult());
-                return ComptesCodexLb(doc.RootElement);
-            }
-            catch (Exception)
-            {
-                return []; // Codex LB plus ancien ou lecture incomplète : rien plutôt qu'un pool partiel
-            }
-        }
-
-        public static List<CompteQuota> ComptesCodexLb(JsonElement racine)
-        {
-            var comptes = new List<CompteQuota>();
-            var liste = racine.ValueKind == JsonValueKind.Array ? racine
-                : racine.TryGetProperty("accounts", out var a) && a.ValueKind == JsonValueKind.Array ? a : default;
-            if (liste.ValueKind != JsonValueKind.Array)
-            {
-                return comptes;
-            }
-
-            static Double? Nombre(JsonElement e, String nom) => e.TryGetProperty(nom, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : null;
-            foreach (var c in liste.EnumerateArray())
-            {
-                if ((c.TryGetProperty("status", out var s) && s.ValueKind == JsonValueKind.String && s.GetString() is "paused" or "deactivated" or "reauth_required")
-                    || !c.TryGetProperty("usage", out var usage) || usage.ValueKind != JsonValueKind.Object)
-                {
-                    continue;
-                }
-
-                foreach (var (cinq, nom, minutes) in new[] { (true, "Primary", 300), (false, "Secondary", 10080) })
-                {
-                    if (Nombre(c, $"capacityCredits{nom}") is not Double capacite || capacite <= 0)
-                    {
-                        continue;
-                    }
-
-                    // Part absente (fenêtre expirée masquée par Codex LB) : gardée inconnue, le pool n'est alors pas jugé.
-                    var restant = Nombre(usage, $"{nom.ToLowerInvariant()}RemainingPercent");
-                    var fin = Nombre(c, $"windowMinutes{nom}") == minutes && c.TryGetProperty($"resetAt{nom}", out var r) && r.ValueKind == JsonValueKind.String
-                        && DateTimeOffset.TryParse(r.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.UtcDateTime : (DateTime?)null;
-                    comptes.Add(new(cinq, capacite, 1 - (restant / 100), fin));
-                }
-            }
-
-            return comptes;
         }
 
         // Sans Codex LB (Codex tel qu'installé) : les journaux les plus récents, chats archivés compris (l'archivage les sort
@@ -228,7 +173,7 @@ namespace Loupedeck.TrinitePlugin
 
             // Chaque fenêtre reconnue à sa durée (window_minutes) : « primary » n'est pas toujours celle de 5 h (vue seule, d'une
             // semaine, 25/10). Sans part lue : inconnue, jamais 0 %.
-            static (Double? Part, DateTime? Remise)? Fenetre(JsonElement limites, String nom, Int32 minutes, Boolean seule)
+            static Double? Fenetre(JsonElement limites, String nom, Int32 minutes, Boolean seule)
             {
                 if (!limites.TryGetProperty(nom, out var f) || f.ValueKind != JsonValueKind.Object)
                 {
@@ -243,16 +188,13 @@ namespace Loupedeck.TrinitePlugin
 
                 var remise = f.TryGetProperty("resets_at", out var r) && r.ValueKind == JsonValueKind.Number ? DateTimeOffset.FromUnixTimeSeconds(r.GetInt64()).UtcDateTime : (DateTime?)null;
                 var part = f.TryGetProperty("used_percent", out var u) && u.ValueKind == JsonValueKind.Number ? u.GetDouble() / 100 : (Double?)null;
-                // Fenêtre passée depuis : remise à zéro. Sans durée lue, pas d'heure pour le rythme (durée supposée).
-                return part is null ? null : (remise < DateTime.UtcNow ? 0 : part, duree is null ? null : remise);
+                return part is null ? null : remise < DateTime.UtcNow ? 0 : part; // fenêtre passée depuis : remise à zéro
             }
 
-            (Double? Part, DateTime? Remise) Duree(Int32 minutes, String parDefaut) =>
-                Fenetre(lu.Limites, "primary", minutes, parDefaut == "primary") ?? Fenetre(lu.Limites, "secondary", minutes, parDefaut == "secondary") ?? (null, null);
+            Double? Duree(Int32 minutes, String parDefaut) =>
+                Fenetre(lu.Limites, "primary", minutes, parDefaut == "primary") ?? Fenetre(lu.Limites, "secondary", minutes, parDefaut == "secondary");
 
-            var cinq = Duree(300, "primary");
-            var semaine = Duree(10080, "secondary");
-            return new(cinq.Part, semaine.Part) { FinCinq = cinq.Remise, FinSemaine = semaine.Remise };
+            return new(Duree(300, "primary"), Duree(10080, "secondary"));
         }
 
         // État d'un chat Codex, suivi pas à pas dans son journal : seules les lignes ajoutées depuis la lecture précédente sont
