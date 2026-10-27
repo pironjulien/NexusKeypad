@@ -60,8 +60,8 @@ namespace Loupedeck.TrinitePlugin
                         continue;
                     }
 
-                    var (etat, depuis) = this.EtatCodexGarde(f);
                     var relais = entete.Contains(@".nexus\\relay", StringComparison.OrdinalIgnoreCase);
+                    var (etat, depuis) = this.EtatCodexGarde(f, relais);
                     if (relais && etat is not (Etat.Travaille or Etat.Attend or Etat.Autorisation) && DateTime.UtcNow - f.LastWriteTimeUtc > TimeSpan.FromHours(12))
                     {
                         continue; // un réveil du relais ne reste « actif » que 12 h après son dernier message
@@ -201,7 +201,7 @@ namespace Loupedeck.TrinitePlugin
         // lues (un tour dépasse souvent 256 Ko : 57 sur 92 le 24/10, jusqu'à 20 Mo ; lire seulement la fin le donnait au
         // repos en plein travail). Le temps fait aussi passer au repos : travail sans écriture depuis 2 h (Codex fermé en
         // plein tour), fin ou question de plus de 12 h.
-        private (Etat, DateTime) EtatCodexGarde(FileInfo f)
+        private (Etat, DateTime) EtatCodexGarde(FileInfo f, Boolean relais)
         {
             this._etatsCodex.TryGetValue(f.FullName, out var suivi);
             if (suivi is null || f.Length < suivi.Position)
@@ -259,7 +259,7 @@ namespace Loupedeck.TrinitePlugin
                 }
             }
 
-            var (etat, depuis) = (suivi.Etat, suivi.Depuis);
+            var (etat, depuis) = suivi.Effectif(relais, DateTime.UtcNow);
             var silence = DateTime.UtcNow - suivi.Grandi;
             var age = DateTime.UtcNow - depuis;
             return etat switch
@@ -272,7 +272,19 @@ namespace Loupedeck.TrinitePlugin
 
         private readonly Dictionary<String, SuiviCodex> _etatsCodex = [];
 
-        private sealed class SuiviCodex
+        // État d'un journal Codex lu d'un bloc, sans l'usure du temps (vérificateur).
+        public static (Etat, DateTime) EtatJournalCodex(IEnumerable<String> lignes, Boolean relais, DateTime maintenant)
+        {
+            var suivi = new SuiviCodex();
+            foreach (var ligne in lignes)
+            {
+                suivi.Lire(ligne, DateTime.MinValue);
+            }
+
+            return suivi.Effectif(relais, maintenant);
+        }
+
+        private sealed partial class SuiviCodex
         {
             public Int64 Position;
             public Int64 Taille;
@@ -281,18 +293,44 @@ namespace Loupedeck.TrinitePlugin
             public DateTime Depuis = DateTime.MinValue;
             private Boolean _accord; // Attend un accord pendant le tour (pas une question de fin)
 
+            // Questions posées par request_user_input_async (call_id → heure) : Codex continue son tour sans attendre, la
+            // réponse arrive plus tard, souvent après la fin du tour, dans un message de l'utilisateur
+            // <send_user_message_question_reply> dont chaque questionItemId nomme un call_id répondu. Un message ordinaire
+            // n'en ferme aucune : l'appli garde la carte tant qu'elle n'a pas sa réponse (relecture de Codex, 27/10).
+            // Clé : call_id et rang de la question dans l'appel (un appel peut en poser plusieurs, l'appli permet d'en
+            // répondre une seule à la fois).
+            private readonly Dictionary<(String Appel, Int32 Rang), DateTime> _questions = [];
+
+            // État montré : une question async ouverte depuis moins de 12 h l'emporte sur le travail et la fin (elle attend
+            // l'utilisateur), pas sur un accord à donner ; au-delà, elle s'efface et l'état du tour reprend. Chats du
+            // relais : jamais (ils ne questionnent pas l'utilisateur).
+            public (Etat, DateTime) Effectif(Boolean relais, DateTime maintenant)
+            {
+                var ouvertes = this._questions.Values.Where(q => maintenant - q <= TimeSpan.FromHours(12)).ToList();
+                return !relais && ouvertes.Count > 0 && this.Etat != Etat.Autorisation
+                    ? (Etat.Attend, ouvertes.Max())
+                    : (this.Etat, this.Depuis);
+            }
+
             // Signes que le travail a repris après un accord.
             private static readonly String[] Reprise = ["\"type\":\"exec_command_begin\"", "\"type\":\"patch_apply_begin\"",
                 "\"type\":\"mcp_tool_call_begin\"", "\"type\":\"agent_message\"", "\"type\":\"agent_reasoning\""];
 
             public void Lire(String ligne, DateTime parDefaut)
             {
+                if (ligne.Contains("\"response_item\"", StringComparison.Ordinal))
+                {
+                    this.LireQuestion(ligne, parDefaut);
+                    return;
+                }
+
                 if (!ligne.Contains("\"event_msg\"", StringComparison.Ordinal))
                 {
                     return;
                 }
 
                 var quand = Horodatage(ligne) ?? parDefaut;
+
                 if (ligne.Contains("\"type\":\"task_started\"", StringComparison.Ordinal))
                 {
                     (this.Etat, this.Depuis, this._accord) = (Etat.Travaille, quand, false);
@@ -325,6 +363,105 @@ namespace Loupedeck.TrinitePlugin
                     (this.Etat, this._accord) = (Etat.Travaille, false);
                 }
             }
+
+            private void LireQuestion(String ligne, DateTime parDefaut)
+            {
+                if (ligne.Contains("\"type\":\"function_call\"", StringComparison.Ordinal)
+                    && ligne.Contains("\"name\":\"request_user_input_async\"", StringComparison.Ordinal)
+                    && AppelId().Match(ligne) is { Success: true } appel)
+                {
+                    var quand = Horodatage(ligne) ?? parDefaut;
+                    for (var rang = 0; rang < NombreQuestions(ligne); rang++)
+                    {
+                        this._questions[(appel.Groups[1].Value, rang)] = quand;
+                    }
+                }
+                else if (this._questions.Count > 0 && ligne.Contains(MarqueReponse, StringComparison.Ordinal))
+                {
+                    foreach (var (repondu, rang) in Repondues(ligne))
+                    {
+                        // Sans rang lu : tout l'appel.
+                        foreach (var cle in this._questions.Keys.Where(k => k.Appel == repondu && (rang is null || k.Rang == rang)).ToList())
+                        {
+                            this._questions.Remove(cle);
+                        }
+                    }
+                }
+            }
+
+            // Nombre de questions d'un appel (arguments.questions) ; 1 si illisible.
+            private static Int32 NombreQuestions(String ligne)
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(ligne);
+                    using var arguments = JsonDocument.Parse(doc.RootElement.GetProperty("payload").GetProperty("arguments").GetString());
+                    return arguments.RootElement.TryGetProperty("questions", out var q) && q.ValueKind == JsonValueKind.Array
+                        ? Math.Max(1, q.GetArrayLength()) : 1;
+                }
+                catch (Exception)
+                {
+                    return 1;
+                }
+            }
+
+            private const String MarqueReponse = "<send_user_message_question_reply>";
+
+            // call_id répondus par une ligne : seulement un message de l'utilisateur dont le texte commence par la balise
+            // de réponse, et seulement les questionItemId de son tableau JSON (["request_user_input_async", call_id, rang]).
+            // Une citation ailleurs (sortie d'outil, message de l'assistant, journal relu) ne ferme rien.
+            private static List<(String Appel, Int32? Rang)> Repondues(String ligne)
+            {
+                var appels = new List<(String, Int32?)>();
+                try
+                {
+                    using var doc = JsonDocument.Parse(ligne);
+                    if (!doc.RootElement.TryGetProperty("payload", out var p) || p.ValueKind != JsonValueKind.Object
+                        || !p.TryGetProperty("type", out var t) || t.GetString() != "message"
+                        || !p.TryGetProperty("role", out var r) || r.GetString() != "user"
+                        || !p.TryGetProperty("content", out var contenu) || contenu.ValueKind != JsonValueKind.Array)
+                    {
+                        return appels;
+                    }
+
+                    foreach (var c in contenu.EnumerateArray())
+                    {
+                        var texte = c.ValueKind == JsonValueKind.Object && c.TryGetProperty("text", out var x) && x.ValueKind == JsonValueKind.String
+                            ? x.GetString().TrimStart() : "";
+                        if (!texte.StartsWith(MarqueReponse, StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
+
+                        var corps = texte[MarqueReponse.Length..];
+                        var finBalise = corps.IndexOf("</send_user_message_question_reply>", StringComparison.Ordinal);
+                        using var reponses = JsonDocument.Parse(finBalise >= 0 ? corps[..finBalise] : corps);
+                        foreach (var item in reponses.RootElement.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("questionItemId", out var id) && id.ValueKind == JsonValueKind.String)
+                            {
+                                using var cle = JsonDocument.Parse(id.GetString());
+                                if (cle.RootElement.ValueKind == JsonValueKind.Array && cle.RootElement.GetArrayLength() >= 2
+                                    && cle.RootElement[0].GetString() == "request_user_input_async" && cle.RootElement[1].GetString() is String appel)
+                                {
+                                    appels.Add((appel, cle.RootElement.GetArrayLength() >= 3 && cle.RootElement[2].ValueKind == JsonValueKind.Number
+                                        ? cle.RootElement[2].GetInt32() : null));
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    // ligne d'un autre format : rien de répondu
+                }
+
+                return appels;
+            }
+
+            [GeneratedRegex("\"call_id\":\"(call_[A-Za-z0-9]+)\"")]
+            private static partial Regex AppelId();
+
         }
     }
 }

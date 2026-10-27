@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.3] - 2026-10-27
+
+### Fixed
+- Codex: questions asked without waiting (`request_user_input_async`) now show on its key until answered, even after
+  the turn ends (Nexus Relay chats excepted).
+
 ## [1.7.2] - 2026-10-27
 
 ### Removed

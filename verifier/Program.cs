@@ -126,6 +126,37 @@ finally
     QuotaAntigravity.Fichier = vraiCache;
     Directory.Delete(Path.GetDirectoryName(cache), true);
 }
+// Questions de Codex sans attente (request_user_input_async, format relevé le 27/10) : le chat passe en question jusqu'à
+// la réponse (<send_user_message_question_reply> qui cite le call_id), même si le tour est fini ; jamais pour le relais.
+String L(String h, String charge) => $$"""{"timestamp":"2026-10-27T{{h}}Z",{{charge}}}""";
+var debut = L("20:48:34.000", "\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\"}");
+var question = L("20:49:06.000", "\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"status\":\"completed\",\"name\":\"request_user_input_async\",\"arguments\":\"{\\\"questions\\\":[{\\\"title\\\":\\\"Courts ou détaillés ?\\\"}]}\",\"call_id\":\"call_dfc1744cb4404887847e77d2911650c0\"}");
+var fin = L("20:51:12.000", "\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":\"Relecture faite.\"}");
+var reponse = L("20:55:00.000", "\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"<send_user_message_question_reply>\\n[{\\\"questionItemId\\\":\\\"[\\\\\\\"request_user_input_async\\\\\\\",\\\\\\\"call_dfc1744cb4404887847e77d2911650c0\\\\\\\"]\\\"}]\"}]}");
+var ordinaire = L("20:56:00.000", "\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"Autre chose\"}");
+var citee = L("20:57:00.000", "\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"call_id\":\"call_autre\",\"output\":\"<send_user_message_question_reply> call_dfc1744cb4404887847e77d2911650c0\"}");
+var reprise = L("20:58:00.000", "\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\"}");
+var instantJournal = new DateTime(2026, 10, 27, 21, 0, 0, DateTimeKind.Utc);
+String Multi() => L("20:49:30.000", $$"""
+"type":"response_item","payload":{"type":"function_call","name":"request_user_input_async","arguments":"{\"questions\":[{\"title\":\"q0\"},{\"title\":\"q1\"}]}","call_id":"call_multi123"}
+""".Trim());
+String Reponse(String rangs) => L("20:59:00.000", $$"""
+"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<send_user_message_question_reply>\n[{{rangs}}]"}]}
+""".Trim());
+String Item(Int32 r) => $$"""{\"questionItemId\":\"[\\\"request_user_input_async\\\",\\\"call_multi123\\\",{{r}}]\"}""";
+Vrai(Observateur.EtatJournalCodex([debut, question], false, instantJournal).Item1 == Etat.Attend, "question async pendant le tour → question");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin], false, instantJournal) is (Etat.Attend, var q) && q.Minute == 49, "tour fini, question sans réponse → question (à son heure)");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin, reponse], false, instantJournal).Item1 == Etat.Fini, "réponse qui cite le call_id → la question se ferme");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin, ordinaire], false, instantJournal).Item1 == Etat.Attend, "message ordinaire : pas une réponse, la carte reste");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin, citee], false, instantJournal).Item1 == Etat.Attend, "citation dans une sortie d'outil → ne ferme rien");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin, reprise], false, instantJournal.AddHours(13)).Item1 == Etat.Travaille,
+    "question de plus de 12 h : effacée, le travail en cours se voit");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin], true, instantJournal).Item1 == Etat.Fini, "chat du relais → jamais de question");
+Vrai(Observateur.EtatJournalCodex([debut, Multi(), fin, Reponse(Item(0))], false, instantJournal).Item1 == Etat.Attend, "deux questions, une seule répondue → question");
+Vrai(Observateur.EtatJournalCodex([debut, Multi(), fin, Reponse(Item(0)), Reponse(Item(1))], false, instantJournal).Item1 == Etat.Fini, "les deux répondues l'une après l'autre → fermé");
+Vrai(Observateur.EtatJournalCodex([debut, Multi(), fin, Reponse(Item(0) + "," + Item(1))], false, instantJournal).Item1 == Etat.Fini, "réponses groupées → fermé");
+Vrai(Observateur.EtatJournalCodex([debut, fin], false, instantJournal).Item1 == Etat.Fini, "sans question async → inchangé");
+
 Vrai(QuotaAntigravity.Delai("it will fully refresh in 4 days, 23 hours.") == new TimeSpan(4, 23, 0, 0)
     && QuotaAntigravity.Delai("Weekly Limit Remaining") is null, "délai de remise à zéro lu en jours, heures, minutes");
 // Relevé du quota : la fenêtre des réglages (onglet Models), jamais le premier [role=dialog] venu (une notification
