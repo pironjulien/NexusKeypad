@@ -3,10 +3,12 @@
 #
 # Avant de signer : chaque fichier de la release est contrôlé contre SHA256SUMS.txt et contre son attestation de
 # provenance (gh attestation verify : construit par le workflow Release de pironjulien/NexusKeypad). Puis SHA256SUMS.txt
-# est signé par la clé privée de NexusSecure (ECDSA P-256, SHA-256, IEEE P1363 en base64), la signature relue avec la clé
-# publique embarquée dans le plugin (Cles de MiseAJour.cs), envoyée, téléchargée de nouveau et revérifiée.
+# est signé (ECDSA P-256, SHA-256, IEEE P1363 en base64) par la clé privée de NexusSecure (-Cle : une autre, pour un
+# changement de clé). La signature doit passer avec les clés du plugin de cette release (Cles de MiseAJour.cs) ET avec
+# celles de la release publiée avant, que les plugins en place utilisent pour la contrôler : un changement de clé ne coupe
+# jamais leurs mises à jour. Puis elle est envoyée, téléchargée de nouveau et revérifiée.
 # La clé privée ne quitte jamais le poste (jamais de secret de CI) : un dépôt compromis ne peut pas signer.
-#   pwsh -NoProfile -File outils\signer_release.ps1 -Tag v1.6.2
+#   pwsh -NoProfile -File outils\signer_release.ps1 -Tag v1.6.3
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [ValidatePattern('^v\d+\.\d+\.\d+$')] [string]$Tag,
@@ -16,13 +18,28 @@ $ErrorActionPreference = 'Stop'
 $depot = 'pironjulien/NexusKeypad'
 $travail = Join-Path $env:LOCALAPPDATA "NexusKeypad\signature\$Tag"
 
-# Clés publiques du plugin, lues dans sa source : la signature doit passer là où elle sera contrôlée.
-$source = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '..\plugin\src\Trinite\MiseAJour.cs')
-if ($source -notmatch 'String\[\] Cles = \[([^\]]+)\]') { throw 'Clés publiques introuvables dans MiseAJour.cs.' }
-$publiques = [regex]::Matches($Matches[1], '"([A-Za-z0-9+/=]+)"') | ForEach-Object { $_.Groups[1].Value }
+# Clés publiques d'un MiseAJour.cs (Cles).
+function Get-Cles([string]$Source) {
+    if ($Source -notmatch 'String\[\] Cles =\s*\[([^\]]+)\]') { throw 'Clés publiques introuvables dans MiseAJour.cs.' }
+    return @([regex]::Matches($Matches[1], '"([A-Za-z0-9+/=]+)"') | ForEach-Object { $_.Groups[1].Value })
+}
 
-function Test-Signature([byte[]]$Contenu, [string]$Signature) {
-    foreach ($p in $publiques) {
+# Celles du plugin de cette release et celles de la dernière release publiée (les plugins en place), lues sur GitHub.
+function Get-ClesDe([string]$Ref) {
+    $source = gh api -H 'Accept: application/vnd.github.raw' "repos/$depot/contents/plugin/src/Trinite/MiseAJour.cs?ref=$Ref" | Out-String
+    if ($LASTEXITCODE) { throw "MiseAJour.cs introuvable à $Ref." }
+    return Get-Cles $source
+}
+$nouvelles = Get-ClesDe $Tag
+$avant = gh release view -R $depot --json tagName -q .tagName
+if ($LASTEXITCODE) { throw 'Dernière release publiée introuvable.' }
+$enPlace = @()
+if ($avant -ne $Tag) {
+    $enPlace = Get-ClesDe $avant
+}
+
+function Test-Signature([byte[]]$Contenu, [string]$Signature, [string[]]$Cles) {
+    foreach ($p in $Cles) {
         $ec = [Security.Cryptography.ECDsa]::Create()
         try {
             $lus = 0
@@ -57,7 +74,10 @@ try {
         $ec.ImportFromPem((Get-Content -Raw -LiteralPath $Cle))
         $signature = [Convert]::ToBase64String($ec.SignData($contenu, [Security.Cryptography.HashAlgorithmName]::SHA256))
     } finally { $ec.Dispose() }
-    if (-not (Test-Signature $contenu $signature)) { throw 'La clé de NexusSecure ne correspond à aucune clé publique du plugin.' }
+    if (-not (Test-Signature $contenu $signature $nouvelles)) { throw "La clé de signature n'est pas dans Cles du plugin $Tag." }
+    if ($enPlace -and -not (Test-Signature $contenu $signature $enPlace)) {
+        throw "La clé de signature n'est pas connue des plugins en place ($avant) : signer avec une clé de leurs Cles (-Cle)."
+    }
     $sig = Join-Path $travail 'SHA256SUMS.txt.sig'
     [IO.File]::WriteAllText($sig, $signature + "`n", [Text.UTF8Encoding]::new($false))
     gh release upload $Tag $sig -R $depot --clobber
@@ -66,7 +86,7 @@ try {
     # Relue telle que le plugin la verra.
     $relue = Join-Path $travail 'relue'
     gh release download $Tag -R $depot -p 'SHA256SUMS.txt*' -D $relue
-    if ($LASTEXITCODE -or -not (Test-Signature ([IO.File]::ReadAllBytes((Join-Path $relue 'SHA256SUMS.txt'))) (Get-Content -Raw (Join-Path $relue 'SHA256SUMS.txt.sig')))) {
+    if ($LASTEXITCODE -or -not (Test-Signature ([IO.File]::ReadAllBytes((Join-Path $relue 'SHA256SUMS.txt'))) (Get-Content -Raw (Join-Path $relue 'SHA256SUMS.txt.sig')) $nouvelles)) {
         throw 'Signature publiée invalide.'
     }
     # Le workflow Release crée la release en brouillon : publiée seulement maintenant, signée.

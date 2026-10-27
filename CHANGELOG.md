@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-27
+
+### Added
+- Burn rate: a 5-hour or weekly quota gauge turns pink when, at the current pace, that window will run out before it
+  resets (share used ÷ share of the window elapsed above 100%). No warning rather than a false one: without a known
+  reset time, in the first 10% of the window, or once the quota is already full. Reset times come from Claude's
+  `nexuskeypad-quota` module, Codex's logs or, with Codex LB, each account (the pool runs out before the first account
+  resets, at the sum of their rates), and each Antigravity model group.
+
 ## [1.6.2] - 2026-10-27
 
 ### Security

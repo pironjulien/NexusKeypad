@@ -43,7 +43,7 @@ $planches = Join-Path $sortie 'planches'
 if (Test-Path $planches) { Remove-Item $planches -Recurse -Force }
 dotnet run --project (Join-Path $PSScriptRoot 'apercu') -v q -- $planches
 if ($LASTEXITCODE) { throw "L'aperçu échoue." }
-foreach ($nom in 'actif', 'calme', 'tetes') {
+foreach ($nom in 'actif', 'calme', 'tetes', 'jauges') {
     $png = Join-Path $planches "$nom.png"
     if (-not (Test-Path $png) -or (Get-Item $png).Length -lt 2KB) { throw "Planche $nom absente ou vide." }
 }

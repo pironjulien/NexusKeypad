@@ -365,6 +365,31 @@ foreach (var (nom, instantane, temps) in situations)
     Console.WriteLine($"{nom}.png");
 }
 
+// Les trois états d'une jauge, sur la ligne d'informations : Claude au rythme (vert à ambre, selon ce qui reste), Codex
+// trop rapide (rose : vide avant la remise à zéro, 5 h et semaine), Antigravity sans donnée (vide et sombre).
+Quota[] rythmes =
+[
+    new(0.30, 0.30) { FinCinq = maintenant.AddHours(2), FinSemaine = maintenant.AddDays(3) },
+    new(0.60, 0.48) { FinCinq = maintenant.AddHours(3), FinSemaine = maintenant.AddDays(4.5) },
+    null,
+];
+using (var jauges = new BitmapBuilder((3 * 116) + (2 * 16) + 48, (3 * 116) + (2 * 16) + 48))
+{
+    jauges.Clear(new BitmapColor(217, 214, 207));
+    var scene = new Scene
+    {
+        Instantane = new(calmes, [3, 1, 0], rythmes, [true, true, true], false, photo, -1), Temps = 0.3,
+        Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9, Maintenant = maintenant.ToLocalTime(),
+    };
+    for (var k = 0; k < 9; k++)
+    {
+        jauges.DrawImage(Rendu.Png(Moteur.Disposition[k], scene), 24 + (k % 3 * (116 + 16)), 24 + (k / 3 * (116 + 16)), BitmapRotation.None);
+    }
+
+    File.WriteAllBytes(Path.Combine(sortie, "jauges.png"), jauges.ToArray(BitmapImageFormat.Png));
+    Console.WriteLine("jauges.png");
+}
+
 // Gros plan des trois têtes (touches 1-3, × 3) pour juger le pixel art.
 var gros = new Scene { Instantane = situations[0].I, Temps = 0.3, Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9 };
 using var zoom = new BitmapBuilder(3 * 348, 348);

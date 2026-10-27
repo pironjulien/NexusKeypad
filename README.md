@@ -37,7 +37,9 @@ animated.
 - **One press** opens the conversation that blinks (full screen, scrolled to the last message), otherwise the app.
   App already in front: each press moves to the next conversation, urgent ones first, then most recent first.
 - **Quota gauges** (no text): a clock gauge for the 5-hour window, a calendar gauge for the week, showing what is left
-  (green when full, amber halfway, red when nearly empty), and the number of open conversations. A press opens the
+  (green when full, amber halfway, red when nearly empty), and the number of open conversations. A gauge turns **pink**
+  when, at the current pace, that window will run out before it resets (share used ÷ share of the window elapsed above
+  100%); no warning without a known reset time or in the first 10% of the window. A press opens the
   app's own usage panel; a second press closes it.
 - **Screen capture** grabs the screen as you see it and pastes it, without sending, into the conversation of the agent
   in front (or of the last agent used). Images are reduced to WebP, at most 2000 px and 500 KB.

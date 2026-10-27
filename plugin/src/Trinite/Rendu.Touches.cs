@@ -33,17 +33,19 @@ namespace Loupedeck.TrinitePlugin
 
         // Ligne d'informations, sans texte : une jauge pour la fenêtre de 5 h (horloge à l'aiguille qui tourne), une
         // pour la semaine (calendrier dont la case du jour avance), qui montrent ce qui reste ; en bas, une bulle et le
-        // nombre de conversations ouvertes, ses points ondulent quand l'IA travaille.
+        // nombre de conversations ouvertes, ses points ondulent quand l'IA travaille. Une jauge rose : à ce rythme, la
+        // fenêtre sera vide avant sa remise à zéro (Rythme).
         private static void ToucheInfos(BitmapBuilder b, Int32 agent, Scene s)
         {
             var q = s.Instantane.Quotas[agent];
             var t = s.Temps + (agent * 0.7); // chaque IA à son rythme
+            var maintenant = s.Maintenant.ToUniversalTime();
             // Chaque jauge centrée sur son icône (horloge de 11 à 35 ; calendrier de 43 à 65, anneaux compris) : elles
             // étaient 1 à 2 px plus haut.
             HorlogeVivante(b, 4, 11, q?.Cinq is null ? null : t);
-            Jauge(b, 12, q?.Cinq, t);
+            Jauge(b, 12, q?.Cinq, t, q?.Rapide(true, maintenant) == true);
             CalendrierVivant(b, 4, 43, q?.Semaine is null ? null : t);
-            Jauge(b, 44, q?.Semaine, t + 0.5);
+            Jauge(b, 44, q?.Semaine, t + 0.5, q?.Rapide(false, maintenant) == true);
 
             Carte(b, BulleVide, 22, 80, 2, Gris);
             var travaille = s.Instantane.EtatIA(agent) == Etat.Travaille;
@@ -84,8 +86,9 @@ namespace Loupedeck.TrinitePlugin
 
         // Une jauge, à droite de son icône ; vide et sombre quand la valeur manque. Elle montre ce qui reste : pleine et
         // verte à 100 %, qui passe par l'ambre à mi-course et finit rouge, presque vide ; un reflet la parcourt en 1 s,
-        // toutes les 4 s.
-        private static void Jauge(BitmapBuilder b, Int32 y, Double? part, Double t)
+        // toutes les 4 s. Rapide : consommée trop vite pour tenir jusqu'à sa remise à zéro, la jauge passe au rose, hors de
+        // l'échelle vert-ambre-rouge, quelle que soit la part qui reste.
+        private static void Jauge(BitmapBuilder b, Int32 y, Double? part, Double t, Boolean rapide = false)
         {
             Rond(b, 32, y, T - 36, 22, 8, EteintSombre);
             if (part is not Double p || p >= 1)
@@ -94,7 +97,7 @@ namespace Loupedeck.TrinitePlugin
             }
 
             var reste = 1 - Math.Clamp(p, 0, 1);
-            var couleur = reste < 0.5 ? Melange(Rouge, Ambre, reste / 0.5) : Melange(Ambre, Vert, (reste - 0.5) / 0.5);
+            var couleur = rapide ? Rose : reste < 0.5 ? Melange(Rouge, Ambre, reste / 0.5) : Melange(Ambre, Vert, (reste - 0.5) / 0.5);
             // Proportionnelle jusqu'au bout (au plancher de 16 px, 80 % et 99 % consommés se ressemblaient) ; 6 px au moins
             // pour rester visible, coin réduit pour une barre étroite.
             var largeur = Math.Max(6, (Int32)Math.Round((T - 36) * reste));

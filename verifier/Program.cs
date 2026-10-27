@@ -126,6 +126,66 @@ finally
     QuotaAntigravity.Fichier = vraiCache;
     Directory.Delete(Path.GetDirectoryName(cache), true);
 }
+// Rythme de consommation : utilisé ÷ écoulé > 100 % → vide avant la remise à zéro ; aucun signal sans heure, en début de
+// fenêtre (moins de 10 % écoulés), fenêtre passée ou incohérente, ou quota déjà plein.
+var rythme = new DateTime(2026, 10, 27, 12, 0, 0, DateTimeKind.Utc);
+Vrai(Rythme.Trop(0.60, rythme.AddHours(3), true, rythme), "5 h : 60 % utilisés en 2 h (40 %) → trop rapide");
+Vrai(!Rythme.Trop(0.30, rythme.AddHours(3), true, rythme), "5 h : 30 % utilisés en 2 h → tient jusqu'à la remise à zéro");
+Vrai(!Rythme.Trop(0.40, rythme.AddHours(3), true, rythme), "5 h : pile au rythme (40 % en 40 %) → pas d'alerte");
+Vrai(!Rythme.Trop(0.20, rythme.AddMinutes(4 * 60 + 35), true, rythme), "5 h : 25 min écoulées (< 10 %) → trop jeune, rien");
+Vrai(Rythme.Projection(0.20, rythme.AddMinutes(4 * 60 + 35), true, rythme) is null, "début de fenêtre → pas de projection");
+Vrai(!Rythme.Trop(0.60, null, true, rythme), "sans heure de remise à zéro → rien");
+Vrai(!Rythme.Trop(null, rythme.AddHours(3), true, rythme), "sans part lue → rien");
+Vrai(!Rythme.Trop(0.90, rythme.AddMinutes(-1), true, rythme), "fenêtre déjà remise à zéro → rien");
+Vrai(!Rythme.Trop(0.90, rythme.AddHours(6), true, rythme), "remise plus loin que la fenêtre (donnée incohérente) → rien");
+Vrai(!Rythme.Trop(1.0, rythme.AddHours(3), true, rythme), "quota déjà plein → rien (la tête le montre)");
+Vrai(Rythme.Trop(0.48, rythme.AddDays(4.5), false, rythme), "semaine : 48 % en 2,5 j (36 %) → trop rapide");
+Vrai(!Rythme.Trop(0.30, rythme.AddDays(4.5), false, rythme), "semaine : 30 % en 2,5 j → tient");
+var rapide = new Quota(0.60, 0.30) { FinCinq = rythme.AddHours(3), FinSemaine = rythme.AddDays(4.5) };
+Vrai(rapide.Rapide(true, rythme) && !rapide.Rapide(false, rythme), "chaque fenêtre jugée à part");
+Vrai(!new Quota(0.60, 0.90).Rapide(true, rythme) && !new Quota(0.60, 0.90).Rapide(false, rythme), "secours sans heures (menu de Claude) → rien");
+var parGroupe = new Quota(0.9, null) { Groupes = [new(true, 0.1, rythme.AddHours(4)), new(true, 0.9, rythme.AddHours(1))] };
+Vrai(parGroupe.Rapide(true, rythme), "Antigravity : un groupe qui s'épuise trop vite suffit (10 % en 1 h tient, 90 % en 4 h non)");
+Vrai(!(parGroupe with { Groupes = [new(true, 0.1, rythme.AddHours(4)), new(true, 0.5, rythme.AddHours(1)), new(true, 0.9, null)] }).Rapide(true, rythme),
+    "groupes au rythme ou sans heure → rien");
+
+Vrai(!Rythme.Trop(0.20, rythme.AddHours(4), true, rythme), "pile au rythme (20 % en 1 h) : pas de rose par arrondi flottant");
+// Pool de Codex LB : comptes aux fenêtres décalées (relecture de Codex, 27/10). A 20 % en 3 h (remise dans 2 h), B 90 % en
+// 1 h (remise dans 4 h) : le cumul (55 %, remise dans 2 h) semblait tenir ; le pool est vide dans 56 min.
+CompteQuota Compte(Double utilise, Double heuresRestantes) => new(true, 225, utilise, rythme.AddHours(heuresRestantes));
+Vrai(Rythme.Pool([Compte(0.20, 2), Compte(0.90, 4)], true, rythme), "pool : débits cumulés, vide avant la première remise à zéro");
+Vrai(!Rythme.Pool([Compte(0.20, 2), Compte(0.10, 4)], true, rythme), "pool qui tient jusqu'à la première remise à zéro");
+Vrai(Rythme.Pool([Compte(0.60, 3)], true, rythme) == Rythme.Trop(0.60, rythme.AddHours(3), true, rythme)
+    && Rythme.Pool([Compte(0.30, 3)], true, rythme) == Rythme.Trop(0.30, rythme.AddHours(3), true, rythme), "un seul compte : même règle que Trop");
+Vrai(!Rythme.Pool([Compte(0.20, 4.75), new(true, 225, 0.5, null)], true, rythme), "comptes trop jeunes ou sans heure : aucun débit, rien");
+Vrai(!Rythme.Pool([Compte(0.90, -0.5), Compte(0.20, 2)], true, rythme), "compte remis à zéro depuis la lecture : plein, sans débit");
+var lb = JsonDocument.Parse("""
+{"accounts":[
+ {"status":"active","usage":{"primaryRemainingPercent":80.0,"secondaryRemainingPercent":49.0},"resetAtPrimary":"2026-10-27T14:00:00Z","windowMinutesPrimary":300,"capacityCreditsPrimary":225.0,"resetAtSecondary":"2026-11-02T23:16:21Z","windowMinutesSecondary":10080,"capacityCreditsSecondary":7560.0},
+ {"status":"rate_limited","usage":{"primaryRemainingPercent":10.0,"secondaryRemainingPercent":null},"resetAtPrimary":"2026-10-27T16:00:00Z","windowMinutesPrimary":300,"capacityCreditsPrimary":225.0,"resetAtSecondary":null,"windowMinutesSecondary":null,"capacityCreditsSecondary":7560.0},
+ {"status":"paused","usage":{"primaryRemainingPercent":100.0,"secondaryRemainingPercent":100.0},"resetAtPrimary":null,"windowMinutesPrimary":300,"capacityCreditsPrimary":225.0},
+ {"status":"active","usage":{"primaryRemainingPercent":50.0},"resetAtPrimary":"2026-10-27T16:00:00Z","windowMinutesPrimary":60,"capacityCreditsPrimary":225.0}
+]}
+""").RootElement;
+var comptesLb = Observateur.ComptesCodexLb(lb);
+Vrai(comptesLb.Count(c => c.Cinq) == 3 && comptesLb.Count(c => !c.Cinq) == 2 && comptesLb.Count(c => c.Utilise is null) == 1,
+    "Codex LB : comptes en pause écartés, part absente gardée inconnue");
+Vrai(comptesLb.Last(c => c.Cinq).Fin is null, "Codex LB : fenêtre d'une autre durée → pas d'heure");
+Vrai(new Quota(0.55, 0.51) { Comptes = comptesLb }.Rapide(true, rythme), "Codex LB : le pool réel (A 20 % en 3 h, B 90 % en 1 h) passe au rose");
+Vrai(!new Quota(0.55, 0.51) { Comptes = comptesLb }.Rapide(false, rythme), "Codex LB semaine : une part inconnue → rien");
+// Fenêtre primaire expirée, masquée par Codex LB (part, heure et durée à null, capacité gardée) : sa réserve est inconnue,
+// le pool n'est pas jugé (B seul, 60 % en 2 h, aurait passé le pool au rose ; relecture de Codex, 27/10).
+var masque = Observateur.ComptesCodexLb(JsonDocument.Parse("""
+{"accounts":[
+ {"status":"active","usage":{"primaryRemainingPercent":null},"resetAtPrimary":null,"windowMinutesPrimary":null,"capacityCreditsPrimary":225.0},
+ {"status":"active","usage":{"primaryRemainingPercent":40.0},"resetAtPrimary":"2026-10-27T15:00:00Z","windowMinutesPrimary":300,"capacityCreditsPrimary":225.0}
+]}
+""").RootElement);
+Vrai(masque.Count == 2 && !new Quota(0.6, null) { Comptes = masque }.Rapide(true, rythme), "Codex LB : fenêtre expirée masquée → rien");
+Vrai(Rythme.Pool([masque[1]], true, rythme), "le même compte seul, part connue : rose");
+Vrai(!Rythme.Pool([Compte(0.996, 3)], true, rythme) && !Rythme.Pool([Compte(0.995, 3)], true, rythme) && !Rythme.Pool([Compte(1.0, 3), Compte(0.996, 2)], true, rythme),
+    "pool déjà plein → rien, comme Trop");
+
 Vrai(QuotaAntigravity.Delai("it will fully refresh in 4 days, 23 hours.") == new TimeSpan(4, 23, 0, 0)
     && QuotaAntigravity.Delai("Weekly Limit Remaining") is null, "délai de remise à zéro lu en jours, heures, minutes");
 // Relevé du quota : la fenêtre des réglages (onglet Models), jamais le premier [role=dialog] venu (une notification
