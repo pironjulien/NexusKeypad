@@ -353,7 +353,7 @@ namespace Loupedeck.TrinitePlugin
                 {
                     // Un tour qui finit sur une question attend l'utilisateur.
                     var question = Regex.Match(ligne, "\"last_agent_message\":\"((?:[^\"\\\\]|\\\\.)*)\"");
-                    var texte = question.Success ? Regex.Unescape(question.Groups[1].Value).TrimEnd('*', '_', ' ', ')', '»', '"', '\n') : "";
+                    var texte = question.Success ? ChaineJson(question.Groups[1].Value).TrimEnd('*', '_', ' ', ')', '»', '"', '\n') : "";
                     (this.Etat, this.Depuis, this._accord) = (texte.EndsWith('?') ? Etat.Attend : Etat.Fini, quand, false);
                 }
                 else if (this._accord && this.Etat is Etat.Attend or Etat.Autorisation && quand >= this.Depuis

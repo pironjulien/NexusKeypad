@@ -17,6 +17,11 @@
     <Compile Include="..\plugin\src\Helpers\PluginLog.cs" />
   </ItemGroup>
 
+  <!-- Tests de propriétés (Robustesse.cs) : version exacte, mise à jour par Dependabot. -->
+  <ItemGroup>
+    <PackageReference Include="FsCheck" Version="3.4.0" />
+  </ItemGroup>
+
   <ItemGroup Condition="Exists('$(LogiService)PluginApi.dll')">
     <Reference Include="PluginApi" HintPath="$(LogiService)PluginApi.dll" />
     <Reference Include="SkiaSharp" HintPath="$(LogiService)SkiaSharp.dll" />

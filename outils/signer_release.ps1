@@ -57,15 +57,33 @@ try {
     if ($LASTEXITCODE) { throw "Release $Tag introuvable." }
     $sommes = Join-Path $travail 'SHA256SUMS.txt'
     $lignes = @(Get-Content -LiteralPath $sommes | Where-Object { $_.Trim() })
-    $fichiers = @(Get-ChildItem $travail -File | Where-Object Name -notin 'SHA256SUMS.txt', 'SHA256SUMS.txt.sig')
-    if ($lignes.Count -ne $fichiers.Count) { throw "SHA256SUMS.txt liste $($lignes.Count) fichiers, la release en a $($fichiers.Count)." }
-    foreach ($ligne in $lignes) {
+    # La provenance jointe (*.intoto.jsonl, bundle Sigstore de l'attestation) n'est pas dans SHA256SUMS.txt : elle est
+    # contrôlée à part, chaque fichier devant être vérifié par elle aussi.
+    $provenance = @(Get-ChildItem $travail -File -Filter '*.intoto.jsonl')
+    if ($provenance.Count -ne 1) { throw "Provenance jointe attendue (un *.intoto.jsonl), trouvé $($provenance.Count)." }
+    $fichiers = @(Get-ChildItem $travail -File | Where-Object { $_.Name -notin 'SHA256SUMS.txt', 'SHA256SUMS.txt.sig' -and $_.Name -notlike '*.intoto.jsonl' })
+    # SHA256SUMS.txt doit nommer chaque fichier de la release une fois et une seule, ni plus ni moins (une ligne répétée
+    # laissait un fichier sans contrôle ; relecture de Codex, 27/10).
+    $listes = @(foreach ($ligne in $lignes) {
         if ($ligne -notmatch '^([0-9a-f]{64})\s+\*?(\S+)$') { throw "Ligne illisible : $ligne" }
-        $fichier = Join-Path $travail $Matches[2]
-        if ((Get-FileHash -LiteralPath $fichier -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Matches[1]) { throw "Empreinte différente : $($Matches[2])" }
-        gh attestation verify $fichier --repo $depot --signer-workflow "$depot/.github/workflows/release.yml" | Out-Null
-        if ($LASTEXITCODE) { throw "Attestation de provenance refusée : $($Matches[2])" }
-        Write-Host "contrôlé : $($Matches[2])"
+        [pscustomobject]@{ Empreinte = $Matches[1]; Nom = $Matches[2] }
+    })
+    $noms = @($listes.Nom | Sort-Object -Unique)
+    if ($noms.Count -ne $listes.Count) { throw 'SHA256SUMS.txt nomme un fichier plusieurs fois.' }
+    if (Compare-Object $noms @($fichiers.Name | Sort-Object) -CaseSensitive) { throw 'SHA256SUMS.txt ne nomme pas exactement les fichiers de la release.' }
+    # Provenance liée à CETTE release : construite par le workflow Release depuis l'étiquette $Tag, à son commit (un ancien
+    # ensemble authentique du même workflow passait aussi).
+    $commit = gh api "repos/$depot/commits/$Tag" -q .sha
+    if ($LASTEXITCODE -or $commit -notmatch '^[0-9a-f]{40}$') { throw "Commit de $Tag introuvable." }
+    $source = @('--repo', $depot, '--signer-workflow', "$depot/.github/workflows/release.yml", '--source-ref', "refs/tags/$Tag", '--source-digest', $commit)
+    foreach ($l in @($listes) + [pscustomobject]@{ Empreinte = $null; Nom = 'SHA256SUMS.txt' }) {
+        $fichier = Join-Path $travail $l.Nom
+        if ($l.Empreinte -and (Get-FileHash -LiteralPath $fichier -Algorithm SHA256).Hash.ToLowerInvariant() -ne $l.Empreinte) { throw "Empreinte différente : $($l.Nom)" }
+        gh attestation verify $fichier @source | Out-Null
+        if ($LASTEXITCODE) { throw "Attestation de provenance refusée : $($l.Nom)" }
+        gh attestation verify $fichier @source --bundle $provenance[0].FullName | Out-Null
+        if ($LASTEXITCODE) { throw "Provenance jointe refusée pour : $($l.Nom)" }
+        Write-Host "contrôlé : $($l.Nom)"
     }
 
     $contenu = [IO.File]::ReadAllBytes($sommes)

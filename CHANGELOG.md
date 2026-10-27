@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.4] - 2026-10-27
+
+### Added
+- Property-based tests (FsCheck) of the readers of other apps' files: Codex logs and Antigravity's quota page, random
+  or damaged real input; never an exception, shares always between 0 and 1.
+- Build provenance attached to every release (`NexusKeypad-X.Y.Z.intoto.jsonl`, the Sigstore bundle of the
+  attestation), also attached to releases 1.6.2 to 1.7.3.
+
+### Fixed
+- Antigravity quota: a percentage above 100 (damaged text) gave a negative share; now ignored.
+- Codex logs and Claude sessions: a string with an invalid escape stopped reading the states; now decoded as JSON.
+
 ## [1.7.3] - 2026-10-27
 
 ### Fixed

@@ -1,6 +1,7 @@
 # Release: on a vX.Y.Z tag, builds the three Logi Marketplace editions and the complete NexusKeypad edition installed by
 # get.ps1 (.lplug4, checked by the official Logi Plugin Tool), attests their build provenance (verify with `gh attestation verify <file> --repo pironjulien/NexusKeypad`),
-# and publishes them with SHA256SUMS.txt as the "NexusKeypad X.Y.Z" GitHub release, as a draft: the maintainer signs
+# and publishes them with SHA256SUMS.txt and that provenance (NexusKeypad-X.Y.Z.intoto.jsonl, the Sigstore bundle, for
+# `gh attestation verify <file> --bundle`) as the "NexusKeypad X.Y.Z" GitHub release, as a draft: the maintainer signs
 # SHA256SUMS.txt offline (outils/signer_release.ps1, key never on GitHub), then publishes it. The complete edition's
 # automatic update refuses a release without a valid SHA256SUMS.txt.sig.
 # Actions pinned by commit SHA; Dependabot (github-actions) keeps them up to date.
@@ -47,8 +48,15 @@ jobs:
           Get-ChildItem dist -File | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |
             Set-Content dist/SHA256SUMS.txt -Encoding utf8NoBOM
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        id: provenance
         with:
           subject-path: dist/*
+      - name: Provenance bundle
+        shell: pwsh
+        env:
+          BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+          TAG: ${{ github.ref_name }}
+        run: Copy-Item $env:BUNDLE "dist/NexusKeypad-$($env:TAG.TrimStart('v')).intoto.jsonl"
       - name: GitHub release
         shell: pwsh
         env:

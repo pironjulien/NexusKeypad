@@ -155,11 +155,18 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private static readonly Regex Pourcentage = new(@"^(\d{1,3}(?:[.,]\d+)?)\s*%$");
+        // Chiffres ASCII seulement : \d accepte tous les chiffres Unicode, que Double.Parse refuse (FormatException relevée par
+        // Codex, 27/10).
+        private static readonly Regex Pourcentage = new(@"^([0-9]{1,3}(?:[.,][0-9]{1,6})?)\s*%$");
 
         // « …, it will fully refresh in 4 days, 23 hours. » → délai avant la remise à zéro de la fenêtre.
         private static readonly Regex Remise = new(@"refresh(?:es)? in (.+?)\.?$", RegexOptions.IgnoreCase);
-        private static readonly Regex Morceau = new(@"(\d+)\s*(day|hour|minute|second)s?", RegexOptions.IgnoreCase);
+        // Nombre entier (jamais un morceau de nombre plus long : « 1000000 seconds » n'est pas « 000000 seconds »).
+        private static readonly Regex Morceau = new(@"(?<![0-9])([0-9]+)\s*(day|hour|minute|second)s?", RegexOptions.IgnoreCase);
+
+        // Une fenêtre dure au plus une semaine : au-delà de 8 jours, un délai (une composante ou leur somme) est un texte
+        // abîmé ; tout le délai est alors ignoré (pas d'heure de remise à zéro, la part lue reste), sans calcul qui déborde.
+        private static readonly Int64 Plafond = (Int64)TimeSpan.FromDays(8).TotalSeconds;
 
         public static TimeSpan? Delai(String ligne)
         {
@@ -168,22 +175,27 @@ namespace Loupedeck.TrinitePlugin
                 return null;
             }
 
-            var total = TimeSpan.Zero;
+            Int64 secondes = 0;
             var lu = false;
             foreach (Match p in Morceau.Matches(m.Groups[1].Value))
             {
-                var n = Int32.Parse(p.Groups[1].Value, CultureInfo.InvariantCulture);
-                total += p.Groups[2].Value.ToLowerInvariant() switch
+                var unite = p.Groups[2].Value.ToLowerInvariant() switch
                 {
-                    "day" => TimeSpan.FromDays(n),
-                    "hour" => TimeSpan.FromHours(n),
-                    "minute" => TimeSpan.FromMinutes(n),
-                    _ => TimeSpan.FromSeconds(n),
+                    "day" => 86400L,
+                    "hour" => 3600L,
+                    "minute" => 60L,
+                    _ => 1L,
                 };
+                if (!Int64.TryParse(p.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var n) || n > Plafond / unite
+                    || (secondes += n * unite) > Plafond)
+                {
+                    return null;
+                }
+
                 lu = true;
             }
 
-            return lu ? total : null;
+            return lu ? TimeSpan.FromSeconds(secondes) : null;
         }
 
         // Texte de la page (« Gemini Models », « Five Hour Limit Remaining », « … refresh in 2 hours, 42 minutes. »,
@@ -211,9 +223,11 @@ namespace Loupedeck.TrinitePlugin
                 {
                     delai = d;
                 }
-                else if (fenetre is not null && Pourcentage.Match(ligne) is { Success: true } m)
+                else if (fenetre is not null && Pourcentage.Match(ligne) is { Success: true } m
+                    && Double.Parse(m.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture) is var restant and <= 100)
                 {
-                    var utilise = 1 - (Double.Parse(m.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture) / 100);
+                    // Au-delà de 100 % restants : texte abîmé, ignoré (une part négative faussait la jauge ; FsCheck, 27/10).
+                    var utilise = 1 - (restant / 100);
                     DateTime? fin = delai is TimeSpan attente ? DateTime.UtcNow + attente : null;
                     groupes.Add(new(fenetre.StartsWith("Five", StringComparison.Ordinal), utilise, fin));
                     fenetre = null;

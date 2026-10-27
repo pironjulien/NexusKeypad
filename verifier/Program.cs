@@ -157,6 +157,9 @@ Vrai(Observateur.EtatJournalCodex([debut, Multi(), fin, Reponse(Item(0)), Repons
 Vrai(Observateur.EtatJournalCodex([debut, Multi(), fin, Reponse(Item(0) + "," + Item(1))], false, instantJournal).Item1 == Etat.Fini, "réponses groupées → fermé");
 Vrai(Observateur.EtatJournalCodex([debut, fin], false, instantJournal).Item1 == Etat.Fini, "sans question async → inchangé");
 
+Robustesse.Delais(Vrai);
+Robustesse.Tout(Vrai, [debut, question, fin, reponse, Multi(), Reponse(Item(0) + "," + Item(1)), ordinaire, citee], page);
+
 Vrai(QuotaAntigravity.Delai("it will fully refresh in 4 days, 23 hours.") == new TimeSpan(4, 23, 0, 0)
     && QuotaAntigravity.Delai("Weekly Limit Remaining") is null, "délai de remise à zéro lu en jours, heures, minutes");
 // Relevé du quota : la fenêtre des réglages (onglet Models), jamais le premier [role=dialog] venu (une notification

@@ -336,7 +336,21 @@ namespace Loupedeck.TrinitePlugin
         private static String Champ(String json, String nom)
         {
             var m = Regex.Match(json, $"\"{nom}\":(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\]]+))");
-            return !m.Success ? null : m.Groups[1].Success ? Regex.Unescape(m.Groups[1].Value) : m.Groups[2].Value.Trim();
+            return !m.Success ? null : m.Groups[1].Success ? ChaineJson(m.Groups[1].Value) : m.Groups[2].Value.Trim();
+        }
+
+        // Contenu d'une chaîne JSON lue telle quelle entre ses guillemets, décodé en JSON (Regex.Unescape levait une
+        // exception sur un échappement que JSON ignore, « \l », et arrêtait la lecture ; FsCheck, 27/10). Illisible : brut.
+        private static String ChaineJson(String brut)
+        {
+            try
+            {
+                return System.Text.Json.JsonSerializer.Deserialize<String>("\"" + brut + "\"") ?? brut;
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return brut;
+            }
         }
 
         private static DateTime? Instant(String ms) =>
