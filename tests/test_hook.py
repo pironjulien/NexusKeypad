@@ -191,6 +191,23 @@ class Echange(unittest.TestCase):
                         p.kill()
                     p.wait()
                     p.stdin.close()
+                # Le faux agent, relancé détaché, écrit sa trace avant de finir : tant qu'il tourne, fauxlogi.exe ne
+                # s'efface pas et le dossier temporaire non plus (échec intermittent, 27/10). Attendu, sinon arrêté.
+                self.attendre_fin("fauxlogi.exe")
+
+    @staticmethod
+    def attendre_fin(image, secondes=10):
+        def present():
+            liste = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {image}", "/NH", "/FO", "CSV"],
+                                   capture_output=True, text=True, errors="replace").stdout
+            return f'"{image}"'.lower() in liste.lower()
+
+        fin = time.monotonic() + secondes
+        while present() and time.monotonic() < fin:
+            time.sleep(0.1)
+        if present():
+            subprocess.run(["taskkill", "/F", "/IM", image], capture_output=True)
+            time.sleep(0.5)
 
 
 if __name__ == "__main__":
