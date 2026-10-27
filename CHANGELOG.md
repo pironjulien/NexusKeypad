@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- CodeQL code scanning (`.github/workflows/codeql.yml`): C# built for real on Windows (plugin with its hook, preview,
+  rule checker; Logi API from the `LogiPluginApi` NuGet package, no Logi service needed) and the GitHub Actions
+  workflows, on every push, pull request and every Wednesday.
+
+### Changed
+- Dependabot NuGet reads the project folders (`/plugin/src`, `/apercu`, `/verifier`) instead of the root, which holds
+  no project or solution; updates grouped in one pull request.
+- `LoupedeckPackage.yaml` of the four editions: the "Loupedeck CT, Live and Live S" comment now names the MX Creative
+  Console (`LogitechCreativeFamily`). The internal `TrinitePad` name of the AI Coding Agents edition is documented in
+  its package: kept on purpose, renaming it would break the identity of installed copies. Comment only, no effect on
+  the plugin.
+
 ## [1.4.4] - 2026-10-27 — Sharper icon
 
 ### Changed

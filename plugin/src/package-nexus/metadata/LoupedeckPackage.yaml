@@ -41,7 +41,7 @@ pluginFolderWin: bin
 
 # List of devices the plugin is optimized for.
 supportedDevices:
-    # LoupedeckCtFamily covers the following devices: Loupedeck CT, Live and Live S.
+    # LogitechCreativeFamily covers the Logitech MX Creative Console (MX Creative Keypad and Dialpad).
     - LogitechCreativeFamily
 
     # LoupedeckPlusFamily covers Loupedeck+ device. Uncomment the following line to support Loupedeck+.

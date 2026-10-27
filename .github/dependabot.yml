@@ -11,9 +11,17 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  # No project or solution at the root: the NuGet updater reads the folders that hold the .csproj files (hook.csproj
+  # has no NuGet reference). The same LogiPluginApi version in the three projects is proposed in a single grouped PR.
   - package-ecosystem: nuget
-    directory: /
+    directories:
+      - /plugin/src
+      - /apercu
+      - /verifier
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      nuget:
+        patterns: ["*"]
