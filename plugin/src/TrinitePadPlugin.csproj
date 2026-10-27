@@ -106,14 +106,15 @@
 
   <!-- Hook des états en direct (nexuskeypad-hook.exe, natif, sans Python) à côté de la DLL, sauf dans PC Dashboard (pas
        d'agents). Recompilé seulement quand ses sources changent ; vswhere (Visual Studio Installer) sert à l'éditeur de
-       liens natif. -->
+       liens natif. Le dossier de sortie est passé sans « \ » final : « \" » échappe le guillemet et colle au chemin
+       tout argument ajouté après la commande (cas de l'analyse CodeQL, 27/10). -->
   <PropertyGroup>
     <HookProjet>$(MSBuildThisFileDirectory)..\..\hook\</HookProjet>
     <HookSortie>$(NexusBuild)hook-build\publish\</HookSortie>
   </PropertyGroup>
   <Target Name="HookPublie" Inputs="$(HookProjet)Program.cs;$(HookProjet)PluginLog.cs;$(HookProjet)Touches.cs;$(HookProjet)Echange.cs;$(HookProjet)hook.csproj;$(MSBuildThisFileDirectory)Trinite\EtatsEnDirect.cs" Outputs="$(HookSortie)nexuskeypad-hook.exe"
           Condition="'$(Edition)' != 'Poste'">
-    <Exec Command="set &quot;PATH=$(MSBuildProgramFiles32)\Microsoft Visual Studio\Installer;%PATH%&quot; &amp;&amp; dotnet publish &quot;$(HookProjet)hook.csproj&quot; -c Release -nologo -v q -o &quot;$(HookSortie)&quot;"
+    <Exec Command="set &quot;PATH=$(MSBuildProgramFiles32)\Microsoft Visual Studio\Installer;%PATH%&quot; &amp;&amp; dotnet publish &quot;$(HookProjet)hook.csproj&quot; -c Release -nologo -v q -o &quot;$(HookSortie.TrimEnd('\'))&quot;"
           EnvironmentVariables="DOTNET_CLI_TELEMETRY_OPTOUT=1" />
   </Target>
   <Target Name="HookCopie" AfterTargets="CopyPackage" DependsOnTargets="HookPublie" Condition="'$(Edition)' != 'Poste'">

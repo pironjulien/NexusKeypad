@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   its package: kept on purpose, renaming it would break the identity of installed copies. Comment only, no effect on
   the plugin.
 
+### Fixed
+- Hook build (`TrinitePadPlugin.csproj`): the output folder is passed to `dotnet publish -o` without a trailing `\`;
+  `\"` escaped the quote and glued any appended argument to the path (the build failed under CodeQL).
+
 ## [1.4.4] - 2026-10-27 — Sharper icon
 
 ### Changed
