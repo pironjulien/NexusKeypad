@@ -18,7 +18,7 @@ AssemblyLoadContext.Default.Resolving += (_, nom) =>
 };
 
 // Icône de chaque édition (metadata/Icon256x256.png) : l'icône de la famille Nexus, le pad dans le médaillon de
-// julienpiron.fr (kit NexusPublish\communication\icones, nexuskeypad-mark-256.png), réduite dans les 192 px du centre
+// julienpiron.fr (kit NexusCommunication\icones, nexuskeypad-mark-256.png), réduite dans les 192 px du centre
 // sur fond transparent (règle de Logitech pour Options+ et le Marketplace).
 // Usage : dotnet run -- icone <nexuskeypad-mark-256.png> <fichier.png>
 if (args is ["icone", var marque, var icone])

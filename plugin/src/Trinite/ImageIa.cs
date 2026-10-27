@@ -5,13 +5,14 @@ namespace Loupedeck.TrinitePlugin
 
     using SkiaSharp;
 
-    // Image collée dans une IA, selon la règle commune des produits Nexus : côté long
-    // ≤ 1568 px et ≤ 1,15 Mpx, WebP sans perte, repli WebP qualité 85 puis 70 au-delà de 200 Ko, jamais plus de 500 Ko
-    // (au-delà, Antigravity répond 400). SkiaSharp est celui du service Logi (aucune dépendance ajoutée au paquet).
+    // Image collée dans une IA, selon la règle commune des produits Nexus (27/10) : côté long
+    // ≤ 2000 px et ≤ 2,56 Mpx, WebP sans perte tant qu'il tient 500 Ko, sinon qualité 90, 80 puis 70 ; jamais plus de
+    // 500 Ko (plafond gardé pour Antigravity). SkiaSharp est celui du service Logi (aucune dépendance ajoutée au paquet).
     public static class ImageIa
     {
-        private const Int32 CoteMax = 1568;
-        private const Double PixelsMax = 1_150_000;
+        private const Int32 CoteMax = 2000;
+        private const Double PixelsMax = 2_560_000;
+        private const Int32 PoidsMax = 500 * 1024;
 
         // Écrit <base>.webp (pour l'IA) et <base>.png (image du presse-papiers, que Windows sait lire) ; rend le WebP, ou
         // null si l'image est illisible ou ne tient pas sous 500 Ko.
@@ -32,11 +33,11 @@ namespace Loupedeck.TrinitePlugin
             using var pixels = reduite.PeekPixels();
 
             SKData webp = null;
-            foreach (var (compression, qualite) in new[] { (SKWebpEncoderCompression.Lossless, 100f), (SKWebpEncoderCompression.Lossy, 85f), (SKWebpEncoderCompression.Lossy, 70f) })
+            foreach (var (compression, qualite) in new[] { (SKWebpEncoderCompression.Lossless, 100f), (SKWebpEncoderCompression.Lossy, 90f), (SKWebpEncoderCompression.Lossy, 80f), (SKWebpEncoderCompression.Lossy, 70f) })
             {
                 webp?.Dispose();
                 webp = pixels.Encode(new SKWebpEncoderOptions(compression, qualite));
-                if (webp is not null && webp.Size <= (compression == SKWebpEncoderCompression.Lossless ? 200 * 1024 : 500 * 1024))
+                if (webp is not null && webp.Size <= PoidsMax)
                 {
                     break;
                 }
@@ -44,7 +45,7 @@ namespace Loupedeck.TrinitePlugin
 
             using (webp)
             {
-                if (webp is null || webp.Size > 500 * 1024)
+                if (webp is null || webp.Size > PoidsMax)
                 {
                     return null;
                 }

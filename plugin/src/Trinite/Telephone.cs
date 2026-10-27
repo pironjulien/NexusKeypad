@@ -224,7 +224,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Une image dans le presse-papiers pour l'IA (photo, capture d'écran), réduite selon la règle commune des images
-        // (ImageIa : WebP, ≤ 1568 px, ≤ 500 Ko) en <base_>.webp et <base_>.png.
+        // (ImageIa : WebP, ≤ 2000 px, ≤ 500 Ko) en <base_>.webp et <base_>.png.
         public Boolean CopierImage(String source, String base_, String geste)
         {
             String reduite;

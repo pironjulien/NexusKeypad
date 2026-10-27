@@ -5,12 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-27
+
 ### Added
 - CodeQL code scanning (`.github/workflows/codeql.yml`): C# built for real on Windows (plugin with its hook, preview,
   rule checker; Logi API from the `LogiPluginApi` NuGet package, no Logi service needed) and the GitHub Actions
   workflows, on every push, pull request and every Wednesday.
 
 ### Changed
+- Photo and screenshot pasted into an AI: up to 2000 px and 2.56 MP (was 1568 px and 1.15 MP), lossless WebP while it
+  fits 500 KB, then quality 90, 80, 70.
 - Dependabot NuGet reads the project folders (`/plugin/src`, `/apercu`, `/verifier`) instead of the root, which holds
   no project or solution; updates grouped in one pull request.
 - `LoupedeckPackage.yaml` of the four editions: the "Loupedeck CT, Live and Live S" comment now names the MX Creative
