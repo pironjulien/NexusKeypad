@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-27
+
+### Added
+- Complete edition (NexusKeypad): a local usage journal, one line per key press in
+  `%LOCALAPPDATA%\NexusJournal\keypad\<ai>\<YYYY-MM>.jsonl` (key, AI app aimed at, duration, outcome, short fixed
+  cause), never a conversation title, text or path; it never leaves the PC and `NEXUS_JOURNAL=0` turns it off. The
+  Marketplace editions have none.
+
+### Changed
+- The plugin log no longer holds conversation titles (the "conversations" line and the warning of a key that could
+  not open a conversation had them): only states, conversation counts and quotas remain.
+
 ## [1.5.0] - 2026-10-27
 
 ### Added

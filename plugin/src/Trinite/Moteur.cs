@@ -362,6 +362,12 @@ namespace Loupedeck.TrinitePlugin
 
             if (!this._gestes.TryAdd((scene.Temps, touche, () =>
             {
+                // Journal commun (Journal.cs) : IA visée, nom fixe de la touche, issue et cause courte ; rien hors des IA.
+                var chrono = Stopwatch.StartNew();
+                var cible = -1;
+                var geste = "?";
+                var reussi = "✓";
+                String cause = null;
                 try
                 {
                     switch (touche)
@@ -369,7 +375,8 @@ namespace Loupedeck.TrinitePlugin
 #if !POSTE
                         case Capture:
                             // L'écran tel que l'utilisateur le voit (capturé avant de changer d'appli).
-                            this.CollerDansIa("Capture", () => Ecran.Capturer() is { } capture
+                            geste = "capture";
+                            (cible, cause) = this.CollerDansIa("Capture", () => Ecran.Capturer() is { } capture
                                 && this._observateur.Telephone.CopierImage(capture, Path.ChangeExtension(capture, null) + "-ia", "Capture"),
                                 () => this._captureCollee = this._horloge.Elapsed.TotalSeconds);
                             break;
@@ -378,11 +385,14 @@ namespace Loupedeck.TrinitePlugin
                             Gestes.Lancer("ms-actioncenter:");
                             break;
                         case Photo:
-                            this.CollerDansIa("Photo", this._observateur.Telephone.Copier, () => this._photoCopiee = this._horloge.Elapsed.TotalSeconds);
+                            geste = "photo";
+                            (cible, cause) = this.CollerDansIa("Photo", this._observateur.Telephone.Copier, () => this._photoCopiee = this._horloge.Elapsed.TotalSeconds);
                             break;
                         case Dictee:
+                            geste = "dictate";
                             if (Gestes.Dicter() is var ia and >= 0 and < 3)
                             {
+                                cible = ia;
                                 this._observateur.SuivreDictee(ia); // touche rouge seulement pour une dictée lancée, dans son appli
                             }
 
@@ -390,7 +400,9 @@ namespace Loupedeck.TrinitePlugin
                         case < 3:
                             // Ligne du haut : la conversation qui clignote, sinon l'appli de l'IA ; appli déjà devant, la
                             // conversation suivante (urgentes d'abord, puis de la plus récente à la plus ancienne).
+                            cible = touche;
                             var c = this.Cible(touche, scene.Instantane);
+                            geste = c is not null ? "open_conversation" : "open_app";
                             if (c is not null)
                             {
                                 // Vue seulement si elle s'est vraiment ouverte ; sinon l'alerte reste, et les gestes déjà
@@ -398,13 +410,18 @@ namespace Loupedeck.TrinitePlugin
                                 if (!Gestes.Ouvrir(touche, c))
                                 {
                                     this._teteRatee = this._horloge.Elapsed.TotalSeconds;
-                                    PluginLog.Warning($"tête {touche + 1} : la conversation « {c.Titre} » ne s'est pas ouverte");
+                                    (reussi, cause) = ("✗", "not opened");
+                                    PluginLog.Warning($"tête {touche + 1} : la conversation ne s'est pas ouverte"); // jamais son titre
                                 }
                                 else if (this.Devant(touche))
                                 {
                                     this._observateur.MarquerVu(c.Agent, c.Id); // ouverte et devant : vue
                                     this._ouverte[touche] = c.Id;
                                     this.Descendre(touche, appui);
+                                }
+                                else
+                                {
+                                    (reussi, cause) = ("~", "not in front");
                                 }
                             }
                             else
@@ -413,6 +430,10 @@ namespace Loupedeck.TrinitePlugin
                                 if (this.Devant(touche))
                                 {
                                     this.Descendre(touche, appui); // appli ramenée devant : sa conversation aussi, jusqu'au bout
+                                }
+                                else
+                                {
+                                    (reussi, cause) = ("~", "not in front");
                                 }
                             }
 
@@ -426,8 +447,10 @@ namespace Loupedeck.TrinitePlugin
                             // Ligne des jauges : le détail des quotas de l'IA ; appli pas encore prête, elle est seulement
                             // lancée ou ramenée (un appui rejoué plus tard pouvait reprendre le premier plan après un geste
                             // plus récent) : l'appui suivant ouvre le détail.
+                            (cible, geste) = (touche % 3, "usage");
                             if (!Gestes.Utilisation(touche % 3))
                             {
+                                (reussi, cause) = ("~", "app not ready");
                                 PluginLog.Info($"Utilisation : appli de la touche {touche + 1} pas encore prête, seulement lancée");
                             }
 
@@ -437,12 +460,20 @@ namespace Loupedeck.TrinitePlugin
                 }
                 catch (Exception e)
                 {
+                    (reussi, cause) = ("✗", e.GetType().Name);
                     PluginLog.Error(e, $"touche {touche + 1}");
                     if (touche < Capture)
                     {
                         this._teteRatee = this._horloge.Elapsed.TotalSeconds; // tête en échec : la suite viserait l'appli d'avant
                     }
                 }
+#if NEXUS || STREAMDECK
+                finally
+                {
+                    // Sans cause : réussi ; cause d'un abandon sans échec explicite (copie, collage) : échec.
+                    Journal.Ecrire(cible, geste, cause is null ? "✓" : reussi == "✓" ? "✗" : reussi, chrono.Elapsed.TotalMilliseconds, cause);
+                }
+#endif
             }, issue)))
             {
                 PluginLog.Warning($"touche {touche + 1} ignorée : plugin en cours d'arrêt");
@@ -474,7 +505,7 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 var resume = String.Join(" | ", Enumerable.Range(0, 3).Select(i =>
-                    $"{Observateur.Agents[i]} {this._instantane.Ouvertes[i]} conv. : {this._instantane.Premiere(i)?.Titre ?? "—"}={this._instantane.Premiere(i)?.Etat}{(this._instantane.Premiere(i)?.Alerte == true ? "·alerte" : "")}" +
+                    $"{Observateur.Agents[i]} {this._instantane.Ouvertes[i]} conv. : {this._instantane.Premiere(i)?.Etat.ToString() ?? "—"}{(this._instantane.Premiere(i)?.Alerte == true ? "·alerte" : "")}" +
                     $" ; quota 5 h {this._instantane.Quotas[i]?.Cinq * 100:0} % semaine {this._instantane.Quotas[i]?.Semaine * 100:0} %"));
                 if (resume != this._resume)
                 {
@@ -689,19 +720,20 @@ namespace Loupedeck.TrinitePlugin
         // Capture ou photo : l'image copiée puis collée (sans envoyer) dans la conversation affichée de l'IA devant, sinon de
         // la dernière IA que l'utilisateur a utilisée, ramenée devant (la photo exigeait une IA devant : depuis une autre appli,
         // l'appui ne faisait rien, 24/10).
-        private void CollerDansIa(String geste, Func<Boolean> copier, Action collee)
+        // Rend l'IA visée (-1 : aucune) et la cause d'un abandon (null : collée), pour le journal commun.
+        private (Int32 Cible, String Cause) CollerDansIa(String geste, Func<Boolean> copier, Action collee)
         {
             var devant = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan());
             var cible = devant >= 0 ? devant : this._derniereIa;
             if (cible < 0)
             {
                 PluginLog.Warning($"{geste} : aucune IA utilisée depuis le démarrage, rien n'a été copié");
-                return;
+                return (-1, "no ai");
             }
 
             if (!copier() || this._arret)
             {
-                return;
+                return (cible, this._arret ? "stopped" : "copy failed");
             }
 
             if (devant < 0)
@@ -709,16 +741,19 @@ namespace Loupedeck.TrinitePlugin
                 Gestes.Premier(cible);
                 if (!this.Devant(cible))
                 {
-                    return;
+                    return (cible, "not in front");
                 }
             }
 
             // Collé seulement dans l'IA visée au moment de l'appui : si l'utilisateur est passé sur une autre appli pendant
             // la copie, rien n'est collé (relecture de Codex, 25/10).
-            if (Gestes.Coller(geste, cible))
+            if (!Gestes.Coller(geste, cible))
             {
-                collee();
+                return (cible, "paste failed");
             }
+
+            collee();
+            return (cible, null);
         }
 #endif
 

@@ -183,6 +183,12 @@ release's `SHA256SUMS.txt`, and swaps it in only while the keypad is idle (no pr
 the previous version back. Turn this off with `{"miseAJourAuto": false}` in `%LOCALAPPDATA%\NexusKeypad\reglages.json`.
 Its state is in `~/.nexus/status/keypad.json` (read by the Nexus app, which can also start an update).
 
+**Usage journal.** The complete edition also keeps a local usage journal, one line per key press in
+`%LOCALAPPDATA%\NexusJournal\keypad\<ai>\<YYYY-MM>.jsonl`: which key, which AI app it aimed at, how long it took,
+whether it worked and a short fixed cause when it did not (`not opened`, `paste failed`…). It never holds a
+conversation title, text or path, and never leaves your PC. Set `NEXUS_JOURNAL=0` to turn it off. The Marketplace
+editions have no such journal.
+
 It has its own plugin name, so Logi Options+ never mixes it up with a Marketplace edition: install one or the other.
 The Marketplace editions below are the same code, split and trimmed to Logitech's rules (one function per plugin, no
 default website).
