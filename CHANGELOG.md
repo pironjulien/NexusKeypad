@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.5] - 2026-10-27
+
+### Fixed
+- Automatic update: every downloaded package stayed in `%LOCALAPPDATA%\NexusKeypad\maj`, one per version; it is now
+  deleted once unpacked and checked, with those of past versions.
+
 ## [1.7.4] - 2026-10-27
 
 ### Added

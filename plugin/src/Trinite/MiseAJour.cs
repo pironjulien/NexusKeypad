@@ -265,6 +265,19 @@ namespace Loupedeck.TrinitePlugin
                     await Telecharger(baseRelease + NomPaquet(derniere), paquet);
                     var sommes = Sommes(await Octets(baseRelease + "SHA256SUMS.txt"), Encoding.UTF8.GetString(await Octets(baseRelease + "SHA256SUMS.txt.sig")));
                     var pret = Preparer(paquet, sommes, derniere, Travail);
+                    // Déballé et contrôlé, le paquet ne sert plus : ni lui ni ceux des mises à jour passées ne restent (ils
+                    // s'empilaient dans maj\, un par version). Un fichier qui ne s'efface pas n'empêche pas la mise à jour.
+                    foreach (var vieux in Directory.EnumerateFiles(Travail, "*.lplug4"))
+                    {
+                        try
+                        {
+                            File.Delete(vieux);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            PluginLog.Warning(ex, $"paquet {Path.GetFileName(vieux)} laissé dans maj");
+                        }
+                    }
 
                     // Jamais pendant un appui ni un geste : le pad au repos (10 min au plus, sinon au prochain passage).
                     var fin = DateTime.UtcNow.AddMinutes(10);
