@@ -292,6 +292,7 @@ namespace Loupedeck.TrinitePlugin
             public Etat Etat = Etat.Repos;
             public DateTime Depuis = DateTime.MinValue;
             private Boolean _accord; // Attend un accord pendant le tour (pas une question de fin)
+            private DateTime _debutTour = DateTime.MinValue;
 
             // Questions posées par request_user_input_async (call_id → heure) : Codex continue son tour sans attendre, la
             // réponse arrive plus tard, souvent après la fin du tour, dans un message de l'utilisateur
@@ -301,13 +302,15 @@ namespace Loupedeck.TrinitePlugin
             // répondre une seule à la fois).
             private readonly Dictionary<(String Appel, Int32 Rang), DateTime> _questions = [];
 
-            // État montré : une question async ouverte depuis moins de 12 h l'emporte sur le travail et la fin (elle attend
-            // l'utilisateur), pas sur un accord à donner ; au-delà, elle s'efface et l'état du tour reprend. Chats du
-            // relais : jamais (ils ne questionnent pas l'utilisateur).
+            // Une question async ne bloque pas le travail. Après la fin du tour, ses questions restent visibles,
+            // pas celles d'un tour précédent.
+            // Les anciennes cartes restent dans Codex et peuvent recevoir une réponse tardive ; elles ne bloquent plus
+            // l'état d'une nouvelle demande. Un tour interrompu reste au repos, sans fermer ses cartes.
+            // Chats du relais : jamais de question à l'utilisateur.
             public (Etat, DateTime) Effectif(Boolean relais, DateTime maintenant)
             {
-                var ouvertes = this._questions.Values.Where(q => maintenant - q <= TimeSpan.FromHours(12)).ToList();
-                return !relais && ouvertes.Count > 0 && this.Etat != Etat.Autorisation
+                var ouvertes = this._questions.Values.Where(q => q >= this._debutTour && maintenant - q <= TimeSpan.FromHours(12)).ToList();
+                return !relais && ouvertes.Count > 0 && this.Etat is not (Etat.Autorisation or Etat.Travaille or Etat.Repos)
                     ? (Etat.Attend, ouvertes.Max())
                     : (this.Etat, this.Depuis);
             }
@@ -333,6 +336,7 @@ namespace Loupedeck.TrinitePlugin
 
                 if (ligne.Contains("\"type\":\"task_started\"", StringComparison.Ordinal))
                 {
+                    this._debutTour = quand;
                     (this.Etat, this.Depuis, this._accord) = (Etat.Travaille, quand, false);
                 }
                 else if (ligne.Contains("_approval_request\"", StringComparison.Ordinal))

@@ -13,6 +13,17 @@ from pathlib import Path
 HOOK = os.environ.get("NEXUSKEYPAD_HOOK", "")
 CHOIX = "mcp__ccd_turn__wrap_up"  # boîte de fin de tour de l'appli : une question si « ask » est rempli
 
+
+def setUpModule():
+    if not HOOK or not Path(HOOK).exists():
+        return  # les classes expliquent comment compiler le hook
+    racine = Path(__file__).resolve().parents[1]
+    sources = [*racine.joinpath("hook").glob("*.cs"), *racine.joinpath("hook").glob("*.csproj"),
+               racine / "hook" / "Directory.Build.props", racine / "plugin" / "src" / "Trinite" / "EtatsEnDirect.cs"]
+    perimees = [p.relative_to(racine).as_posix() for p in sources if p.stat().st_mtime_ns > Path(HOOK).stat().st_mtime_ns]
+    if perimees:
+        raise RuntimeError(f"Hook natif de test périmé ({', '.join(perimees)}) : lancer test.ps1 avant les tests.")
+
 # (agent, événement, charge, état d'avant, dernier message du tour, état attendu). Relevés sur etat.py, la version
 # Python d'origine retirée le 26/10 (même travail, mêmes règles).
 CAS = [
@@ -119,7 +130,8 @@ class Echange(unittest.TestCase):
         tenu = tenir(cible) if tenir else None  # le dossier tenu comme par le service Logi (DLL chargées)
         try:
             sortie = subprocess.run([HOOK, "swap", str(nouveau), str(cible), str(ancien), str(etat), "1.3.1"],
-                                    capture_output=True, timeout=90, env={**os.environ, **(env or {})})
+                                    capture_output=True, timeout=90,
+                                    env={**os.environ, "NEXUSKEYPAD_SWAP_PROCESSES": "", "NEXUSKEYPAD_SWAP_AGENT": "", **(env or {})})
         finally:
             if tenu is not None and hasattr(tenu, "close"):
                 tenu.close()

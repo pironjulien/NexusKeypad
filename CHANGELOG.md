@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.7] - 2026-10-28
+
+### Fixed
+- Codex state: unanswered question cards from previous turns no longer keep the key on "?" during a new task or
+  after it finishes. Ongoing work takes priority over asynchronous cards; questions from the current turn remain
+  visible when that turn finishes. Historical cards are neither deleted nor marked as answered.
+- Codex state: aborting a turn with an asynchronous question returns the key to idle. The card remains in the
+  history for a real later reply, without interfering with questions from subsequent turns.
+
 ## [1.7.6] - 2026-10-28
 
 ### Fixed

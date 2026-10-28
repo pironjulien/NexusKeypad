@@ -144,7 +144,7 @@ String Reponse(String rangs) => L("20:59:00.000", $$"""
 "type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<send_user_message_question_reply>\n[{{rangs}}]"}]}
 """.Trim());
 String Item(Int32 r) => $$"""{\"questionItemId\":\"[\\\"request_user_input_async\\\",\\\"call_multi123\\\",{{r}}]\"}""";
-Vrai(Observateur.EtatJournalCodex([debut, question], false, instantJournal).Item1 == Etat.Attend, "question async pendant le tour → question");
+Vrai(Observateur.EtatJournalCodex([debut, question], false, instantJournal).Item1 == Etat.Travaille, "question async pendant le tour → travail non bloqué");
 Vrai(Observateur.EtatJournalCodex([debut, question, fin], false, instantJournal) is (Etat.Attend, var q) && q.Minute == 49, "tour fini, question sans réponse → question (à son heure)");
 Vrai(Observateur.EtatJournalCodex([debut, question, fin, reponse], false, instantJournal).Item1 == Etat.Fini, "réponse qui cite le call_id → la question se ferme");
 Vrai(Observateur.EtatJournalCodex([debut, question, fin, ordinaire], false, instantJournal).Item1 == Etat.Attend, "message ordinaire : pas une réponse, la carte reste");
@@ -156,6 +156,33 @@ Vrai(Observateur.EtatJournalCodex([debut, Multi(), fin, Reponse(Item(0))], false
 Vrai(Observateur.EtatJournalCodex([debut, Multi(), fin, Reponse(Item(0)), Reponse(Item(1))], false, instantJournal).Item1 == Etat.Fini, "les deux répondues l'une après l'autre → fermé");
 Vrai(Observateur.EtatJournalCodex([debut, Multi(), fin, Reponse(Item(0) + "," + Item(1))], false, instantJournal).Item1 == Etat.Fini, "réponses groupées → fermé");
 Vrai(Observateur.EtatJournalCodex([debut, fin], false, instantJournal).Item1 == Etat.Fini, "sans question async → inchangé");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin, reprise], false, instantJournal).Item1 == Etat.Travaille,
+    "ancienne question sans réponse : le nouveau tour montre le travail");
+var nouvelleFin = L("20:59:30.000", "\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":\"Nouveau contrôle terminé.\"}");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin, reprise, nouvelleFin], false, instantJournal).Item1 == Etat.Fini,
+    "ancienne question sans réponse : ne revient pas à la fin du nouveau tour");
+var nouvelleQuestion = question.Replace("20:49:06.000", "20:58:30.000").Replace("call_dfc1744cb4404887847e77d2911650c0", "call_nouvelle");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin, reprise, nouvelleQuestion, nouvelleFin, reponse], false, instantJournal).Item1 == Etat.Attend,
+    "réponse tardive à l'ancienne question : la nouvelle question reste visible");
+var nouvelleReponse = reponse.Replace("call_dfc1744cb4404887847e77d2911650c0", "call_nouvelle").Replace("20:55:00.000", "20:59:45.000");
+Vrai(Observateur.EtatJournalCodex([debut, question, fin, reprise, nouvelleQuestion, nouvelleFin, reponse, nouvelleReponse], false, instantJournal).Item1 == Etat.Fini,
+    "nouvelle question répondue : le nouveau tour retrouve sa fin");
+var interruption = L("20:52:00.000", "\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\"}");
+Vrai(Observateur.EtatJournalCodex([debut, question, interruption], false, instantJournal) is (Etat.Repos, var annule) && annule.Minute == 52,
+    "tour annulé avec carte async : repos à l'heure de l'annulation");
+Vrai(Observateur.EtatJournalCodex([debut, question, interruption, reponse], false, instantJournal).Item1 == Etat.Repos,
+    "réponse réelle après annulation : le tour reste au repos");
+Vrai(Observateur.EtatJournalCodex([debut, question, interruption, reprise], false, instantJournal).Item1 == Etat.Travaille,
+    "tour annulé avec carte sans réponse : le nouveau tour travaille");
+Vrai(Observateur.EtatJournalCodex([debut, question, interruption, reprise, nouvelleFin], false, instantJournal).Item1 == Etat.Fini,
+    "tour annulé avec carte sans réponse : la nouvelle fin ne reprend pas sa question");
+Vrai(Observateur.EtatJournalCodex([debut, question, interruption, reprise, nouvelleQuestion, nouvelleFin], false, instantJournal).Item1 == Etat.Attend,
+    "question d'un nouveau tour après annulation : signalée à sa fin");
+var reponseTardive = reponse.Replace("20:55:00.000", "20:59:40.000");
+Vrai(Observateur.EtatJournalCodex([debut, question, interruption, reprise, nouvelleQuestion, nouvelleFin, reponseTardive], false, instantJournal).Item1 == Etat.Attend,
+    "réponse réelle à la carte du tour annulé : ne ferme pas la nouvelle question");
+Vrai(Observateur.EtatJournalCodex([debut, question, interruption, reprise, nouvelleQuestion, nouvelleFin, reponseTardive, nouvelleReponse], false, instantJournal).Item1 == Etat.Fini,
+    "réponse réelle à la nouvelle question après annulation : fin du nouveau tour");
 
 Robustesse.Delais(Vrai);
 Robustesse.Tout(Vrai, [debut, question, fin, reponse, Multi(), Reponse(Item(0) + "," + Item(1)), ordinaire, citee], page);
