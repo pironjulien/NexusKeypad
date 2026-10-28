@@ -14,6 +14,16 @@ $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 # __pycache__ dans OneDrive. Gardé pour un python lancé sans -I.
 $env:PYTHONDONTWRITEBYTECODE = '1'
 
+# Plugin nexus-keypad (privé, catalogue nexus de NexusClaude) : son module de quota est la copie à l'identique du mod
+# public claude-quota\nexuskeypad-quota (un seul code pour le quota, deux paquets).
+$quotaPrive = Join-Path $PSScriptRoot 'nexus-keypad\hooks\quota.ts'
+if (Test-Path $quotaPrive) {
+    $quotaPublic = Join-Path $PSScriptRoot 'claude-quota\nexuskeypad-quota\hooks\register.ts'
+    if (([IO.File]::ReadAllText($quotaPrive) -replace "`r`n", "`n") -cne ([IO.File]::ReadAllText($quotaPublic) -replace "`r`n", "`n")) {
+        throw 'nexus-keypad\hooks\quota.ts diffère de claude-quota\nexuskeypad-quota\hooks\register.ts : recopier.'
+    }
+}
+
 dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Debug -nologo -v q -p:NexusTest=true -p:NexusBuild=$sortie
 if ($LASTEXITCODE) { throw 'Le plugin ne compile pas.' }
 # Édition du Logi Marketplace (page 1 seule, sans tube d'essais) : elle doit compiler aussi.

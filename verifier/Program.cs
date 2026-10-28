@@ -344,6 +344,19 @@ Vrai(!Rendu.Image(0, S(0.1)).Pixels.AsSpan().SequenceEqual(Rendu.Image(0, S(0.6)
     var retire = J(File.ReadAllText(claude));
     Vrai(!retire.ContainsKey("extraKnownMarketplaces") && retire["enabledPlugins"]!.AsObject().Count == 1 && !Directory.Exists(catalogue),
         "états en direct : retrait du mod du quota (clés et catalogue), autres plugins gardés");
+
+    // Plugin Claude complet déclaré (nexus-keypad@nexus) : il porte hooks et quota ; le pad l'active ou le coupe, sans
+    // jamais poser ses hooks ni l'ancien mod de quota en double.
+    File.WriteAllText(claude, new System.Text.Json.Nodes.JsonObject { ["hooks"] = new System.Text.Json.Nodes.JsonObject(), ["enabledPlugins"] = new System.Text.Json.Nodes.JsonObject { [EtatsEnDirect.PluginClaude] = false } }.ToJsonString());
+    Vrai(!EtatsEnDirect.ClaudeAvecPad(J(File.ReadAllText(claude))), "états en direct : plugin complet coupé → pas posé");
+    var complet = EtatsEnDirect.Appliquer(paquet, true, claude, gemini, exe, catalogue) ? J(File.ReadAllText(claude)) : null;
+    Vrai(complet is not null && EtatsEnDirect.ClaudeAvecPad(complet) && complet["hooks"]!.AsObject().Count == 0
+        && complet["enabledPlugins"]![EtatsEnDirect.PluginClaude]!.GetValue<Boolean>()
+        && complet["enabledPlugins"]![EtatsEnDirect.ModQuota] is null && !complet.ContainsKey("extraKnownMarketplaces"),
+        "états en direct : pose avec le plugin complet (activé, aucun hook ni mod de quota en double)");
+    Vrai(EtatsEnDirect.Appliquer(paquet, false, claude, gemini, exe, catalogue) && !EtatsEnDirect.ClaudeAvecPad(J(File.ReadAllText(claude)))
+        && !J(File.ReadAllText(claude))["enabledPlugins"]![EtatsEnDirect.PluginClaude]!.GetValue<Boolean>(),
+        "états en direct : retrait avec le plugin complet (coupé)");
     Directory.Delete(dossier, true);
 }
 

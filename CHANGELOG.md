@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-10-28
+
+### Fixed
+- Live states action: where a complete Claude plugin `nexus-keypad@nexus` is declared (live-state hooks, task-end note
+  and quota in one plugin), the keypad turns that plugin on or off instead of adding its own hooks and quota module
+  next to it, which would have run twice; it also counts it as "set up".
+
 ## [1.7.5] - 2026-10-27
 
 ### Fixed

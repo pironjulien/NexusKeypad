@@ -185,7 +185,15 @@ namespace Loupedeck.TrinitePlugin
 
         public static Boolean ClaudeAvecPad(JsonObject reglages) =>
             (reglages?["hooks"] as JsonObject)?.Any(p => p.Value is JsonArray g &&
-                g.OfType<JsonObject>().Any(x => x["hooks"] is JsonArray l && l.Any(DuPad))) == true;
+                g.OfType<JsonObject>().Any(x => x["hooks"] is JsonArray l && l.Any(DuPad))) == true ||
+            PluginComplet(reglages) == true;
+
+        // Plugin Claude complet de NexusKeypad (hooks, note de fin de tâche et quota dans un seul plugin, catalogue nexus) :
+        // là où il est déclaré, c'est lui qui porte les états en direct. Null : absent, le pad pose ses hooks lui-même.
+        public const String PluginClaude = "nexus-keypad@nexus";
+
+        public static Boolean? PluginComplet(JsonObject reglages) =>
+            (reglages?["enabledPlugins"] as JsonObject)?[PluginClaude] is JsonValue v && v.TryGetValue(out Boolean actif) ? actif : null;
 
         private static JsonObject Lire(String chemin)
         {
@@ -313,8 +321,19 @@ namespace Loupedeck.TrinitePlugin
 
                 if (Directory.Exists(Path.GetDirectoryName(reglagesClaude)) && Lire(reglagesClaude) is { } reglages)
                 {
-                    ArrangerClaude(reglages, pose);
-                    ArrangerQuota(reglages, pose ? catalogue : null);
+                    if (PluginComplet(reglages) is not null)
+                    {
+                        // Le plugin complet porte tout : on l'active ou on le coupe, sans hooks ni mod de quota en double.
+                        ArrangerClaude(reglages, false);
+                        ArrangerQuota(reglages, null);
+                        reglages["enabledPlugins"]![PluginClaude] = pose;
+                    }
+                    else
+                    {
+                        ArrangerClaude(reglages, pose);
+                        ArrangerQuota(reglages, pose ? catalogue : null);
+                    }
+
                     Ecrire(reglagesClaude, reglages);
                 }
 

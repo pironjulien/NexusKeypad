@@ -18,7 +18,7 @@ description: Two keypad pages - Claude, Codex and Antigravity as animated status
 pluginFileName: AiAgentsPcPlugin.dll
 
 # Plugin version.
-version: 1.7.5
+version: 1.7.6
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: Julien Piron
