@@ -11,6 +11,7 @@ namespace Loupedeck.TrinitePlugin
     //   capture       → image PNG des 9 touches telles qu'envoyées au pad ; répond son chemin
     //   appui <1-18>  → appui simulé sur la touche à cette place du pad (même chemin qu'un vrai appui) ; répond son issue
     //   etat          → résumé de la dernière lecture (conversations, états, quotas)
+    //   snapshot      → JSON versionné du même cache, sans nouvelle lecture des applis ni texte de conversation
     //   releve        → relevé du quota d'Antigravity sur sa page Settings › Models, sans attendre l'inactivité
     //   update        → (édition complète) mise à jour vers la dernière release ; l'appli Nexus la déclenche ainsi
     //   etats-en-direct → la question de l'action « Live states » (poser ou retirer les hooks), comme un appui sur elle
@@ -101,6 +102,8 @@ namespace Loupedeck.TrinitePlugin
                 case "etat":
                     return this._moteur.Resume ?? "";
 #if !POSTE
+                case "snapshot":
+                    return this._moteur.Snapshot();
                 case "releve":
                     return this._moteur.ReleverAntigravity();
 #endif
@@ -109,12 +112,13 @@ namespace Loupedeck.TrinitePlugin
                     return MiseAJour.Lancer(this._moteur, demande: true) ? "started" : "already running";
 #endif
 #if !POSTE
+                case "connexions":
+                    return String.Join(" | ", ConnexionPad.Lire(forcer: true).Select((c, i) => $"{Observateur.Agents[i]}: {c.Etat} ({c.Detail})"));
                 case "etats-en-direct":
-                    EtatsEnDirect.Basculer();
-                    return EtatsEnDirect.Poses() ? "question posée : retirer les états en direct" : "question posée : poser les états en direct";
+                    return "Utiliser la touche de l’IA pour l’activer, ou l’action NexusKeypad de cette IA dans Options+.";
 #endif
                 default:
-                    return "commandes : capture | appui <1-18> | etat | releve | etats-en-direct";
+                    return "commandes : capture | appui <1-18> | etat | snapshot | connexions | releve | etats-en-direct";
             }
         }
 

@@ -26,30 +26,19 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        // Codex passe par le lanceur de « Codex LB » s'il est installé (NexusLB d'abord, sinon aucun modèle ne répond chez
-        // qui s'en sert) ; sans lui, l'appli Codex officielle du Store, activée avec son port de débogage (9223) comme le
-        // fait ce lanceur : sans port, ni ouverture de conversation ni dictée dans Codex.
-        private static readonly String LanceurCodexLb = Path.Combine(Local, "ChatGPTLBLauncher", "ChatGPTLbLauncher.exe");
-
-        private const String CodexOfficiel = "OpenAI.Codex_2p2nqsd0c76g0!App";
-
-        private static readonly String[] Lancement =
-        [
-            @"shell:AppsFolder\AnthropicPBC.Claude_fnn82j28hfe8t!Claude",
-            File.Exists(LanceurCodexLb) ? LanceurCodexLb : CodexOfficiel,
-            @"shell:AppsFolder\electron.app.Antigravity",
-        ];
-
         // Ouvre la conversation dans son appli : lien claude:// pour Claude, clic sur sa ligne par le port pour les deux autres.
-        // Vrai si elle est ouverte : titre affiché par Claude, clic fait chez Codex, ligne ou route chez Antigravity.
+        // Vrai si l'ID voulu est relu : document de Claude, sélection Codex ou route Antigravity.
         public static Boolean Ouvrir(Int32 agent, Conversation c)
         {
+            if (c is null || String.IsNullOrEmpty(c.Id)) { return false; }
+            if (!Connecteurs.EvenementsActifs(Observateur.Agents[agent])) { return false; }
             switch (agent)
             {
                 case 0:
                     // Déjà affichée : seulement ramenée devant. Rouverte par son lien, Claude la recharge et sa vue saute
                     // (en bas, remontée, redescendue… : rejoué le 25/10).
-                    if (Uia.FenetrePrincipale(Observateur.Processus[0]) != IntPtr.Zero && Uia.TitreClaudeAffiche() == c.Titre)
+                    if (Uia.FenetrePrincipale(Observateur.Processus[0]) != IntPtr.Zero
+                        && String.Equals(Uia.SessionClaudeAffichee(), c.Id, StringComparison.OrdinalIgnoreCase))
                     {
                         Premier(agent);
                         return true;
@@ -66,7 +55,7 @@ namespace Loupedeck.TrinitePlugin
                     for (var i = 0; i < 30; i++)
                     {
                         Thread.Sleep(100);
-                        if (Uia.TitreClaudeAffiche() == c.Titre)
+                        if (String.Equals(Uia.SessionClaudeAffichee(), c.Id, StringComparison.OrdinalIgnoreCase))
                         {
                             return true;
                         }
@@ -145,16 +134,19 @@ namespace Loupedeck.TrinitePlugin
         // ramenée) ; l'appui suivant ouvre le détail.
         public static Boolean Utilisation(Int32 agent)
         {
+            if (!Connecteurs.EvenementsActifs(Observateur.Agents[agent])) { return false; }
             if (agent == 1)
             {
-                CodexLb();
-                return true;
+                return CodexLb();
             }
 
             // Boîte déjà ouverte : refermée, l'appli reste où elle est.
-            if (agent == 0 ? Uia.FermerUtilisationClaude() : FermerBoiteAntigravity())
+            var fermeture = agent == 0
+                ? Uia.UtilisationClaudeOuverte() == true ? Uia.FermerUtilisationClaude() : (Boolean?)null
+                : FermerBoiteAntigravity();
+            if (fermeture is Boolean fermee)
             {
-                return true;
+                return fermee;
             }
 
             var prete = UtilisationPrete(agent);
@@ -171,9 +163,10 @@ namespace Loupedeck.TrinitePlugin
             if (probleme is not null)
             {
                 PluginLog.Warning($"Utilisation : {probleme}");
+                return false;
             }
 
-            return true;
+            return agent == 0 || Uia.ConfirmerEtat(UtilisationAntigravityOuverte, true);
         }
 
         // Le détail peut s'ouvrir : bouton « Utilisation » de Claude, sélecteur de modèle d'Antigravity (lus sans rien cliquer).
@@ -185,18 +178,29 @@ namespace Loupedeck.TrinitePlugin
         };
 
         // Menu des modèles d'Antigravity ouvert : refermé d'un clic de confiance sur son sélecteur (vrai s'il l'était).
-        private static Boolean FermerBoiteAntigravity()
+        private static Boolean? UtilisationAntigravityOuverte()
+        {
+            var etat = Cdp.Evaluer(Cdp.PortAntigravity, Js.UtilisationAntigravityOuverte, attente: 1);
+            return etat is { ValueKind: System.Text.Json.JsonValueKind.True } ? true
+                : etat is { ValueKind: System.Text.Json.JsonValueKind.False } ? false : null;
+        }
+
+        private static Boolean? FermerBoiteAntigravity()
         {
             if (Cdp.Evaluer(Cdp.PortAntigravity, Js.MenuModelesAntigravity, attente: 1) is not { ValueKind: System.Text.Json.JsonValueKind.Array } point)
             {
-                return false;
+                return null;
             }
 
             // Le menu était ouvert : l'appui est pris par la fermeture, réussie ou non (journalisée si le menu reste ouvert).
             if (!Cdp.Cliquer(Cdp.PortAntigravity, point[0].GetDouble(), point[1].GetDouble())
-                || !Attendre(() => Cdp.Evaluer(Cdp.PortAntigravity, Js.MenuModelesAntigravity, attente: 1) is not { ValueKind: System.Text.Json.JsonValueKind.Array }, 1500))
+                || !Uia.ConfirmerEtat(() => Cdp.Evaluer(Cdp.PortAntigravity, Js.MenuModelesAntigravity, attente: 1) is { } lu
+                    ? lu.ValueKind == System.Text.Json.JsonValueKind.Null ? false
+                        : lu.ValueKind == System.Text.Json.JsonValueKind.Array ? true : null
+                    : null, false, 1500))
             {
                 PluginLog.Warning("Utilisation : la boîte des quotas d'Antigravity ne s'est pas refermée");
+                return false;
             }
 
             return true;
@@ -205,19 +209,20 @@ namespace Loupedeck.TrinitePlugin
         // Codex LB, l'appli web installée dans Chrome (sa page des comptes) : sa fenêtre ramenée devant en plein écran si
         // elle est ouverte (relancée, Chrome en ouvrait une deuxième), sinon lancée par son raccourci d'appli ; sans
         // appli installée, la page d'usage officielle de Codex dans le navigateur.
-        private static void CodexLb()
+        private static Boolean CodexLb()
         {
             const String Titre = "Codex LB";
             var fenetre = Uia.FenetreTitreDebut("chrome", Titre);
-            if (FermerSiDevant(fenetre))
+            if (fenetre != IntPtr.Zero && fenetre == GetForegroundWindow())
             {
-                return; // déjà devant : le deuxième appui la ferme
+                FermerSiDevant(fenetre);
+                return !IsWindowVisible(fenetre); // résultat relu même si la fermeture a été refusée
             }
 
             if (fenetre != IntPtr.Zero)
             {
                 Devant(fenetre);
-                return;
+                return Attendre(() => IsWindowVisible(fenetre) && GetForegroundWindow() == fenetre, 1618);
             }
 
             var chrome = Path.Combine(Local, "Google", "Chrome", "User Data");
@@ -230,12 +235,20 @@ namespace Loupedeck.TrinitePlugin
             if (raccourci is null)
             {
                 Lancer("https://chatgpt.com/codex/settings/usage");
-                return;
+                return Attendre(UsageOfficielCodexDevant, 4000);
             }
 
             Lancer(raccourci);
             _ = System.Threading.Tasks.Task.Run(() => AgrandirALOuverture(() => Uia.FenetreTitreDebut("chrome", Titre)));
+            return Attendre(() => Uia.FenetreTitreDebut("chrome", Titre) is var f && f != IntPtr.Zero
+                && IsWindowVisible(f) && GetForegroundWindow() == f, 4000);
         }
+
+        private static Boolean UsageOfficielCodexDevant() => new[] { "chrome", "msedge", "firefox" }
+            .SelectMany(Uia.Fenetres).Any(f => f == GetForegroundWindow()
+                && Uri.TryCreate(Uia.AdresseDocument(f), UriKind.Absolute, out var u)
+                && u.Scheme == Uri.UriSchemeHttps && u.Host.Equals("chatgpt.com", StringComparison.OrdinalIgnoreCase)
+                && u.IsDefaultPort && String.IsNullOrEmpty(u.UserInfo) && u.AbsolutePath.TrimEnd('/') == "/codex/settings/usage");
 
 #endif
         // Échéance réelle (une lecture lente compte dans le budget : la file des gestes reste sous le verrou pendant ce temps).
@@ -310,6 +323,7 @@ namespace Loupedeck.TrinitePlugin
 
             var fenetre = GetForegroundWindow();
             var agent = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan());
+            if (agent >= 0 && !Connecteurs.EvenementsActifs(Observateur.Agents[agent])) { return -1; }
             var probleme = agent switch
             {
                 0 => AttendreEt(() => Uia.DicterClaude(fenetre)),
@@ -363,6 +377,7 @@ namespace Loupedeck.TrinitePlugin
         {
             var fenetre = GetForegroundWindow();
             var agent = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan(fenetre));
+            if (agent >= 0 && !Connecteurs.EvenementsActifs(Observateur.Agents[agent])) { return null; }
             var probleme = agent != cible ? "l'appli devant n'est plus l'IA visée" : agent switch
             {
                 0 => AttendreEt(() => Uia.PreparerSaisieClaude(fenetre, vide)),
@@ -396,6 +411,8 @@ namespace Loupedeck.TrinitePlugin
         // appli lancée ne répond pas (on ne sait pas). Codex : sa bulle de chat vocal, sinon sa page principale.
         private static Boolean? ArreterDicteeOuverte()
         {
+            // Un micro déjà ouvert doit toujours pouvoir être arrêté par ce geste explicite, même si le connecteur
+            // a été désactivé entre-temps. Seul le démarrage d'une nouvelle dictée respecte ensuite sa désactivation.
             Boolean Lancee(Int32 agent) => Process.GetProcessesByName(Observateur.Processus[agent]).Length > 0;
             Boolean? Clic(String url = null) => Cdp.Evaluer(Cdp.PortCodex, Js.Cliquer(Js.Arrets), url)?.GetString() is { } r ? r == "ok" : null;
             Boolean? codex = !Lancee(1) ? false
@@ -443,8 +460,15 @@ namespace Loupedeck.TrinitePlugin
                 // pas doublé : sa fenêtre est seulement attendue.
                 if (Environment.TickCount64 - Lances[agent] > 20000)
                 {
-                    Lancer(Lancement[agent]);
-                    Lances[agent] = Environment.TickCount64;
+                    var dejaOuverte = Lanceurs.Preparer(agent).Etat is EtatLancement.Pret or EtatLancement.Masquee or EtatLancement.Relancer;
+                    if (dejaOuverte ? Lanceurs.Rappeler(agent) : Lanceurs.Demarrer(agent))
+                    {
+                        Lances[agent] = Environment.TickCount64;
+                    }
+                    else
+                    {
+                        PluginLog.Warning($"lancement de l'IA {agent + 1} non vérifié : {Lanceurs.DerniereErreur(agent)}");
+                    }
                 }
 
                 if (Attendre(() => (fenetre = Uia.FenetrePrincipale(Observateur.Processus[agent])) != IntPtr.Zero, 3000))
@@ -714,14 +738,6 @@ namespace Loupedeck.TrinitePlugin
         // Ouvre une appli, un lien ou une adresse (shell:… par l'Explorateur), sans attendre ; le seul lanceur du plugin.
         public static void Lancer(String cible)
         {
-#if !POSTE
-            if (cible == CodexOfficiel)
-            {
-                ActiverCodex();
-                return;
-            }
-#endif
-
             try
             {
                 var shell = cible.StartsWith("shell:", StringComparison.Ordinal);
@@ -731,49 +747,6 @@ namespace Loupedeck.TrinitePlugin
             {
                 PluginLog.Error(e, $"lancement de {cible}");
             }
-        }
-
-#if !POSTE
-        // Appli Codex du Store, lancée avec son port de débogage (une appli empaquetée ne prend ses arguments que par
-        // l'activation de Windows) ; sur un fil STA, comme l'attend ce service COM.
-        private static void ActiverCodex()
-        {
-            var fil = new Thread(() =>
-            {
-                try
-                {
-                    var r = ((IApplicationActivationManager)new ApplicationActivationManager())
-                        .ActivateApplication(CodexOfficiel, $"--remote-debugging-port={Cdp.PortCodex}", 0, out _);
-                    if (r != 0)
-                    {
-                        PluginLog.Warning($"lancement de Codex refusé (0x{r:X8}) : appli Codex absente ?");
-                    }
-                }
-                catch (Exception e)
-                {
-                    PluginLog.Error(e, "lancement de Codex");
-                }
-            })
-            { IsBackground = true, Name = "lancement de Codex" };
-            fil.SetApartmentState(ApartmentState.STA);
-            fil.Start();
-            fil.Join(10000);
-        }
-#endif
-
-        [ComImport]
-        [Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C")]
-        private class ApplicationActivationManager
-        {
-        }
-
-        [ComImport]
-        [Guid("2E941141-7F97-4756-BA1D-9DECDE894A3D")]
-        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IApplicationActivationManager
-        {
-            [PreserveSig]
-            Int32 ActivateApplication([MarshalAs(UnmanagedType.LPWStr)] String appUserModelId, [MarshalAs(UnmanagedType.LPWStr)] String arguments, UInt32 options, out UInt32 processId);
         }
 
         private static void Touches(params Byte[] touches)

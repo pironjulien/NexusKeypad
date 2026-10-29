@@ -44,8 +44,10 @@ animated.
 - **Phone photo**: with an Android phone reachable over adb (USB or wireless debugging), the latest photo or
   screenshot of the phone; a press pastes it into the agent in front. **Without a phone**, the key is an animated
   clock with the date; a press opens the Windows notification center and calendar.
-- **Dictation** starts the dictation button of the agent in front (Claude, Codex voice, Antigravity voice memo); a
-  second press stops it and leaves the text in the field, unsent. No agent in front: Windows voice typing (Win+H).
+- **Microphone** uses the control of the agent in front: Claude dictation, Codex dictation when available, or an
+  Antigravity voice memo. A second press stops that recording. Codex's native voice chat is the fallback when its
+  dictation control is unavailable; voice chat follows Codex's own conversation behavior and is not a promise of
+  draft-only transcription. With no agent in front, the key opens Windows voice typing (Win+H).
 
 ## Page 2: the PC
 
@@ -95,8 +97,8 @@ and when one is missing the pad falls back to something useful instead of an emp
 
 | With | The pad gains | Without it |
 |---|---|---|
-| Live states (a Yes at the plugin's first start, or its **Live states** action; from source, `etat/etat.py`) | Live Claude and Antigravity states: working, waiting for you, done, with their alerts; Claude's exact 5-hour and weekly usage (`nexuskeypad-quota` module) | Claude and Antigravity heads stay at rest; conversations, quotas (Claude's read from its Usage button) and sleep still shown (Codex needs no hook) |
-| Antigravity debugging port (`--remote-debugging-port=9227` on its shortcut, see [Installation](#installation)) | Antigravity's conversations, quota gauges, opening the one that needs you, dictation and its usage panel | Antigravity's key only shows whether the app is open and brings it to the front |
+| NexusKeypad connector (press its unplugged character to set up) | The AI's activity is connected to the pad, with setup and diagnostics under one name | The character offers setup; the app's existing data is not a verified full connection |
+| Local app connection (prepared by the keypad) | Codex and Antigravity conversations, usage views and dictation controls | An already running app without the connection shows a restart arrow; no shortcut editing is needed |
 | [NexusAndroid](https://github.com/pironjulien/NexusAndroid) (phone over adb) | The photo key pastes your phone's latest photo into the AI conversation; Messages badge from the phone | The photo key shows an animated clock and date (or your PC's latest screenshot); Messages counted from its open tab only |
 | Nexus Relay (Claude, Codex and Antigravity talk to each other; not public yet) | Tiny messengers walk between Claude and Codex or Antigravity and give each other an electric shock while they work for Claude | Each agent works on its own; no runner |
 | [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (your real Chrome for AI agents) | Gmail unread count even with Gmail closed (read in your own Chrome session, only the number, stays on your PC) | Gmail counted only while it is open in a Chrome window or tab |
@@ -109,11 +111,12 @@ and when one is missing the pad falls back to something useful instead of an emp
 flowchart LR
   subgraph Agents
     C[Claude Desktop<br/>session files + hooks]
-    X[Codex Desktop<br/>session logs + CDP 9223]
+    X[Codex Desktop<br/>hooks + logs + CDP 9223]
     A[Antigravity<br/>hooks + CDP 9227]
   end
-  H[etat/etat.py<br/>hook writer] --> S[(~/.nexus/trinite)]
+  H[nexuskeypad-hook.exe<br/>shared native hook writer] --> S[(~/.nexus/trinite)]
   C --> H
+  X --> H
   A --> H
   S --> P[Logi plugin<br/>reads every second]
   X --> P
@@ -122,18 +125,20 @@ flowchart LR
   P -->|open conversation, paste, dictate| Agents
 ```
 
-- **Claude**: the desktop app's session files (`%LOCALAPPDATA%\Claude-Data\…\claude-code-sessions`) plus Claude Code
-  hooks that run `nexuskeypad-hook.exe` (or `etat/etat.py` from source; state per session in
-  `~/.nexus/trinite/claude`). Quota: the exact 5-hour and weekly windows written by the `nexuskeypad-quota` Claude Code
-  module (`claude-quota/`, set up with the live states) to `~/.nexus/trinite/quota-claude.json`; without it, the name
-  of the app's "Usage" button, never expanded by the plugin.
-- **Codex**: `~/.codex/session_index.jsonl` and `~/.codex/sessions/**/rollout-*.jsonl` (task started, task complete,
-  approval requests). Quota: the last `token_count` of its logs, or the `/api/usage/summary` of a local
+- **Claude**: the desktop app's session files (`%LOCALAPPDATA%\Claude-Data\…\claude-code-sessions`) plus the
+  NexusKeypad plugin's hooks, which call the shared native `nexuskeypad-hook.exe` and write per-session activity
+  under `~/.nexus/trinite/claude`. Quota: the plugin's usage module writes the 5-hour and weekly windows to
+  `~/.nexus/trinite/quota-claude.json`; the desktop app's usage history and its visible Usage button provide fallback
+  values. The displayed conversation identifies the account/organization, so quotas from different accounts are not mixed.
+- **Codex**: native lifecycle hooks bundled in its NexusKeypad plugin, subject to Codex's own review and trust,
+  plus `~/.codex/session_index.jsonl` and `~/.codex/sessions/**/rollout-*.jsonl` for history, asynchronous questions
+  and fallback. Quota: the last `token_count` of its logs, or the `/api/usage/summary` of a local
   [codex-lb](https://github.com/Soju06/codex-lb) when one runs on port 2455. Conversations are opened through the
   app's debugging port 9223.
-- **Antigravity**: its sidebar read through the debugging port 9227, plus its hooks (`PreInvocation`, `PreToolUse`,
-  `PostToolUse`, `Stop`). Quota: its own *Settings › Models* page, read on screen like a person would (only when you
-  have been idle for a while, at most every 15 minutes); no call to its internal language server or token.
+- **Antigravity**: its sidebar read through the debugging port 9227, plus its NexusKeypad plugin's hooks
+  (`PreInvocation`, `PreToolUse`, `PostToolUse`, `Stop`). Quota: the visible *View Usage* panel is read without clicking;
+  otherwise its own *Settings › Models* page is opened briefly at most every 15 minutes when idle conditions allow it.
+  There is no call to its internal language server or reuse of its token.
 - **Drawing**: pixel art computed from the clock, so a late frame still shows the right instant. Only key images that
   changed are sent to the Logi service (each one costs it more than drawing it): busy heads 8 frames per second, the
   rest 4 at most.
@@ -145,6 +150,8 @@ flowchart LR
 - From source only: [.NET 10 SDK](https://dotnet.microsoft.com/download) and Python 3.11+ (setup scripts). The
   complete edition (one command, below) and the Marketplace editions need neither.
 - Any of: **Claude Desktop** (Claude Code), **Codex** desktop app, **Antigravity**. A missing app just sleeps on its key.
+  Claude's Code tab must have completed its first setup: the connector uses the official plugin manager bundled
+  with that app. An unavailable plugin manager leaves setup pending instead of reporting a ready connection.
 - Optional: an Android phone with USB or wireless debugging and `adb` on the `PATH` (photo key, Messages badge), and
   [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (Gmail badge with Gmail closed). See the table above for
   what each one adds and what replaces it.
@@ -166,11 +173,12 @@ Prefer not to pipe a script into `iex`? Releases after 1.4.1 also carry `get.ps1
 (`gh attestation verify get.ps1 -R pironjulien/NexusKeypad`, or compare its SHA-256), then right-click it >
 **Run with PowerShell** (or `powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1`, add `-Remove` to remove).
 
-It downloads the latest release's `NexusKeypad` package (checked against the release's `SHA256SUMS.txt`), copies it
+It downloads the latest release's `NexusKeypad` package (its hash and the ECDSA signature of `SHA256SUMS.txt` are
+verified before extraction or execution), copies it
 into Logi Options+'s plugin folder (`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad`), where the Logi Plugin
 Service loads it, and offers to place the 18 keys for you (your keypad profile is backed up first and Logi Options+
-restarts for a few seconds; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). At its first
-start the plugin asks whether to turn on the live states. Run the same command to update. To remove it (plugin, live
+restarts for a few seconds; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). Press each AI's
+unplugged character and approve setup to connect that AI. Run the same command to update. To remove it (plugin, live
 states and keys; Logi Options+ is left alone):
 
 ```powershell
@@ -202,15 +210,26 @@ The Marketplace edition, **AI Coding Agents**, is the agents page alone (the 9 k
 the local test pipe. Install it from Logi Options+, then in Options+ open the keypad's profile and drag the actions
 **Key 1** to **Key 9** of the *Trinity* group onto the 9 keys, in order (the plugin decides what each place shows).
 
-It works out of the box with what is installed: states come from the agents' own session files and windows, quotas
-from their own usage displays. Two optional extras make it livelier:
+Each AI has the same **NexusKeypad** connector and setup flow. A disconnected plug means setup is needed, a wrench
+means repair, and crossed eyes mean an error. Each character keeps its own face and style.
+Press it and approve setup to install or repair only that AI's
+connector while preserving other settings. Dialogs use English; no text covers the Relay mini characters.
 
-- **Live states for Claude and Antigravity** (working, waiting, done, as they happen): at its first start the plugin
-  asks whether to turn them on (default: No). Answer Yes and it adds its hooks to Claude's and Antigravity's settings,
-  with a small native program shipped in the package (no Python, nothing to install). Change your mind at any time
-  with the **Live states** action of the *Trinity* group (drag it onto a key, press it, answer the question). Without
-  the hooks, Claude and Antigravity heads stay at rest and still show their conversations, quotas and closed state.
-- **Debugging ports** for opening Codex and Antigravity conversations and dictating into them (see below).
+A small arrow inside the character indicates an open app without its local keypad connection. Only this situation
+can offer a separate restart, with consent and without forcing an app to close. Work, questions, permissions and
+dictation prevent it. Installing a connector never requires an already connected Codex or Antigravity to restart.
+Claude's character stays ready at idle; the diagnostic separately records whether its first real activity event has
+been observed since setup. Codex's bundled hooks require Codex's own review and trust; its existing log reader keeps
+activity tracking available while review is pending.
+Hidden app windows reopen normally. Ordinary presses remain available with a partial connection and do not repeat
+the restart prompt.
+
+The normal character returns after configuration and the available running-app connection have been checked;
+real conversation states always take priority. This does not by itself prove microphone access or an authenticated account. The **Live states** action in the
+*Trinity* group provides a separate NexusKeypad enable/disable command for each AI.
+
+One engine runs in Logitech Options+. The three connectors package each host's settings and diagnostics; they do
+not add three engines or MCP servers. The keypad prepares the required local app launch options automatically.
 
 Package it yourself with `pwsh -File outils\paquet_marketplace.ps1` (builds the Marketplace edition, packs it and
 checks it with the official Logi Plugin Tool). License terms: [EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA.md);
@@ -252,9 +271,10 @@ package with the official Logi Plugin Tool (`dotnet tool install -g LogiPluginTo
 ```powershell
 git clone https://github.com/pironjulien/NexusKeypad
 cd NexusKeypad
-dotnet build -c Debug plugin\src -p:Reel=true   # builds to %LOCALAPPDATA%\NexusKeypad and installs the plugin package
-python -I outils\installer_hooks.py --reel $env:USERPROFILE\.claude\settings.json   # Claude and Antigravity hooks
+dotnet build -c Debug plugin\src -p:Edition=Nexus -p:Reel=true   # builds outside OneDrive and installs NexusKeypad
 ```
+
+Press the unplugged character on each AI key to install its connector. No separate hook-installation command is needed.
 
 Then place the 18 keys on the keypad's default profile, with the Logi service stopped (the script backs up
 `ProfileInfo.json`; `--retour` restores it), and restart the Logi Options+ agent:
@@ -267,30 +287,35 @@ pwsh -File outils\relancer_logi.ps1
 **Debugging ports.** Opening a Codex or Antigravity conversation and dictating into them go through their Chromium
 debugging port, on `127.0.0.1` only:
 
-- Codex: when the plugin starts Codex (its head key, app closed), it passes `--remote-debugging-port=9223`. If you start
-  Codex yourself, quit it once and start it from the keypad.
-- Antigravity: add `--remote-debugging-port=9227` to the target of its Start menu shortcut.
+- Codex and Antigravity: the keypad starts the official app with its local connection (9223 and 9227 respectively).
+  An app already open without it shows a restart arrow. Use its key to finish setup; no shortcut needs to be edited.
 
 Anything listening on these ports can drive the app: do not enable them on a shared PC.
 
 ## Privacy
 
-Everything stays on the PC. The plugin makes no network request except to `127.0.0.1` (debugging ports, and codex-lb
-when present) and, on a key press, to the page you asked for.
+NexusKeypad has no analytics or data-collection server. Its activity files, connector receipts and cached images stay
+on the PC. Local app connections use `127.0.0.1`; an attached phone uses adb over USB or the local network. The complete
+edition also contacts GitHub to check for and download signed updates. An app or browser opened by a key connects to
+its own service under that app's privacy policy. See the [Privacy Policy](PRIVACY.md) for the detailed local files.
 
 - **Read**: the agents' local session files and logs, their windows (UI Automation) and pages (debugging ports), the
   Windows audio, CPU and memory state; with a phone, its latest photo and its notification list over adb; the site
   key setting `~/.nexus/trinite/site.json` (and its image); the phone's Wi-Fi pairing note
   `~/.nexus/nexus-android/wifi.json`; when the website key has no `titre`, at each press, the page addresses of Chrome
   app windows (UI Automation), to find the window it opened (neither kept nor logged).
-- **Written**: `~/.nexus/trinite` (hook states, the last 5 screen captures, the last 5 phone photos and their reduced
-  copies), the plugin log in `%LOCALAPPDATA%\Logi\LogiPluginService\Logs\plugin_logs\TrinitePad.log`, build output and the last
-  Antigravity quota read (`quota-antigravity.json`) in `%LOCALAPPDATA%\NexusKeypad`.
-- **Clipboard**: Screen capture and Photo put the image in the clipboard before pasting it; nothing is ever sent.
-- **Remove everything**: `python -I outils\placer_touches.py --reel --retour`, delete
-  `%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\TrinitePad`, `%LOCALAPPDATA%\NexusKeypad` and `~/.nexus/trinite`, and
-  remove the hooks that call `etat\etat.py` from `~/.claude/settings.json` and the `trinite-pad` entry of
-  `~/.gemini/config/hooks.json`.
+- **Written**: `~/.nexus/trinite` holds hook states, bounded captures/photos and Codex callback diagnostics. The shared
+  helper, connector packages, activation receipts and quota cache live in `%LOCALAPPDATA%\NexusKeypad`. After setup
+  approval, each AI has a NexusKeypad plugin with its skill and hooks: Claude's local marketplace/settings, Codex's
+  local plugin/cache/catalogue and activation setting, or Antigravity's plugin directory and activation setting.
+  Other plugins and settings are preserved. Logi keeps a local plugin log; its name depends on the installed edition.
+- **Clipboard**: Screen capture and Photo put the image in the clipboard and paste it; the keypad does not press Send.
+  Codex voice chat, when used as the microphone fallback, follows Codex's own voice behavior.
+- **Remove the complete edition**: run the downloaded official installer as `pwsh -File .\get.ps1 -Remove`. It
+  disconnects the NexusKeypad integrations it installed, removes the Logi plugin and its assigned keys, and preserves
+  the profile backup. Connector caches, quota files and captured images may remain; after disconnection, remove
+  `%LOCALAPPDATA%\NexusKeypad` and `~/.nexus/trinite` if you no longer need them. For a Marketplace edition, disconnect
+  its AI integrations first with that edition's per-AI NexusKeypad actions, then uninstall it in Logi Options+.
 
 ## Limitations
 
@@ -308,12 +333,13 @@ when present) and, on a key press, to the page you asked for.
 pwsh -File test.ps1
 ```
 
+Requires Node.js for the isolated JavaScript UI tests (no npm dependencies). The installed keypad does not need Node.js.
 Builds the plugin aside (no install, no reload), draws every key in every situation (`apercu`), checks the logic rules
 (`verifier`) and the hook rules (`tests`), without touching the installed plugin. Without the Logi service (CI), the
 build uses the [LogiPluginApi](https://www.nuget.org/packages/LogiPluginApi) package.
 
 - `dotnet run --project apercu -- <folder> [photo.jpg]` draws PNG boards of all keys with the real rendering code.
-- `python -I outils\pad.py capture|appui <1-18>|etat` talks to the running plugin through a local pipe reserved to
+- `python -I outils\pad.py capture|snapshot|appui <1-18>|etat` talks to the running plugin through a local pipe reserved to
   the current user: the 9 keys as sent to the keypad, a simulated press, the last state read.
 
 ## License

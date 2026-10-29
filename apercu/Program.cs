@@ -8,6 +8,7 @@ using Loupedeck.TrinitePlugin;
 if (Environment.GetEnvironmentVariable("NEXUS_APERCU_CULTURE") is { Length: > 0 } langue)
 {
     CultureInfo.CurrentCulture = CultureInfo.DefaultThreadCurrentCulture = CultureInfo.GetCultureInfo(langue);
+    CultureInfo.CurrentUICulture = CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo(langue);
 }
 
 var service = @"C:\Program Files\Logi\LogiPluginService\";
@@ -374,6 +375,115 @@ for (var k = 0; k < 3; k++)
 }
 
 File.WriteAllBytes(Path.Combine(sortie, "tetes.png"), zoom.ToArray(BitmapImageFormat.Png));
+
+// Connexion NexusKeypad, sans texte sur les touches : visage et objet propres à chaque besoin. Les vraies
+// activités sont prioritaires ; la ligne Relay est vérifiée séparément. « Prêt » garde le dessin habituel.
+EtatConnexion[] connexions = [EtatConnexion.Activer, EtatConnexion.Relancer, EtatConnexion.Reparer, EtatConnexion.Absent,
+    EtatConnexion.EnCours, EtatConnexion.Erreur, EtatConnexion.Pret];
+String[] libellesConnexion = ["Activate", "Restart", "Repair", "Missing", "Connecting", "Error", "Ready"];
+const Int32 ConnexionMarge = 16, ConnexionLegende = 130, ConnexionPas = 248;
+using var plancheConnexion = new BitmapBuilder(ConnexionLegende + (3 * 132) + 24 + (3 * ConnexionPas) + ConnexionMarge,
+    (connexions.Length * ConnexionPas) + 48);
+plancheConnexion.Clear(new BitmapColor(217, 214, 207));
+plancheConnexion.DrawText("116 px", ConnexionLegende, 4, 3 * 132, 28, new BitmapColor(26, 26, 26), 18);
+plancheConnexion.DrawText("232 px", ConnexionLegende + (3 * 132) + 24, 4, 3 * ConnexionPas, 28, new BitmapColor(26, 26, 26), 18);
+for (var ligne = 0; ligne < connexions.Length; ligne++)
+{
+    var connexion = connexions[ligne];
+    var i = new Instantane([[], [], []],
+        [0, 0, 0], [null, null, null], Enumerable.Repeat(connexion != EtatConnexion.Absent, 3).ToArray(), false, photo, -1)
+    {
+        Connexions = [.. Enumerable.Range(0, 3).Select(_ => new Connexion(connexion, "aperçu"))],
+    };
+    var scene = new Scene
+    {
+        Instantane = i, Temps = 0.35, Maintenant = maintenant.ToLocalTime(),
+        Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9,
+    };
+    var y = 40 + (ligne * ConnexionPas);
+    plancheConnexion.DrawText(libellesConnexion[ligne], 2, y + 84, ConnexionLegende - 4, 40, new BitmapColor(26, 26, 26), 17);
+    for (var a = 0; a < 3; a++)
+    {
+        var agent = Moteur.Disposition[a];
+        plancheConnexion.DrawImage(Rendu.Png(agent, scene), ConnexionLegende + (a * 132), y + 58, BitmapRotation.None);
+        plancheConnexion.DrawImage(Rendu.Png(agent, scene, 232), ConnexionLegende + (3 * 132) + 24 + (a * ConnexionPas), y, BitmapRotation.None);
+    }
+}
+
+File.WriteAllBytes(Path.Combine(sortie, "connexion.png"), plancheConnexion.ToArray(BitmapImageFormat.Png));
+Console.WriteLine("connexion.png");
+
+// Comparaison compacte des trois états qui se ressemblaient : aucun libellé n'est dessiné dans les touches.
+using var expressions = new BitmapBuilder(520, 426);
+expressions.Clear(new BitmapColor(217, 214, 207));
+EtatConnexion[] expressionsEtats = [EtatConnexion.Activer, EtatConnexion.Reparer, EtatConnexion.Erreur];
+String[] expressionsLibelles = ["Activate", "Repair", "Error"];
+for (var ligne = 0; ligne < expressionsEtats.Length; ligne++)
+{
+    var i = new Instantane([[], [], []], [0, 0, 0], [null, null, null], [true, true, true], false, null, -1)
+    {
+        Connexions = [.. Enumerable.Range(0, 3).Select(_ => new Connexion(expressionsEtats[ligne], "preview"))],
+    };
+    var scene = new Scene { Instantane = i, Temps = 0.35, Maintenant = maintenant.ToLocalTime(), Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray() };
+    expressions.DrawText(expressionsLibelles[ligne], 8, 51 + (ligne * 138), 100, 28, new BitmapColor(26, 26, 26), 17);
+    for (var a = 0; a < 3; a++)
+    {
+        expressions.DrawImage(Rendu.Png(Moteur.Disposition[a], scene), 112 + (a * 132), 12 + (ligne * 138), BitmapRotation.None);
+    }
+}
+File.WriteAllBytes(Path.Combine(sortie, "connexion-expressions.png"), expressions.ToArray(BitmapImageFormat.Png));
+Console.WriteLine("connexion-expressions.png");
+
+// Vraies activités prioritaires : le connecteur à préparer ne change aucun pixel d'une question, permission,
+// activité, fin, erreur, limite ou dictée. La scène prête reste identique à la scène sans suivi de connexion.
+foreach (var etat in new[] { Etat.Repos, Etat.Travaille, Etat.Attend, Etat.Autorisation, Etat.Fini, Etat.Erreur, Etat.Limite })
+{
+    var priorite = new Instantane([.. Enumerable.Range(0, 3).Select(a => new[] { C(a, "priority", etat) })],
+        [1, 1, 1], [null, null, null], [true, true, true], false, null, -1);
+    foreach (var agent in Enumerable.Range(0, 3))
+    {
+        var scene = new Scene { Instantane = priorite, Temps = 0.35, Maintenant = maintenant.ToLocalTime(), Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray() };
+        var scenePrete = new Scene { Instantane = priorite with { Connexions = [new(EtatConnexion.Pret, ""), new(EtatConnexion.Pret, ""), new(EtatConnexion.Pret, "")] }, Temps = scene.Temps, Maintenant = scene.Maintenant, Appuis = scene.Appuis };
+        if (!Rendu.Png(agent, scene).AsSpan().SequenceEqual(Rendu.Png(agent, scenePrete))) { throw new InvalidOperationException("Ready must preserve every pixel."); }
+        if (etat != Etat.Repos)
+        {
+            var sceneConfiguration = new Scene { Instantane = priorite with { Connexions = [new(EtatConnexion.Reparer, ""), new(EtatConnexion.Reparer, ""), new(EtatConnexion.Reparer, "")] }, Temps = scene.Temps, Maintenant = scene.Maintenant, Appuis = scene.Appuis };
+            if (!Rendu.Png(agent, scene).AsSpan().SequenceEqual(Rendu.Png(agent, sceneConfiguration))) { throw new InvalidOperationException("Activity must take priority over setup."); }
+        }
+    }
+}
+
+const Int32 VoieRelay = 89; // y=92 du contenu, après la translation et l'échelle habituelles vers la touche 116 px.
+const Int32 RevuePas = (3 * 116) + (2 * 36) + 24;
+using var revueConnexionRelay = new BitmapBuilder((4 * RevuePas) + 24, 164);
+revueConnexionRelay.Clear(new BitmapColor(24, 24, 28));
+for (var f = 0; f < 4; f++)
+{
+    var temps = new[] { 0.2, 0.9, 1.6, 2.4 }[f];
+    var i = new Instantane([[], [C(1, "relay", Etat.Travaille, relais: true)], [C(2, "relay", Etat.Travaille, relais: true)]],
+        [0, 1, 1], [null, null, null], [true, true, true], false, null, -1);
+    for (var a = 0; a < 3; a++)
+    {
+        var agent = Moteur.Disposition[a];
+        var scene = new Scene { Instantane = i, Temps = temps, Maintenant = maintenant.ToLocalTime(), Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray() };
+        var connexion = new Scene { Instantane = i with { Connexions = [new(EtatConnexion.Activer, ""), new(EtatConnexion.Activer, ""), new(EtatConnexion.Activer, "")] }, Temps = temps, Maintenant = scene.Maintenant, Appuis = scene.Appuis };
+        var png = Rendu.Png(agent, connexion);
+        using var normal = SkiaSharp.SKBitmap.Decode(Rendu.Png(agent, scene));
+        using var controle = SkiaSharp.SKBitmap.Decode(png);
+        for (var y = VoieRelay; y < Rendu.T; y++)
+        {
+            for (var x = 0; x < Rendu.T; x++)
+            {
+                if (normal.GetPixel(x, y) != controle.GetPixel(x, y)) { throw new InvalidOperationException("Setup must not change a Relay lane pixel."); }
+            }
+        }
+
+        revueConnexionRelay.DrawImage(png, 12 + (f * RevuePas) + (a * 152), 24, BitmapRotation.None);
+    }
+}
+
+File.WriteAllBytes(Path.Combine(sortie, "connexion-relais.png"), revueConnexionRelay.ToArray(BitmapImageFormat.Png));
+Console.WriteLine("connexion-relais.png (Relay lane and activity priority verified)");
 
 // Planche des états : une ligne par état, pour chaque IA 4 instants ; puis la dictée (il écoute) et le réveil (appli
 // lancée par le pad, en cours de démarrage).

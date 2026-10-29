@@ -1,0 +1,15 @@
+{
+  "description": "NexusKeypad activity only; no decisions, messages or extra completion sound.",
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex SessionStart", "async": false, "timeout": 10 }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex UserPromptSubmit", "async": false, "timeout": 10 }] }],
+    "PreToolUse": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex PreToolUse", "async": false, "timeout": 10 }] }],
+    "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex PermissionRequest", "async": false, "timeout": 10 }] }],
+    "PostToolUse": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex PostToolUse", "async": false, "timeout": 10 }] }],
+    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex SubagentStart", "async": false, "timeout": 10 }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex SubagentStop", "async": false, "timeout": 10 }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex Stop", "async": false, "timeout": 10 }] }],
+    "Interrupt": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex Interrupt", "async": false, "timeout": 3 }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ codex SessionEnd", "async": false, "timeout": 3 }] }]
+  }
+}

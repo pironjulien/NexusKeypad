@@ -1,9 +1,10 @@
 # Privacy Policy
 
-**AI Coding Agents** (plugin `TrinitePad`, project "NexusKeypad") · Effective October 25, 2026
+**AI Coding Agents** (plugin `TrinitePad`, project "NexusKeypad") and its AI connectors · Updated October 29, 2026
 
-**In short: the Plugin collects no personal data. Everything it reads stays on your computer; nothing is sent to the
-Developer or to anyone else.** It has no account, no analytics, no telemetry, no advertising and no server.
+**The Plugin processes data locally and sends none of its session files, images or diagnostics to the Developer.**
+It has no account, analytics, telemetry, advertising or Developer-operated server. Actions that paste data or start
+voice features in another application follow that application's own processing and privacy policy.
 
 The controller of this policy is **Julien Piron** ("the Developer"), author of the Plugin. Logitech's own processing
 (your Logitech account, the Marketplace, Logi Options+) is covered by
@@ -16,16 +17,22 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 - **AI agent sessions**: conversation titles, states and timestamps from the local files of the apps you use
   (Claude Desktop: `%LOCALAPPDATA%\Claude-Data\…\claude-code-sessions` and its `config.json` to know the signed-in
   account; Codex: `~/.codex` session index and logs; Antigravity: its sidebar, read through its local debugging port),
-  and the states written by the optional live-state hooks in `~/.nexus/trinite`. Only titles, states, event types and
-  timestamps are used; message contents are neither kept nor logged (the hook program looks at the last answer of a
-  turn only to tell a question from a finished turn, and does not store it).
-- **Usage quotas**: the percentages shown by each app (Claude's "Usage" button, Codex logs or a local codex-lb on
-  `127.0.0.1:2455`, Antigravity's *Settings › Models* page).
+  and the states written by the optional NexusKeypad plugin hooks in `~/.nexus/trinite`. Session identifiers, titles,
+  states, event types and timestamps are used. Hook payloads may contain tool arguments or the last answer of a turn;
+  the helper uses these to associate activity and distinguish a question from a finished turn, without storing the
+  prompt, tool arguments or answer text in its activity files or callback diagnostics.
+- **Usage quotas**: the percentages and reset times shown by each app (Claude's usage module, local desktop usage
+  history or "Usage" button; Codex logs or a local codex-lb on `127.0.0.1:2455`; Antigravity's visible *View Usage*
+  panel or *Settings › Models* page). Claude's displayed session identifies the account/organization so that quotas
+  from different accounts are not mixed.
 - **Windows**: window titles and buttons of these apps, through Windows UI Automation, to find the app in front and
   the buttons a key press uses.
 - **Screen** (Screen capture key, only when you press it): one capture of your screen.
-- **Microphone**: the Plugin never records audio. The Dictation key presses the dictation button of the app in front
-  (or starts Windows voice typing); that app or Windows does the listening.
+- **Microphone**: the Plugin never records audio itself. The microphone key uses Claude dictation, Codex dictation
+  when available, an Antigravity voice memo, or Windows voice typing. If Codex's dictation control is unavailable,
+  the fallback is Codex's native voice chat. That mode follows Codex's own conversation and transmission behavior;
+  it is not limited to leaving a transcription in an unsent text field. The app or Windows handles the audio under
+  its own privacy policy.
 - **Phone** (only if an Android phone is reachable over adb, USB or wireless debugging, and only while the Plugin
   runs): to show the phone's latest photo on the Phone photo key, the Plugin watches the phone's camera and screenshot
   folders (`DCIM/Camera`, `DCIM/Screenshots`, `Pictures/Screenshots`) and copies each new photo or screenshot to your
@@ -36,37 +43,59 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 ## What the Plugin writes, on your computer only
 
 - `~/.nexus/trinite`: the last 5 screen captures and the last 5 phone photos with their reduced copies (older ones are
-  deleted), and the hook states if you turned live states on.
-- **Live states, only after you answer Yes** (a question at first start, then the *Live states* action): the Plugin
-  copies its hook program to `%LOCALAPPDATA%\NexusKeypad\hook\nexuskeypad-hook.exe` and adds its hooks to
-  `~/.claude/settings.json` and to the `trinite-pad` entry of `~/.gemini/config/hooks.json` (other tools' hooks are
-  kept). For Claude's exact usage, it also copies its `nexuskeypad-quota` Claude Code module to
-  `%LOCALAPPDATA%\NexusKeypad\claude-marketplace` and declares it in `~/.claude/settings.json` (`extraKnownMarketplaces`
-  entry `nexuskeypad`, `enabledPlugins` entry `nexuskeypad-quota@nexuskeypad`); the module only writes the 5-hour and
-  weekly usage percentages and reset times, with the session id, to `~/.nexus/trinite/quota-claude.json`. Your answer to
-  the first question is kept in `%LOCALAPPDATA%\NexusKeypad\etats-en-direct.json`. Answering No changes nothing; the
-  *Live states* action removes the hooks and the module the same way.
+  deleted), per-session hook activity under `claude`, `codex` and `antigravity`, and Claude usage percentages/reset
+  times with a session identifier in `quota-claude.json`. Codex callback diagnostics under `diagnostics/codex` keep
+  the event type, time and publication result, without prompt, answer text, tool arguments or transcript path.
+- **AI connections, only after setup is approved**: one NexusKeypad connector per installed AI, each with its skill,
+  hooks and activation setting. The shared native helper is copied to
+  `%LOCALAPPDATA%\NexusKeypad\hook\nexuskeypad-hook.exe`, with bundled connector templates and Claude's usage module
+  beside it. Activation receipts in `%LOCALAPPDATA%\NexusKeypad\connecteurs\etats\<agent>.json` record the plugin
+  identity, activation, setup time and local file paths/hashes used to verify that installation.
+- **Claude connector**: its local marketplace and plugin are under
+  `%LOCALAPPDATA%\NexusKeypad\connecteurs\claude`; the official plugin manager bundled with Claude Desktop registers
+  and installs `nexus-keypad@nexuskeypad`, with its declaration and activation in `~/.claude/settings.json`.
+  Repair can reinstall this connector through that manager. If a complete existing private NexusKeypad plugin is already installed, its identity
+  and package are preserved instead of adding a competing plugin. Claude manages its own plugin cache and registry.
+  If `CLAUDE_CONFIG_DIR` is set, that directory replaces `~/.claude`.
+- **Codex connector**: plugin files in `~/.codex/plugins/nexus-keypad`, the installed copy in
+  `~/.codex/plugins/cache/<catalog>/nexus-keypad/<version>`, an entry in the local catalogue
+  `~/.agents/plugins/marketplace.json`, and its activation in `~/.codex/config.toml`. Installation never creates hook
+  trust: new or modified hooks remain subject to Codex's own review. Existing session-log tracking remains available.
+- **Antigravity connector**: plugin files, including its own `hooks.json`, in
+  `~/.gemini/config/plugins/nexus-keypad`, enabled in `~/.gemini/config/config.json`. Only former NexusKeypad global
+  handlers are migrated out of `~/.gemini/config/hooks.json`; hooks belonging to other tools are preserved.
+- The per-AI NexusKeypad actions in Logi Options+ enable or disconnect these integrations. A disabled integration
+  stops its activity observation and, for Claude and Antigravity, its native completion note. Other plugins and
+  unrelated settings are preserved.
 - `%LOCALAPPDATA%\NexusKeypad\quota-antigravity.json`: the last Antigravity quota read.
-- `~/.nexus/status/keypad.json`: the Plugin's version and how it is updated (here: by Logi Options+), for the Nexus app.
+- `~/.nexus/status/keypad.json`: the Plugin's version and update status for the Nexus app. The complete edition may
+  also keep update preferences and temporary update files under `%LOCALAPPDATA%\NexusKeypad`.
 - The plugin log of the Logi Plugin Service (`…\LogiPluginService\Logs\plugin_logs\TrinitePad.log`): technical events,
   which can include conversation titles and file names. It stays on your computer.
 - The Windows clipboard: Screen capture and Phone photo put the image in the clipboard before pasting it.
 
 ## Network
 
-The Plugin makes no network request except: to `127.0.0.1` (the apps' local debugging ports, and codex-lb when you
-run it), to your phone through adb when one is reachable (see above), and, when you press a key that opens a page (for example
-a usage page), to that page in your browser. **No data is sent to the Developer, to Logitech or to any analytics
-service.** Pasted images and dictated text always stay unsent in the app's field: sending them is your decision, and
-what the AI apps then do with them is governed by their own privacy policies.
+The Plugin connects to `127.0.0.1` for the apps' local debugging ports and codex-lb when present, and to your phone
+through adb when reachable (see above). When a key opens a page, your browser connects to that page. The complete
+NexusKeypad edition, distributed outside the Marketplace, also contacts GitHub to check for and download signed
+updates; Marketplace editions are updated through Logitech. The Plugin has no analytics or data-collection endpoint
+and sends none of its session files, images or local diagnostics to the Developer.
+
+Screen capture and Phone photo paste an image without pressing Send. Dictation or voice recording is performed by
+the selected app or Windows; Codex voice chat can transmit as part of its native voice conversation. What those apps
+do with text, images or audio is governed by their own privacy policies.
 
 ## Your data, your control
 
-All the data above stays under your control on your computer. To remove it: uninstall the Plugin from Logi Options+,
-then delete `~/.nexus/trinite` and `%LOCALAPPDATA%\NexusKeypad`. If you turned live states on, remove them first with
-the *Live states* action (or delete the hooks that call `nexuskeypad-hook.exe` or `etat.py` from
-`~/.claude/settings.json` and the `trinite-pad` entry of `~/.gemini/config/hooks.json`). Since the
-Developer receives no data, there is nothing to request, correct or delete on the Developer's side.
+The local files remain under your control. For the complete NexusKeypad edition, run the downloaded official
+installer as `pwsh -File .\get.ps1 -Remove`. It disconnects the integrations it installed, removes the Logi plugin
+and its assigned keys, and preserves the keypad profile backup. Connector/plugin caches and local usage or image
+files may remain: after disconnection, delete `%LOCALAPPDATA%\NexusKeypad` and `~/.nexus/trinite` if no longer needed,
+and remove the disabled NexusKeypad plugin from each host if you want to clear its host-managed cache too.
+For a Marketplace edition, disconnect each AI with that edition's per-AI NexusKeypad actions before uninstalling
+the Logi plugin. Avoid removing unrelated plugins or settings. Since the Developer receives no personal data from
+the Plugin, there is no server-side copy for the Developer to correct or delete.
 
 ## Children
 

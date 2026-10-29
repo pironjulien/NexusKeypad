@@ -5,6 +5,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-29
+
+### Security
+- Verify the release manifest's ECDSA signature before extracting or executing a downloaded package during first
+  installation. The public trust keys match those already used by the complete edition's automatic updater.
+
+### Fixed
+- Register and install Claude's public connector through Claude's own plugin commands, and verify its installed
+  package before reporting readiness. The type contract now passes Claude's native plugin validation.
+- Claude's idle character no longer shows a permanent connection progress bar while waiting for a future event.
+  Diagnostics separately retain whether the first callback was observed; an unchanged enable preserves its receipt.
+- Identify Claude's displayed conversation by its exact ID when filtering the conversation counter and workspace.
+- Read both Antigravity usage layouts passively, with visible-text evidence and reset delays before or after values.
+- Recognize both Antigravity usage-panel layouts and require visible limits and percentages before reporting success.
+- Accept canonical local Windows transcript paths in Codex hooks while still rejecting network paths.
+- Verify Claude conversations by their exact session ID, scope usage to the displayed organization and verify
+  usage-panel changes before reporting success. Keypad-driver refusals and unknown results remain explicit.
+- An Antigravity cancellation returns to idle without a completion note; active children still keep it busy.
+- Bundle the official NexusKeypad branding with the AI connectors, including the Codex listing/composer images and
+  the Antigravity logo, with installed assets covered by the connector file checks.
+  The Claude connector includes its documented directory icon and image; current local Claude listings may ignore it.
+
+### Added
+- One NexusKeypad connection flow for Claude, Codex and Antigravity: a named connector per AI, targeted setup from
+  its key, diagnostics and disabling, with one shared keypad engine and no extra MCP server.
+- Bundled native Codex lifecycle hooks, subject to Codex's own review and trust. Existing log readers remain
+  available for history, usage, asynchronous questions and fallback; no duplicate completion sound is added.
+- Claude and Antigravity completion notes use the same native helper, with distinct notes and no Python dependency.
+- Connection states use a plug, wrench, restart arrow, crossed eyes or sleeping face without covering Relay miniatures.
+- Read-only JSON snapshots and parity reports distinguish installed configuration from native UI validation.
+- Verified local app launch options, including Antigravity without editing shortcuts. A restart requires consent,
+  respects active work and dictation, and never forces an app to close.
+
 ## [1.7.7] - 2026-10-28
 
 ### Fixed

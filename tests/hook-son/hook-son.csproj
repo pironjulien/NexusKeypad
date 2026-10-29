@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>annotations</Nullable>
+    <StartupObject>HookSoundTests</StartupObject>
+    <BaseOutputPath>$(LocalAppData)\NexusKeypad\test\hook-son\bin\</BaseOutputPath>
+    <RunAnalyzers>false</RunAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
+    <Compile Include="..\..\hook\*.cs" />
+    <Compile Include="..\..\plugin\src\Trinite\Connecteurs.cs" />
+    <Compile Include="..\..\plugin\src\Trinite\EtatsEnDirect.cs" />
+    <EmbeddedResource Include="..\..\hook\assets\antigravity.wav" LogicalName="NexusKeypad.Hook.antigravity.wav" />
+    <EmbeddedResource Include="..\..\hook\assets\claude.wav" LogicalName="NexusKeypad.Hook.claude.wav" />
+  </ItemGroup>
+</Project>

@@ -12,12 +12,46 @@ namespace Loupedeck.TrinitePlugin
     {
         // Page Models ou boîte « View Usage » déjà ouverte par l'utilisateur (ou par la touche de quota) : lue sans rien toucher ;
         // sinon null.
-        private const String Passif =
-            "(() => { const d = [...document.querySelectorAll('[role=dialog]')].find(x => [...x.querySelectorAll('button')].some(b => (b.innerText || '').trim() === 'Models'));" +
-            " const t = d ? d.innerText : '';" +
-            " if (t.includes('Models & Usage') && t.includes('%')) return t;" +
-            " const b = [...document.querySelectorAll('[role=menu]:not([data-closed])')].map(m => m.innerText).find(m => m.includes('Limit Remaining') && m.includes('%'));" +
-            " return b ?? null })()";
+        private const String Passif = """
+            (() => {
+              const dansVue = r => r.width > 0 && r.height > 0 && r.right > 0 && r.bottom > 0
+                && r.left < window.innerWidth && r.top < window.innerHeight;
+              const masque = e => {
+                for (let p = e; p; p = p.parentElement) {
+                  const c = getComputedStyle(p);
+                  if (p.hidden || p.hasAttribute('data-closed') || p.hasAttribute('inert')
+                    || p.getAttribute('aria-hidden') === 'true' || c.display === 'none'
+                    || c.visibility === 'hidden' || c.visibility === 'collapse'
+                    || c.contentVisibility === 'hidden' || Number(c.opacity) === 0) return true;
+                }
+                return false;
+              };
+              const visible = e => !masque(e) && [...e.getClientRects()].some(dansVue);
+              const texteVisible = (racine, role) => {
+                const morceaux = [], textes = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT);
+                for (let n = textes.nextNode(); n; n = textes.nextNode()) {
+                  const e = n.parentElement;
+                  if (!n.nodeValue.trim() || e.closest(role) !== racine || masque(e)) continue;
+                  const r = document.createRange(); r.selectNodeContents(n);
+                  if ([...r.getClientRects()].some(dansVue)) morceaux.push(n.nodeValue.trim());
+                }
+                return morceaux.join('\n');
+              };
+              const d = [...document.querySelectorAll('[role=dialog]')].find(x => visible(x)
+                && [...x.querySelectorAll('button')].some(b => visible(b) && (b.innerText || '').trim() === 'Models'));
+              if (d) {
+                const t = texteVisible(d, '[role=dialog]');
+                if (t.includes('Models & Usage') && t.includes('%')) return t;
+              }
+              const s = document.querySelector('[data-testid=model-selector-trigger]');
+              if (!s || s.getAttribute('aria-expanded') !== 'true' || !visible(s)) return null;
+              const candidats = [...document.querySelectorAll('[role=menu]')].filter(visible)
+                .map(m => texteVisible(m, '[role=menu]'))
+                .filter(t => /\b\d{1,3}(?:[.,]\d+)?\s*%/.test(t) && (/\bLimit\s+Remaining\b/i.test(t)
+                  || (/\bUsage\b/i.test(t) && /\b(?:Weekly|5\s*h)\s+limit\b/i.test(t))));
+              return candidats.length === 1 ? candidats[0] : null;
+            })()
+            """;
 
         // Ouvre Settings › Models, lit le texte, puis rend la vue d'origine (retour arrière, puis Fermer sur SON dialogue).
         // Lit la fenêtre des réglages si elle est déjà ouverte, sans rien toucher ; si l'utilisateur clique ou tape pendant le
@@ -157,12 +191,12 @@ namespace Loupedeck.TrinitePlugin
 
         // Chiffres ASCII seulement : \d accepte tous les chiffres Unicode, que Double.Parse refuse (FormatException relevée par
         // Codex, 27/10).
-        private static readonly Regex Pourcentage = new(@"^([0-9]{1,3}(?:[.,][0-9]{1,6})?)\s*%$");
+        private static readonly Regex Pourcentage = new(@"^([0-9]{1,3}(?:[.,][0-9]{1,6})?)\s*%(?:\s+left)?$", RegexOptions.IgnoreCase);
 
         // « …, it will fully refresh in 4 days, 23 hours. » → délai avant la remise à zéro de la fenêtre.
-        private static readonly Regex Remise = new(@"refresh(?:es)? in (.+?)\.?$", RegexOptions.IgnoreCase);
+        private static readonly Regex Remise = new(@"(?:refresh(?:es)?|resets?)\s+in\s+(.+?)\.?$", RegexOptions.IgnoreCase | RegexOptions.Singleline);
         // Nombre entier (jamais un morceau de nombre plus long : « 1000000 seconds » n'est pas « 000000 seconds »).
-        private static readonly Regex Morceau = new(@"(?<![0-9])([0-9]+)\s*(day|hour|minute|second)s?", RegexOptions.IgnoreCase);
+        private static readonly Regex Morceau = new(@"(?<![0-9])([0-9]+)\s*(days?|hours?|minutes?|seconds?|[dhms])(?![A-Za-z])", RegexOptions.IgnoreCase);
 
         // Une fenêtre dure au plus une semaine : au-delà de 8 jours, un délai (une composante ou leur somme) est un texte
         // abîmé ; tout le délai est alors ignoré (pas d'heure de remise à zéro, la part lue reste), sans calcul qui déborde.
@@ -179,11 +213,11 @@ namespace Loupedeck.TrinitePlugin
             var lu = false;
             foreach (Match p in Morceau.Matches(m.Groups[1].Value))
             {
-                var unite = p.Groups[2].Value.ToLowerInvariant() switch
+                var unite = Char.ToLowerInvariant(p.Groups[2].Value[0]) switch
                 {
-                    "day" => 86400L,
-                    "hour" => 3600L,
-                    "minute" => 60L,
+                    'd' => 86400L,
+                    'h' => 3600L,
+                    'm' => 60L,
                     _ => 1L,
                 };
                 if (!Int64.TryParse(p.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var n) || n > Plafond / unite
@@ -195,7 +229,9 @@ namespace Loupedeck.TrinitePlugin
                 lu = true;
             }
 
-            return lu ? TimeSpan.FromSeconds(secondes) : null;
+            var reste = Morceau.Replace(m.Groups[1].Value, "");
+            return lu && Regex.IsMatch(reste, @"^(?:\s|,|\.|\band\b)*$", RegexOptions.IgnoreCase)
+                ? TimeSpan.FromSeconds(secondes) : null;
         }
 
         // Texte de la page (« Gemini Models », « Five Hour Limit Remaining », « … refresh in 2 hours, 42 minutes. »,
@@ -205,36 +241,92 @@ namespace Loupedeck.TrinitePlugin
         {
             var groupes = new System.Collections.Generic.List<GroupeQuota>();
             TimeSpan? delai = null;
-            String fenetre = null;
+            Boolean? cinq = null;
+            Double? restant = null;
+            var pourcentages = 0;
             var groupe = false;
-            foreach (var ligne in (texte ?? "").Split('\n').Select(l => l.Trim()))
+            var argon = false;
+            var premiereFenetre = true;
+            Double? avantFenetre = null;
+            var valeursAvant = 0;
+            String fragmentsDelai = null;
+            var maintenant = DateTime.UtcNow;
+            void Terminer()
             {
-                if (ligne.Equals("Gemini Models", StringComparison.OrdinalIgnoreCase) || ligne.Equals("Claude and GPT models", StringComparison.OrdinalIgnoreCase))
+                if (cinq is Boolean fenetre && restant is Double valeur)
                 {
+                    groupes.Add(new(fenetre, 1 - (valeur / 100), delai is TimeSpan attente ? maintenant + attente : null));
+                }
+                cinq = null;
+                restant = null;
+                pourcentages = 0;
+                delai = null;
+                fragmentsDelai = null;
+            }
+            // Les libellés et valeurs peuvent être dans plusieurs nœuds DOM, ou sur une même ligne visuelle.
+            var lignes = Regex.Replace(texte ?? "", @"\b(?:Gemini(?:\s*[0-9.]+)?\s*(?:Models|Argon)|Claude\s+and\s+GPT\s+models)\b",
+                m => "\n" + Regex.Replace(m.Value, @"\s+", " ") + "\n", RegexOptions.IgnoreCase);
+            lignes = Regex.Replace(lignes, @"\b(?:Five\s+Hour\s+Limit\s+Remaining|Weekly\s+Limit(?:\s+Remaining)?|5\s*h\s+limit)\b",
+                m => "\n" + Regex.Replace(m.Value, @"\s+", " ") + "\n", RegexOptions.IgnoreCase);
+            lignes = Regex.Replace(lignes, @"(?<![0-9.,])([0-9]{1,3}(?:[.,][0-9]{1,6})?)\s*%(?:\s+left)?", m => "\n" + Regex.Replace(m.Value, @"\s+", " ") + "\n", RegexOptions.IgnoreCase);
+            lignes = Regex.Replace(lignes, @"(?:refresh(?:es)?|resets?)\s+in\b", m => Regex.Replace(m.Value, @"\s+", " "), RegexOptions.IgnoreCase);
+            foreach (var ligne in lignes.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0))
+            {
+                if (Regex.IsMatch(ligne, @"^(?:Gemini(?:\s*[0-9.]+)?\s*(?:Models|Argon)|Claude and GPT models)$", RegexOptions.IgnoreCase))
+                {
+                    Terminer();
                     groupe = true;
-                    fenetre = null;
+                    argon = ligne.EndsWith("Argon", StringComparison.OrdinalIgnoreCase);
+                    premiereFenetre = true;
+                    avantFenetre = null;
+                    valeursAvant = 0;
                 }
-                else if (groupe && ligne is "Five Hour Limit Remaining" or "Weekly Limit Remaining")
+                else if (ligne.Equals("Five Hour Limit Remaining", StringComparison.OrdinalIgnoreCase)
+                    || ligne.Equals("5h limit", StringComparison.OrdinalIgnoreCase)
+                    || ligne.Equals("5 h limit", StringComparison.OrdinalIgnoreCase)
+                    || ligne.Equals("Weekly Limit Remaining", StringComparison.OrdinalIgnoreCase)
+                    || ligne.Equals("Weekly limit", StringComparison.OrdinalIgnoreCase))
                 {
-                    fenetre = ligne;
-                    delai = null;
+                    Terminer();
+                    if (groupe)
+                    {
+                        cinq = ligne.StartsWith("Five", StringComparison.OrdinalIgnoreCase) || ligne.StartsWith('5');
+                        // Le petit groupe Argon expose sa part avant son unique libellé hebdomadaire. Ce tampon
+                        // appartient seulement à ce groupe, avant sa première fenêtre ; aucune valeur empruntée ailleurs.
+                        if (argon && premiereFenetre && cinq == false && valeursAvant == 1)
+                        {
+                            restant = avantFenetre;
+                            pourcentages = 1;
+                        }
+                        premiereFenetre = false;
+                    }
+                    avantFenetre = null;
+                    valeursAvant = 0;
                 }
-                else if (fenetre is not null && Delai(ligne) is TimeSpan d)
+                else if (cinq is not null && Regex.IsMatch(ligne, @"(?:refresh(?:es)?|resets?)\s+in(?:\s|$)", RegexOptions.IgnoreCase))
                 {
-                    delai = d;
+                    fragmentsDelai = ligne;
+                    delai = Delai(fragmentsDelai); // délai abîmé : part gardée, sans heure de remise inventée
                 }
-                else if (fenetre is not null && Pourcentage.Match(ligne) is { Success: true } m
-                    && Double.Parse(m.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture) is var restant and <= 100)
+                else if (cinq is not null && fragmentsDelai is not null && Morceau.IsMatch(ligne)
+                    && Regex.IsMatch(Morceau.Replace(ligne, ""), @"^(?:\s|,|\.|\band\b)*$", RegexOptions.IgnoreCase))
+                {
+                    fragmentsDelai += " " + ligne;
+                    delai = Delai(fragmentsDelai);
+                }
+                else if ((cinq is not null || (argon && premiereFenetre)) && Pourcentage.Match(ligne) is { Success: true } m)
                 {
                     // Au-delà de 100 % restants : texte abîmé, ignoré (une part négative faussait la jauge ; FsCheck, 27/10).
-                    var utilise = 1 - (restant / 100);
-                    DateTime? fin = delai is TimeSpan attente ? DateTime.UtcNow + attente : null;
-                    groupes.Add(new(fenetre.StartsWith("Five", StringComparison.Ordinal), utilise, fin));
-                    fenetre = null;
+                    var valeur = Double.Parse(m.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
+                    if (cinq is not null) { restant = ++pourcentages == 1 && valeur <= 100 ? valeur : null; }
+                    else { avantFenetre = ++valeursAvant == 1 && valeur <= 100 ? valeur : null; }
                 }
+                else if (cinq is not null) { Terminer(); } // texte étranger : aucune association avec la valeur suivante
+                else { avantFenetre = null; valeursAvant = 0; } // aucune mise en réserve à travers un texte étranger
             }
+            Terminer();
 
-            return groupes.Count == 0 ? null : Actuel(new(null, null) { Groupes = groupes }, DateTime.UtcNow);
+            return groupes.Count == 0 ? null : Actuel(new(null, null) { Groupes = groupes }, maintenant);
         }
     }
 }

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <RunAnalyzers>false</RunAnalyzers>
+    <BaseOutputPath>$(LocalAppData)\NexusKeypad\test\claude-quota\bin\</BaseOutputPath>
+    <LogiService>C:\Program Files\Logi\LogiPluginService\</LogiService>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\plugin\src\Trinite\*.cs" />
+    <Compile Include="..\..\plugin\src\Helpers\PluginLog.cs" />
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('$(LogiService)PluginApi.dll')">
+    <Reference Include="PluginApi" HintPath="$(LogiService)PluginApi.dll" />
+    <Reference Include="SkiaSharp" HintPath="$(LogiService)SkiaSharp.dll" />
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('$(LogiService)PluginApi.dll')">
+    <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" />
+  </ItemGroup>
+</Project>

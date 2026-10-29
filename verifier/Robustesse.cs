@@ -67,6 +67,31 @@ public static class Robustesse
                     }
                 }
             }));
+
+        Essayer(vrai, "historique de quota Claude quelconque : jamais d'exception, parts de 0 à 1", () =>
+            Prop.ForAll<String>(texte =>
+            {
+                var q = Observateur.QuotaHistoriqueClaude(texte, maintenant);
+                if (q?.Cinq is Double c && (c < 0 || c > 1)) throw new InvalidOperationException($"cinq {c}");
+                if (q?.Semaine is Double s && (s < 0 || s > 1)) throw new InvalidOperationException($"semaine {s}");
+            }));
+
+        Essayer(vrai, "historique de quota Claude abîmé : jamais d'exception", () =>
+            Prop.ForAll<NonNegativeInt[], Char, Boolean>((n, c, retirer) =>
+            {
+                var modele = """{"version":2,"samples":[{"t":1793221096102,"org":"e35395a4","u":{"fh":9,"sd":69}}]}""";
+                var modifie = Abimer(modele, Nombre(n, 0), Nombre(n, 1), c, retirer);
+                Observateur.QuotaHistoriqueClaude(modifie, maintenant);
+            }));
+
+        Essayer(vrai, "conversation Claude active : jamais d'exception sur entrées arbitraires", () =>
+            Prop.ForAll<Tuple<String, String, String, String>, DateTime, Int32>((textes, date, etatInt) =>
+            {
+                var (titre, cwd, affiche, cwdActif) = textes;
+                var etat = (Etat)(Math.Abs(etatInt) % 6);
+                var conv = new Conversation(0, "id", titre ?? "", etat, date, date, true);
+                Observateur.ConversationClaudeActive(conv, cwd, affiche, cwdActif, maintenant);
+            }));
     }
 
     // Délais de remise à zéro, d'une à quatre composantes aux bornes (jusqu'au-delà d'Int64) : jamais d'exception ; un

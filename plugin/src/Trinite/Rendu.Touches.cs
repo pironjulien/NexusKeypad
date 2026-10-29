@@ -36,6 +36,22 @@ namespace Loupedeck.TrinitePlugin
         // nombre de conversations ouvertes, ses points ondulent quand l'IA travaille.
         private static void ToucheInfos(BitmapBuilder b, Int32 agent, Scene s)
         {
+            var fermee = !s.Instantane.Ouverte[agent];
+            if (fermee)
+            {
+                HorlogeVivante(b, 4, 11, null);
+                Jauge(b, 12, null, 0);
+                CalendrierVivant(b, 4, 43, null);
+                Jauge(b, 44, null, 0);
+                Carte(b, BulleVide, 22, 80, 2, Eteint);
+                for (var k = 0; k < 3; k++)
+                {
+                    b.FillRectangle(22 + ((3 + (k * 4)) * 2), 86, 4, 4, Eteint);
+                }
+
+                return;
+            }
+
             var q = s.Instantane.Quotas[agent];
             var t = s.Temps + (agent * 0.7); // chaque IA à son rythme
             // Chaque jauge centrée sur son icône (horloge de 11 à 35 ; calendrier de 43 à 65, anneaux compris) : elles

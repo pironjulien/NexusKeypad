@@ -98,7 +98,7 @@ namespace Loupedeck.TrinitePlugin
         {
             // Lignes de sa barre latérale, et la conversation affichée par son adresse (/c/<id>) : la barre peut être masquée,
             // les lignes absentes ; la liste d'avant est alors gardée, la sélection vient de l'adresse.
-            var agy = Cdp.Evaluer(Cdp.PortAntigravity, "({ lignes: [...document.querySelectorAll('[data-testid=conversation-row-sidebar]')].map(r => [r.getAttribute('data-cascade-id'), r.innerText, r.getAttribute('data-selected') === 'true']), affichee: (location.pathname.match(/^\\/c\\/([0-9a-f-]+)/) || [])[1] || null })");
+            var agy = Connecteurs.EvenementsActifs("antigravity") ? Cdp.Evaluer(Cdp.PortAntigravity, "({ lignes: [...document.querySelectorAll('[data-testid=conversation-row-sidebar]')].map(r => [r.getAttribute('data-cascade-id'), r.innerText, r.getAttribute('data-selected') === 'true']), affichee: (location.pathname.match(/^\\/c\\/([0-9a-f-]+)/) || [])[1] || null })") : null;
             if (agy is { ValueKind: JsonValueKind.Object } page)
             {
                 var lignes = page.GetProperty("lignes").EnumerateArray().Select(l =>
@@ -119,7 +119,7 @@ namespace Loupedeck.TrinitePlugin
                 this._selectionAgy = null; // port muet : sélection inconnue, pas l'ancienne
             }
 
-            var codex = Cdp.Evaluer(Cdp.PortCodex, Js.SelectionCodex);
+            var codex = Connecteurs.EvenementsActifs("codex") ? Cdp.Evaluer(Cdp.PortCodex, Js.SelectionCodex) : null;
             this._selectionCodex = codex is { ValueKind: JsonValueKind.String } s ? s.GetString() : null;
         }
 

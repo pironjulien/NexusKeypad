@@ -61,7 +61,7 @@ namespace Loupedeck.TrinitePlugin
                     }
 
                     var relais = entete.Contains(@".nexus\\relay", StringComparison.OrdinalIgnoreCase);
-                    var (etat, depuis) = this.EtatCodexGarde(f, relais);
+                    var (etat, depuis) = this.EtatCodexGarde(f, relais, id);
                     if (relais && etat is not (Etat.Travaille or Etat.Attend or Etat.Autorisation) && DateTime.UtcNow - f.LastWriteTimeUtc > TimeSpan.FromHours(12))
                     {
                         continue; // un réveil du relais ne reste « actif » que 12 h après son dernier message
@@ -201,7 +201,7 @@ namespace Loupedeck.TrinitePlugin
         // lues (un tour dépasse souvent 256 Ko : 57 sur 92 le 24/10, jusqu'à 20 Mo ; lire seulement la fin le donnait au
         // repos en plein travail). Le temps fait aussi passer au repos : travail sans écriture depuis 2 h (Codex fermé en
         // plein tour), fin ou question de plus de 12 h.
-        private (Etat, DateTime) EtatCodexGarde(FileInfo f, Boolean relais)
+        private (Etat, DateTime) EtatCodexGarde(FileInfo f, Boolean relais, String session)
         {
             this._etatsCodex.TryGetValue(f.FullName, out var suivi);
             if (suivi is null || f.Length < suivi.Position)
@@ -259,7 +259,8 @@ namespace Loupedeck.TrinitePlugin
                 }
             }
 
-            var (etat, depuis) = suivi.Effectif(relais, DateTime.UtcNow);
+            var hook = LireHookCodex(session);
+            var (etat, depuis) = suivi.Effectif(relais, DateTime.UtcNow, hook);
             var silence = DateTime.UtcNow - suivi.Grandi;
             var age = DateTime.UtcNow - depuis;
             return etat switch
@@ -271,6 +272,23 @@ namespace Loupedeck.TrinitePlugin
         }
 
         private readonly Dictionary<String, SuiviCodex> _etatsCodex = [];
+
+        // Le paquet de hooks garde une preuve d'origine : les événements des enfants ont le même session_id que
+        // leur parent. Un ancien fichier générique ou une origine ambiguë ne prend donc jamais le pas sur le journal.
+        private static JsonElement? LireHookCodex(String session)
+        {
+            try
+            {
+                var fichier = Path.Combine(DossierEtats, "codex", session + ".json");
+                using var flux = new FileStream(fichier, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var doc = JsonDocument.Parse(flux);
+                return doc.RootElement.Clone();
+            }
+            catch (Exception)
+            {
+                return null; // absent, non approuvé, illisible ou en cours de remplacement : journaux seuls
+            }
+        }
 
         // État d'un journal Codex lu d'un bloc, sans l'usure du temps (vérificateur).
         public static (Etat, DateTime) EtatJournalCodex(IEnumerable<String> lignes, Boolean relais, DateTime maintenant)
@@ -284,6 +302,22 @@ namespace Loupedeck.TrinitePlugin
             return suivi.Effectif(relais, maintenant);
         }
 
+        // Même lecteur et même fusion que le pad, sans lire ni écrire le profil Windows (vérificateur).
+        public static (Etat, DateTime) EtatJournalCodexAvecHook(IEnumerable<String> lignes, Boolean relais, DateTime maintenant, String hook)
+        {
+            var suivi = new SuiviCodex();
+            foreach (var ligne in lignes) { suivi.Lire(ligne, DateTime.MinValue); }
+            try
+            {
+                using var doc = JsonDocument.Parse(hook);
+                return suivi.Effectif(relais, maintenant, doc.RootElement);
+            }
+            catch (Exception)
+            {
+                return suivi.Effectif(relais, maintenant);
+            }
+        }
+
         private sealed partial class SuiviCodex
         {
             public Int64 Position;
@@ -293,6 +327,9 @@ namespace Loupedeck.TrinitePlugin
             public DateTime Depuis = DateTime.MinValue;
             private Boolean _accord; // Attend un accord pendant le tour (pas une question de fin)
             private DateTime _debutTour = DateTime.MinValue;
+            private String _tour;
+            private DateTime _dernierEvenement = DateTime.MinValue;
+            private Boolean _tourTermine;
 
             // Questions posées par request_user_input_async (call_id → heure) : Codex continue son tour sans attendre, la
             // réponse arrive plus tard, souvent après la fin du tour, dans un message de l'utilisateur
@@ -307,12 +344,54 @@ namespace Loupedeck.TrinitePlugin
             // Les anciennes cartes restent dans Codex et peuvent recevoir une réponse tardive ; elles ne bloquent plus
             // l'état d'une nouvelle demande. Un tour interrompu reste au repos, sans fermer ses cartes.
             // Chats du relais : jamais de question à l'utilisateur.
-            public (Etat, DateTime) Effectif(Boolean relais, DateTime maintenant)
+            public (Etat, DateTime) Effectif(Boolean relais, DateTime maintenant, JsonElement? hook = null)
             {
+                var (etat, depuis) = this.FusionnerHook(hook, maintenant);
                 var ouvertes = this._questions.Values.Where(q => q >= this._debutTour && maintenant - q <= TimeSpan.FromHours(12)).ToList();
-                return !relais && ouvertes.Count > 0 && this.Etat is not (Etat.Autorisation or Etat.Travaille or Etat.Repos)
+                return !relais && ouvertes.Count > 0 && etat is not (Etat.Autorisation or Etat.Travaille or Etat.Repos)
                     ? (Etat.Attend, ouvertes.Max())
-                    : (this.Etat, this.Depuis);
+                    : (etat, depuis);
+            }
+
+            private (Etat, DateTime) FusionnerHook(JsonElement? hook, DateTime maintenant)
+            {
+                var journal = (this.Etat, this.Depuis);
+                try
+                {
+                    // Les fichiers de journal conservent les questions terminales et l'annulation ; un hook en retard
+                    // ne ressuscite ni ce tour ni un ancien tour. Sans identité du tour, le journal reste le secours.
+                    if (this._tourTermine || String.IsNullOrEmpty(this._tour) || hook is not { ValueKind: JsonValueKind.Object } h
+                        || h.GetProperty("schema").GetInt32() != 1 || h.GetProperty("scope").GetString() != "main"
+                        || h.GetProperty("turn_id").GetString() != this._tour)
+                    {
+                        return journal;
+                    }
+
+                    var quand = DateTimeOffset.FromUnixTimeMilliseconds((Int64)(h.GetProperty("at").GetDouble() * 1000)).UtcDateTime;
+                    if (quand < this._dernierEvenement || quand > maintenant) { return journal; }
+                    var evenement = h.GetProperty("event").GetString();
+                    if (evenement is not ("UserPromptSubmit" or "PreToolUse" or "PostToolUse" or "PermissionRequest"
+                        or "SubagentStart" or "SubagentStop" or "Stop" or "Interrupt" or "SessionStart" or "SessionEnd"))
+                    {
+                        return journal;
+                    }
+
+                    var age = maintenant - quand;
+                    Etat? etat = h.GetProperty("state").GetString() switch
+                    {
+                        "run" when age < TimeSpan.FromHours(2) => Etat.Travaille,
+                        "perm" when age < TimeSpan.FromHours(12) => Etat.Autorisation,
+                        "wait" when age < TimeSpan.FromHours(12) => Etat.Attend,
+                        "done" when age < TimeSpan.FromHours(12) => Etat.Fini,
+                        "repos" or "end" => Etat.Repos,
+                        _ => null,
+                    };
+                    return etat is { } connu ? (connu, quand) : journal;
+                }
+                catch (Exception)
+                {
+                    return journal; // schéma ancien, champ manquant ou type imprévu : aucune supposition
+                }
             }
 
             // Signes que le travail a repris après un accord.
@@ -321,6 +400,8 @@ namespace Loupedeck.TrinitePlugin
 
             public void Lire(String ligne, DateTime parDefaut)
             {
+                var quand = Horodatage(ligne) ?? parDefaut;
+                if (quand > this._dernierEvenement) { this._dernierEvenement = quand; }
                 if (ligne.Contains("\"response_item\"", StringComparison.Ordinal))
                 {
                     this.LireQuestion(ligne, parDefaut);
@@ -332,11 +413,11 @@ namespace Loupedeck.TrinitePlugin
                     return;
                 }
 
-                var quand = Horodatage(ligne) ?? parDefaut;
-
                 if (ligne.Contains("\"type\":\"task_started\"", StringComparison.Ordinal))
                 {
                     this._debutTour = quand;
+                    this._tour = Champ(ligne, "turn_id");
+                    this._tourTermine = false;
                     (this.Etat, this.Depuis, this._accord) = (Etat.Travaille, quand, false);
                 }
                 else if (ligne.Contains("_approval_request\"", StringComparison.Ordinal))
@@ -349,12 +430,14 @@ namespace Loupedeck.TrinitePlugin
                 }
                 else if (ligne.Contains("\"type\":\"turn_aborted\"", StringComparison.Ordinal))
                 {
+                    this._tourTermine = true;
                     // Tour interrompu : ni réussite ni question, il retourne au repos (une annulation affichait la coche de
                     // fin, relecture de Codex, 25/10).
                     (this.Etat, this.Depuis, this._accord) = (Etat.Repos, quand, false);
                 }
                 else if (ligne.Contains("\"type\":\"task_complete\"", StringComparison.Ordinal))
                 {
+                    this._tourTermine = true;
                     // Un tour qui finit sur une question attend l'utilisateur.
                     var question = Regex.Match(ligne, "\"last_agent_message\":\"((?:[^\"\\\\]|\\\\.)*)\"");
                     var texte = question.Success ? ChaineJson(question.Groups[1].Value).TrimEnd('*', '_', ' ', ')', '»', '"', '\n') : "";

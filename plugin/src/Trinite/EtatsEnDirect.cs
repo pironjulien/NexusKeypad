@@ -14,9 +14,8 @@ namespace Loupedeck.TrinitePlugin
 
     // États en direct de Claude et d'Antigravity (travaille, t'attend, fini, à l'instant même) : leurs hooks appellent
     // nexuskeypad-hook.exe, livré dans le paquet et copié à une place fixe (%LOCALAPPDATA%\NexusKeypad\hook), qui ne bouge
-    // pas d'une version ou d'une édition du plugin à l'autre. Rien n'est posé sans l'accord de l'utilisateur : une question
-    // au premier démarrage (une seule fois, sa réponse est gardée), puis l'action « Live states » pour poser ou retirer.
-    // Un refus ou une erreur ne laisse rien de modifié. Même travail que outils/installer_hooks.py (version des sources).
+    // pas d'une version ou d'une édition du plugin à l'autre. Les nouveaux connecteurs (Connecteurs/ConnexionPad) gèrent
+    // l'activation par IA ; ces lecteurs et migrateurs conservent la compatibilité avec les installations précédentes.
     public static class EtatsEnDirect
     {
         public static readonly String[] EvenementsClaude =
@@ -171,6 +170,11 @@ namespace Loupedeck.TrinitePlugin
                 return;
             }
 
+            hooks[CleAntigravity] = GroupeAntigravity(exeSansEspace);
+        }
+
+        public static JsonObject GroupeAntigravity(String exeSansEspace)
+        {
             JsonObject Gestionnaire(String e) => new() { ["type"] = "command", ["command"] = $"{exeSansEspace} antigravity {e}", ["timeout"] = 10 };
             var entree = new JsonObject();
             foreach (var e in EvenementsAntigravity)
@@ -180,7 +184,34 @@ namespace Loupedeck.TrinitePlugin
                     : new JsonArray(Gestionnaire(e));
             }
 
-            hooks[CleAntigravity] = entree;
+            return entree;
+        }
+
+        // Migration vers les hooks du plugin : seuls nos gestionnaires disparaissent, même si un ancien groupe
+        // contient aussi un hook ajouté par l'utilisateur. Les autres groupes restent intacts.
+        public static void RetirerAnciensHooksAntigravity(JsonObject hooks)
+        {
+            Boolean DuProduit(JsonNode hook) => DuPad(hook) || Regex.IsMatch(hook?["command"]?.GetValue<String>() ?? "",
+                @"NexusKeypad[\\/]sons[\\/]jouer\.py\s+antigravity(?:\s|$)", RegexOptions.IgnoreCase);
+            foreach (var cle in new[] { CleAntigravity, "nexus-keypad-sons", "son-fin-de-tache" })
+            {
+                if (hooks[cle] is not JsonObject groupe) { continue; }
+                foreach (var evenement in groupe.Select(p => p.Key).ToList())
+                {
+                    if (groupe[evenement] is not JsonArray liste) { continue; }
+                    foreach (var gestionnaire in liste.ToList())
+                    {
+                        if (gestionnaire is JsonObject enveloppe && enveloppe["hooks"] is JsonArray enfants)
+                        {
+                            foreach (var enfant in enfants.Where(DuProduit).ToList()) { enfants.Remove(enfant); }
+                            if (enfants.Count == 0) { liste.Remove(gestionnaire); }
+                        }
+                        else if (DuProduit(gestionnaire)) { liste.Remove(gestionnaire); }
+                    }
+                    if (liste.Count == 0) { groupe.Remove(evenement); }
+                }
+                if (!groupe.Any(p => p.Value is JsonArray)) { hooks.Remove(cle); }
+            }
         }
 
         public static Boolean ClaudeAvecPad(JsonObject reglages) =>
@@ -220,6 +251,7 @@ namespace Loupedeck.TrinitePlugin
         public static void Demarrer(String exePaquet)
         {
             _exePaquet = exePaquet;
+            Connecteurs.Initialiser(exePaquet);
             var fil = new Thread(() =>
             {
                 try
@@ -232,10 +264,7 @@ namespace Loupedeck.TrinitePlugin
                             CopierCatalogue(exePaquet, DossierCatalogue);
                         }
                     }
-                    else if (!File.Exists(Choix) && (ClaudePresent || AntigravityPresent) && !Poses())
-                    {
-                        Demander(exePaquet, premiereFois: true);
-                    }
+                    // La connexion se propose sur la touche de chaque IA, jamais par une question globale au chargement.
                 }
                 catch (Exception ex)
                 {

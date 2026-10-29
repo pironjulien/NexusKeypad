@@ -15,9 +15,11 @@ namespace Loupedeck.TrinitePlugin
     // Le poste : écran éteint, inactivité de l'utilisateur, appli au premier plan.
     public sealed partial class Observateur
     {
-        // Écran éteint par Windows (inactif depuis son délai d'extinction ; jamais si ce délai est « jamais ») : le pad
-        // s'éteint avec lui (aucun réglage Logi ne l'empêche, 24/10) ; rien n'est plus dessiné pour lui.
-        private Boolean EcranEteint() => Inactif() > this.DelaiEcran();
+        // Écran éteint par Windows : le pad s'éteint avec lui (aucun réglage Logi ne l'empêche, 24/10) ; rien n'est plus
+        // dessiné pour lui. État annoncé par Windows ; à défaut d'abonnement, deviné par l'inactivité. (Deviné seulement,
+        // poste verrouillé l'écran s'éteignait après 1 min et non après le délai du mode d'alimentation : le pad, éteint
+        // par Logi, était redessiné une minute de plus et restait allumé sur une image figée, mouchard du 29/10.)
+        private Boolean EcranEteint() => EtatAffichage.Connu ? EtatAffichage.Eteint : Inactif() > this.DelaiEcran();
 
         // Pour l'édition PC Dashboard, qui ne lit rien d'autre ici.
         public Boolean Eteint => this.EcranEteint();
@@ -216,6 +218,63 @@ namespace Loupedeck.TrinitePlugin
             }
 
             return this._delaiEcran;
+        }
+
+        // État de l'affichage annoncé par Windows (GUID_CONSOLE_DISPLAY_STATE : 0 éteint, 1 allumé, 2 atténué), dès
+        // l'abonnement puis à chaque changement ; atténué compte pour allumé.
+        private static class EtatAffichage
+        {
+            private static Guid Affichage = new("6fe69556-704a-47a0-8f24-c28d936fda47");
+            private static readonly RappelAlimentation Rappel = Changement; // gardé en vie pour Windows
+            private static volatile Int32 _etat = -1;
+
+            public static Boolean Connu => _etat >= 0;
+
+            public static Boolean Eteint => _etat == 0;
+
+            static EtatAffichage()
+            {
+                try
+                {
+                    var abonnement = new DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS { Callback = Rappel };
+                    var erreur = PowerSettingRegisterNotification(ref Affichage, DEVICE_NOTIFY_CALLBACK, ref abonnement, out _);
+                    if (erreur != 0)
+                    {
+                        PluginLog.Warning($"état de l'écran : abonnement refusé ({erreur}), deviné par l'inactivité");
+                    }
+                }
+                catch (Exception e)
+                {
+                    PluginLog.Error(e, "état de l'écran");
+                }
+            }
+
+            private static UInt32 Changement(IntPtr contexte, UInt32 type, IntPtr reglage)
+            {
+                // POWERBROADCAST_SETTING : GUID (16 octets), taille des données, puis les données.
+                if (type == PBT_POWERSETTINGCHANGE && reglage != IntPtr.Zero && Marshal.ReadInt32(reglage, 16) >= 4)
+                {
+                    _etat = Marshal.ReadInt32(reglage, 20);
+                }
+
+                return 0;
+            }
+
+            private const UInt32 DEVICE_NOTIFY_CALLBACK = 2;
+            private const UInt32 PBT_POWERSETTINGCHANGE = 0x8013;
+
+            [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+            private delegate UInt32 RappelAlimentation(IntPtr contexte, UInt32 type, IntPtr reglage);
+
+            [StructLayout(LayoutKind.Sequential)]
+            private struct DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS
+            {
+                public RappelAlimentation Callback;
+                public IntPtr Context;
+            }
+
+            [DllImport("powrprof.dll")]
+            private static extern UInt32 PowerSettingRegisterNotification(ref Guid settingGuid, UInt32 flags, ref DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS recipient, out IntPtr registrationHandle);
         }
 
         private static Guid SousGroupeVideo = new("7516b95f-f776-4464-8c53-06167f40cc99"); // GUID_VIDEO_SUBGROUP

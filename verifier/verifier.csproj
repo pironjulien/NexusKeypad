@@ -20,6 +20,7 @@
   <!-- Tests de propriétés (Robustesse.cs) : version exacte, mise à jour par Dependabot. -->
   <ItemGroup>
     <PackageReference Include="FsCheck" Version="3.4.0" />
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
   </ItemGroup>
 
   <ItemGroup Condition="Exists('$(LogiService)PluginApi.dll')">

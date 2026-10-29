@@ -43,6 +43,11 @@ jobs:
           $suffixe = $version -replace '\.', '_'
           $fichiers = @(Get-ChildItem "$env:LOCALAPPDATA\NexusKeypad\marketplace" -File -Filter "*_$suffixe.lplug4")
           if ($fichiers.Count -ne 4) { throw "Expected 4 packages at version $version, got $($fichiers.Count)." }
+          $paquetComplet = @($fichiers | Where-Object { $_.Name -eq "NexusKeypad_$suffixe.lplug4" })
+          if ($paquetComplet.Count -ne 1) { throw 'Complete NexusKeypad package is absent.' }
+          ./tests/test_package_connecteurs.ps1 -PackagePath $paquetComplet[0].FullName
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./tests/test_package_connecteurs.ps1 -PackagePath $paquetComplet[0].FullName
+          if ($LASTEXITCODE) { throw 'Packaged connector checks failed under Windows PowerShell 5.1.' }
           $fichiers | Copy-Item -Destination dist
           Copy-Item get.ps1 dist  # the installer too, for running it from a file (checked and attested like the packages)
           Get-ChildItem dist -File | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |

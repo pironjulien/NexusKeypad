@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>$(LocalAppData)\NexusKeypad\test-lanceurs\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(LocalAppData)\NexusKeypad\test-lanceurs\bin\</BaseOutputPath>
+  </PropertyGroup>
+</Project>

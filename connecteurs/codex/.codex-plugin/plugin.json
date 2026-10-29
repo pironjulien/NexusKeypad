@@ -1,0 +1,16 @@
+{
+  "name": "nexus-keypad",
+  "version": "1.2.3",
+  "description": "NexusKeypad: configure, diagnose and disable the connection between Codex and your Logitech keypad.",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "author": { "name": "Julien Piron" },
+  "interface": {
+    "displayName": "NexusKeypad",
+    "shortDescription": "Connect this AI to your keypad",
+    "developerName": "Julien Piron",
+    "category": "Productivity",
+    "composerIcon": "./assets/composer-icon.png",
+    "logo": "./assets/logo.png"
+  }
+}

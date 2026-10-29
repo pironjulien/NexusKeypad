@@ -1,0 +1,8 @@
+{
+  "nexus-keypad": {
+    "PreInvocation": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ antigravity PreInvocation", "timeout": 10 }],
+    "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ antigravity PreToolUse", "timeout": 10 }] }],
+    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ antigravity PostToolUse", "timeout": 10 }] }],
+    "Stop": [{ "type": "command", "command": "__NEXUS_KEYPAD_HOOK__ antigravity Stop", "timeout": 10 }]
+  }
+}

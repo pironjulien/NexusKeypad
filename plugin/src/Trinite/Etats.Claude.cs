@@ -18,6 +18,8 @@ namespace Loupedeck.TrinitePlugin
         // Claude : fichiers de session de l'appli de bureau (titre, activité, dernier regard) + état des hooks.
         private IEnumerable<Conversation> Claude()
         {
+            this._sessionClaudeAffiche = null;
+            this._cliClaudeAffiche = null;
             var racine = Directory.Exists(Path.Combine(Local, "Claude-Data"))
                 ? Directory.EnumerateDirectories(Path.Combine(Local, "Claude-Data")).Select(d => Path.Combine(d, "claude-code-sessions")).FirstOrDefault(Directory.Exists)
                 : null;
@@ -32,7 +34,13 @@ namespace Loupedeck.TrinitePlugin
             var ecritConfig = File.Exists(config) ? File.GetLastWriteTimeUtc(config) : DateTime.MinValue;
             if (ecritConfig != this._compteClaude.Ecrit)
             {
-                this._compteClaude = (ecritConfig, CompteClaude(config));
+                var nouveauCompte = CompteClaude(config);
+                if (nouveauCompte != this._compteClaude.Compte)
+                {
+                    this._quotas[0] = null;
+                    this._perimetreQuotaClaude = null;
+                }
+                this._compteClaude = (ecritConfig, nouveauCompte);
             }
 
             if (this._compteClaude.Compte is String compte && Directory.Exists(Path.Combine(racine, compte)))
@@ -40,11 +48,14 @@ namespace Loupedeck.TrinitePlugin
                 racine = Path.Combine(racine, compte);
             }
 
+            this._sessionClaudeAffiche = Uia.SessionClaudeAffichee();
+            var maintenantUtc = DateTime.UtcNow;
             var clis = new HashSet<String>(); // remplacé d'un bloc à la fin : jamais lu à moitié rempli
+            var brutes = new List<(Conversation Conv, String Cwd)>();
             foreach (var fichier in Directory.EnumerateFiles(racine, "local_*.json", SearchOption.AllDirectories))
             {
                 var ecrit = File.GetLastWriteTimeUtc(fichier);
-                if (DateTime.UtcNow - ecrit > Fenetre)
+                if (maintenantUtc - ecrit > Fenetre)
                 {
                     continue;
                 }
@@ -62,30 +73,77 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 var titre = Champ(meta, "title") ?? "Session Claude";
+                var cwd = Champ(meta, "cwd");
                 var activite = Instant(Champ(meta, "lastActivityAt")) ?? ecrit;
                 var regard = Instant(Champ(meta, "lastFocusedAt")) ?? DateTime.MinValue;
                 var cli = Champ(meta, "cliSessionId");
                 if (cli is not null)
                 {
                     clis.Add(cli);
+                    if (id == this._sessionClaudeAffiche) { this._cliClaudeAffiche = cli; }
                 }
 
                 var hook = cli is not null ? Hook("claude", cli) : null;
                 var etat = hook is { } h ? Traduire(h.Etat, h.Quand) : Etat.Repos;
                 var depuis = hook?.Quand ?? activite;
                 var vu = regard > depuis || this.Vu(0, id, depuis);
-                yield return new(0, id, titre, etat is Etat.Fini or Etat.Erreur && vu ? Etat.Repos : etat, depuis, activite, vu);
+                var conv = new Conversation(0, id, titre, etat is Etat.Fini or Etat.Erreur && vu ? Etat.Repos : etat, depuis, activite, vu);
+                brutes.Add((conv, cwd));
             }
 
             this._clisClaude = clis;
+
+            var cwdActif = this._sessionClaudeAffiche is not null
+                ? brutes.FirstOrDefault(b => b.Conv.Id == this._sessionClaudeAffiche).Cwd
+                : null;
+
+            foreach (var (conv, cwd) in brutes)
+            {
+                if (ConversationClaudeActive(conv, cwd, this._sessionClaudeAffiche, cwdActif, maintenantUtc))
+                {
+                    yield return conv;
+                }
+            }
         }
+
+        private static readonly TimeSpan FenetreReposClaude = TimeSpan.FromHours(6);
+
+        public static Boolean ConversationClaudeActive(Conversation c, String cwd, String sessionAffichee, String cwdActif, DateTime maintenantUtc, TimeSpan? fenetreRepos = null)
+        {
+            if (c.Etat is not Etat.Repos)
+            {
+                return true;
+            }
+
+            // Le même titre peut revenir chaque jour : seule la session réellement affichée échappe au délai de repos.
+            if (sessionAffichee is not null && c.Id == sessionAffichee)
+            {
+                return true;
+            }
+
+            if (maintenantUtc - c.Activite > (fenetreRepos ?? FenetreReposClaude))
+            {
+                return false;
+            }
+
+            if (cwdActif is not null && cwd is not null && !String.Equals(NormaliserDossier(cwd), NormaliserDossier(cwdActif), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static String NormaliserDossier(String d) => String.IsNullOrWhiteSpace(d) ? null : d.Replace('/', '\\').TrimEnd('\\');
 
         // Sessions récentes du compte Claude connecté (cliSessionId), relevées par Claude().
         private HashSet<String> _clisClaude = [];
+        private String _sessionClaudeAffiche;
+        private String _cliClaudeAffiche;
 
         // Quota écrit par le plugin Claude « Nexus Pad » (facultatif, non publié ici) à chaque réponse : les deux fenêtres exactes,
-        // sans réseau ni menu ouvert. Gardé seulement s'il vient d'une session du compte connecté ; une fenêtre dont la
-        // remise à zéro est passée vaut 0 %. Null : pas de plugin, autre compte, ou fichier illisible.
+        // sans réseau ni menu ouvert. Gardé seulement s'il vient de la session affichée du compte connecté ; une fenêtre
+        // dont la remise à zéro est passée vaut 0 %. Null : pas de plugin, autre session/compte, ou fichier illisible.
         // valable : publication lisible du compte connecté ; elle fait alors foi, même périmée (null : jauge grise).
         private Quota QuotaClaudePlugin(out Boolean valable)
         {
@@ -100,7 +158,7 @@ namespace Loupedeck.TrinitePlugin
 
                 using var doc = JsonDocument.Parse(File.ReadAllText(fichier));
                 var r = doc.RootElement;
-                if (r.GetProperty("session").GetString() is not String session || !this._clisClaude.Contains(session))
+                if (r.GetProperty("session").GetString() is not String session || session != this._cliClaudeAffiche || !this._clisClaude.Contains(session))
                 {
                     return null;
                 }
@@ -131,6 +189,163 @@ namespace Loupedeck.TrinitePlugin
             catch (Exception)
             {
                 return null; // en cours d'écriture : relu au tour suivant
+            }
+        }
+
+        // Quota tenu sur disque par Claude de bureau (plan-usage-history.json) : historique officiel des deux
+        // fenêtres exactes (5 h et semaine), tenu par l'application elle-même sans réseau ni interface.
+        public static Quota QuotaHistoriqueClaude(String json, DateTime maintenantUtc, String org = null)
+        {
+            if (String.IsNullOrWhiteSpace(json))
+            {
+                return null;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (!doc.RootElement.TryGetProperty("samples", out var samples) || samples.ValueKind != JsonValueKind.Array)
+                {
+                    return null;
+                }
+
+                var len = samples.GetArrayLength();
+                if (len == 0)
+                {
+                    return null;
+                }
+
+                JsonElement? retenu = null;
+                for (var i = len - 1; i >= 0; i--)
+                {
+                    var s = samples[i];
+                    if (s.ValueKind == JsonValueKind.Object && s.TryGetProperty("u", out var u) && u.ValueKind == JsonValueKind.Object
+                        && (u.TryGetProperty("fh", out _) || u.TryGetProperty("sd", out _))
+                        && (org is null || (s.TryGetProperty("org", out var o) && o.ValueKind == JsonValueKind.String && o.GetString() == org)))
+                    {
+                        retenu = s;
+                        break;
+                    }
+                }
+
+                if (retenu is not { } ech || !ech.TryGetProperty("u", out var usage))
+                {
+                    return null;
+                }
+
+                var quand = ech.TryGetProperty("t", out var t) && t.TryGetInt64(out var ms)
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime
+                    : DateTime.MinValue;
+
+                Double? Fenetre(String nom, TimeSpan duree)
+                {
+                    if (!usage.TryGetProperty(nom, out var v) || !v.TryGetDouble(out var part) || Double.IsNaN(part) || Double.IsInfinity(part))
+                    {
+                        return null;
+                    }
+
+                    if (quand != DateTime.MinValue && maintenantUtc - quand > duree)
+                    {
+                        return 0;
+                    }
+
+                    return Math.Clamp(part / 100.0, 0, 1);
+                }
+
+                var cinq = Fenetre("fh", TimeSpan.FromHours(5));
+                var semaine = Fenetre("sd", TimeSpan.FromDays(7));
+                return cinq is not null || semaine is not null ? new(cinq, semaine) : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private Quota QuotaClaudeHistorique()
+        {
+            try
+            {
+                var dossier = DossierHistoriqueClaude();
+                if (dossier is null)
+                {
+                    return null;
+                }
+
+                return QuotaHistoriqueClaudeCompte(dossier, this._compteClaude.Compte, DateTime.UtcNow, this._sessionClaudeAffiche);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private static String DossierHistoriqueClaude() => Directory.Exists(Path.Combine(Local, "Claude-Data"))
+            ? Directory.EnumerateDirectories(Path.Combine(Local, "Claude-Data")).FirstOrDefault(d => File.Exists(Path.Combine(d, "plan-usage-history.json")))
+            : null;
+
+        private String PerimetreQuotaClaude() => PerimetreQuotaClaudeCompte(DossierHistoriqueClaude(), this._compteClaude.Compte, this._sessionClaudeAffiche);
+
+        internal static String PerimetreQuotaClaudeCompte(String dossier, String compte, String sessionAffichee = null)
+        {
+            var org = OrganisationHistoriqueClaude(dossier, compte, sessionAffichee);
+            return org is null ? null : Path.GetFullPath(dossier) + "\0" + compte + "\0" + org;
+        }
+
+        // Une nouvelle lecture partielle peut compléter seulement une jauge du même périmètre prouvé.
+        internal static Quota FusionnerQuotaClaude(Quota precedente, Quota lue, String ancienPerimetre, String perimetre)
+        {
+            var garde = perimetre is not null && String.Equals(ancienPerimetre, perimetre, StringComparison.Ordinal) ? precedente : null;
+            return lue is null ? garde : new(lue.Cinq ?? garde?.Cinq, lue.Semaine ?? garde?.Semaine);
+        }
+
+        private static String OrganisationHistoriqueClaude(String dossier, String compte, String sessionAffichee)
+        {
+            try
+            {
+                if (String.IsNullOrWhiteSpace(dossier) || String.IsNullOrWhiteSpace(compte) || compte is "." or ".." || Path.GetFileName(compte) != compte
+                    || String.IsNullOrWhiteSpace(sessionAffichee) || Path.GetFileName(sessionAffichee) != sessionAffichee)
+                {
+                    return null;
+                }
+
+                var sessions = Path.Combine(dossier, "claude-code-sessions", compte);
+                if (!Directory.Exists(sessions)) { return null; }
+                String retenue = null;
+                foreach (var org in Directory.EnumerateDirectories(sessions))
+                {
+                    var fiche = Path.Combine(org, sessionAffichee + ".json");
+                    if (!File.Exists(fiche)) { continue; }
+                    using var doc = JsonDocument.Parse(File.ReadAllText(fiche));
+                    if (!doc.RootElement.TryGetProperty("sessionId", out var id) || id.ValueKind != JsonValueKind.String || id.GetString() != sessionAffichee)
+                    {
+                        continue;
+                    }
+                    if (retenue is not null) { return null; } // deux fiches homonymes : aucune organisation devinée
+                    retenue = Path.GetFileName(org);
+                }
+                return retenue;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        // L'historique mélange les organisations de l'application. L'ID exact affiché et sa fiche du compte courant
+        // prouvent l'organisation ; sans cette preuve, le lecteur courant UIA reste le secours.
+        internal static Quota QuotaHistoriqueClaudeCompte(String dossier, String compte, DateTime maintenantUtc, String sessionAffichee = null)
+        {
+            try
+            {
+                var org = OrganisationHistoriqueClaude(dossier, compte, sessionAffichee);
+                if (org is null) { return null; }
+                var fichier = Path.Combine(dossier, "plan-usage-history.json");
+                return QuotaHistoriqueClaude(File.ReadAllText(fichier), maintenantUtc, org);
+            }
+            catch (Exception)
+            {
+                return null;
             }
         }
 

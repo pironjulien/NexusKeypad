@@ -3,6 +3,7 @@
 Usage : python -I outils/pad.py capture [2]        → chemin de l'image des 9 touches (page 1, ou 2)
         python -I outils/pad.py --reel appui <1-18> → appui simulé (places du pad : 1 Codex, 2 Claude, 3 Antigravity, 4-6 : leurs quotas, 7 Capture, 8 Photo, 9 Dictée ; 10-18 : page 2)
         python -I outils/pad.py etat               → résumé de la dernière lecture
+        python -I outils/pad.py snapshot           → cache JSON daté, sans titre ni lecture UI supplémentaire
         python -I outils/pad.py --reel releve      → relevé forcé du quota d'Antigravity (sa page Settings › Models)
         python -I outils/pad.py etats-en-direct    → question de l'action « Live states » (poser ou retirer les hooks)
 """

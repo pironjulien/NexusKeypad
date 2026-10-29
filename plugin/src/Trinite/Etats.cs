@@ -49,6 +49,7 @@ namespace Loupedeck.TrinitePlugin
         private String _selectionAgy;
         private Int64 _tour;
         private (DateTime Ecrit, String Compte) _compteClaude = (DateTime.MinValue, null);
+        private String _perimetreQuotaClaude;
 #endif
 
         public Telephone Telephone { get; } = new();
@@ -101,6 +102,12 @@ namespace Loupedeck.TrinitePlugin
         {
             if (!this._dicteeSuivie)
             {
+                return false;
+            }
+
+            if (this._dicteeIa >= 0 && !Connecteurs.EvenementsActifs(Agents[this._dicteeIa]))
+            {
+                this._dicteeSuivie = false;
                 return false;
             }
 
@@ -194,7 +201,12 @@ namespace Loupedeck.TrinitePlugin
             List<Conversation>[] listes;
             lock (this._verrouListes)
             {
-                listes = new[] { this.Claude().ToList(), this.Codex().ToList(), this.Antigravity().ToList() };
+                listes = new[]
+                {
+                    Connecteurs.EvenementsActifs("claude") ? this.Claude().ToList() : [],
+                    Connecteurs.EvenementsActifs("codex") ? this.Codex().ToList() : [],
+                    Connecteurs.EvenementsActifs("antigravity") ? this.Antigravity().ToList() : [],
+                };
             }
 
             var conversations = listes.Select(l => l
@@ -202,7 +214,8 @@ namespace Loupedeck.TrinitePlugin
                 .ThenByDescending(c => c.Activite)
                 .ToArray()).ToArray();
             // Tout ce que l'appli montre, chats du relais compris (rangés par lui après 12 h sans message).
-            var ouvertes = listes.Select(l => l.Count).ToArray();
+            // Appli fermée : 0 conversation affichée (pas d'infos d'une IA non lancée).
+            var ouvertes = listes.Select((l, i) => ouverte[i] ? l.Count : 0).ToArray();
 
             // Quotas : Claude par le fichier du plugin Nexus Pad, Codex par Codex LB (10 s ; sans lui, ses journaux),
             // Antigravity par sa page Settings › Models (détails plus bas) ; la dernière valeur lue reste affichée entre
@@ -223,19 +236,25 @@ namespace Loupedeck.TrinitePlugin
             // Claude : le fichier du plugin Nexus Pad, toutes les 5 s, même Claude fermé (sa remise à zéro compte) ; sans lui,
             // le nom du bouton Utilisation, Claude ouvert.
             var eteint = this.EcranEteint();
-            if (this._tour % 5 == 1)
+            if (Connecteurs.EvenementsActifs("claude") && this._tour % 5 == 1)
             {
                 try
                 {
+                    var perimetre = this.PerimetreQuotaClaude();
+                    this._quotas[0] = FusionnerQuotaClaude(this._quotas[0], null, this._perimetreQuotaClaude, perimetre);
+                    this._perimetreQuotaClaude = perimetre;
                     var publie = this.QuotaClaudePlugin(out var valable);
-                    this._quotas[0] = valable ? publie : (ouverte[0] ? Uia.QuotaClaude() : null) ?? this._quotas[0];
+                    var lu = (perimetre is not null && valable ? publie : null)
+                        ?? this.QuotaClaudeHistorique()
+                        ?? (ouverte[0] ? Uia.QuotaClaude(this._sessionClaudeAffiche) : null);
+                    this._quotas[0] = FusionnerQuotaClaude(this._quotas[0], lu, perimetre, perimetre);
                 }
                 catch (Exception e)
                 {
                     PluginLog.Error(e, "quota de Claude");
                 }
             }
-            Quota(1, this._tour % 10 == 1, this.QuotaCodex);
+            Quota(1, Connecteurs.EvenementsActifs("codex") && ouverte[1] && this._tour % 10 == 1, this.QuotaCodex);
             // Antigravity : sa page Settings › Models, comme un humain (fenêtre ouverte seulement : sans elle, rien à lire).
             // Lue sans rien toucher si l'utilisateur l'a ouverte (toutes les 20 s) ; ouverte un instant au plus tous les quarts
             // d'heure, échecs compris (un essai toutes les 2 min refaisait l'appel de quota à Google, 25/10), poste déverrouillé. Antigravity devant : l'utilisateur sans rien toucher
@@ -244,7 +263,7 @@ namespace Loupedeck.TrinitePlugin
             var agyDevant = premier == Processus[2];
             var ouvrirAgy = !Verrouille() && this.SansGesteRecent() && (!agyDevant || Inactif() > TimeSpan.FromSeconds(30))
                 && DateTime.UtcNow - this._quotaAgyLu > TimeSpan.FromMinutes(15) && DateTime.UtcNow - this._quotaAgyEssai > TimeSpan.FromMinutes(15);
-            Quota(2, ouverte[2] && (ouvrirAgy || this._tour % 20 == 7), () =>
+            Quota(2, Connecteurs.EvenementsActifs("antigravity") && ouverte[2] && (ouvrirAgy || this._tour % 20 == 7), () =>
             {
                 if (ouvrirAgy)
                 {
@@ -277,10 +296,14 @@ namespace Loupedeck.TrinitePlugin
                 : QuotaAntigravity.Actuel(this._quotas[2], this._quotaAgyLu);
 
             var dictee = this.DicteeEnCours();
-            return new(conversations, ouvertes, [.. this._quotas], ouverte, eteint, this.Telephone.Derniere, Array.IndexOf(Processus, premier))
+            var quotasVisibles = Enumerable.Range(0, Processus.Length)
+                .Select(i => ouverte[i] && Connecteurs.EvenementsActifs(Agents[i]) ? this._quotas[i] : null)
+                .ToArray();
+            return new(conversations, ouvertes, quotasVisibles, ouverte, eteint, this.Telephone.Derniere, Array.IndexOf(Processus, premier))
             {
                 Dictee = dictee,
                 DicteeIa = dictee ? this._dicteeIa : -1,
+                Connexions = ConnexionPad.Lire(),
             };
         }
 

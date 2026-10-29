@@ -22,7 +22,11 @@
 
   <!-- Argument « remove » (get.ps1 -Remove) : le retrait des états en direct, le même code que l'action « Live states ». -->
   <ItemGroup>
+    <EmbeddedResource Include="assets\antigravity.wav" LogicalName="NexusKeypad.Hook.antigravity.wav" />
+    <EmbeddedResource Include="assets\claude.wav" LogicalName="NexusKeypad.Hook.claude.wav" />
     <Compile Include="..\plugin\src\Trinite\EtatsEnDirect.cs" />
+    <Compile Include="..\plugin\src\Trinite\Connecteurs.cs" />
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
   </ItemGroup>
 
 </Project>

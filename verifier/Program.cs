@@ -13,6 +13,21 @@ AssemblyLoadContext.Default.Resolving += (_, nom) =>
 };
 
 var echecs = new List<String>();
+
+// Diagnostic natif en lecture seule : aucun lancement, aucune fermeture, aucune saisie dans les applications.
+if (args.Contains("connexions"))
+{
+    var paquet = args.SkipWhile(a => a != "connexions").Skip(1).FirstOrDefault();
+    if (paquet is not null) { Connecteurs.Initialiser(paquet); }
+    for (var agent = 0; agent < 3; agent++)
+    {
+        var lancement = Lanceurs.Preparer(agent);
+        var connexion = ConnexionPad.Lire(forcer: true)[agent];
+        Console.WriteLine($"{Observateur.Agents[agent]}: {connexion.Etat}; app={lancement.Etat}; {connexion.Detail}");
+    }
+
+    return 0;
+}
 void Vrai(Boolean condition, String regle)
 {
     if (!condition)
@@ -20,6 +35,22 @@ void Vrai(Boolean condition, String regle)
         echecs.Add(regle);
     }
 }
+
+// Disponibilité et première observation sont deux preuves distinctes : aucune progression si Claude est au repos.
+var preparationClaude = new DateTime(2026, 10, 28, 12, 0, 0, DateTimeKind.Utc);
+var connexionClaude = new Connexion(EtatConnexion.Pret, "configuration verified") { PrepareLe = preparationClaude };
+var sansEvenementClaude = ConnexionPad.AvecObservationClaude(connexionClaude, false);
+Vrai(sansEvenementClaude.Etat == EtatConnexion.Pret && sansEvenementClaude.PrepareLe == preparationClaude,
+    "Claude au repos reste disponible sans progression d'une opération inexistante.");
+Vrai(sansEvenementClaude.PremierEvenementObserve == false && sansEvenementClaude.Detail.Contains("has not been observed"),
+    "Le diagnostic conserve explicitement l'absence du premier callback réel.");
+var avecEvenementClaude = ConnexionPad.AvecObservationClaude(connexionClaude, true);
+Vrai(avecEvenementClaude.Etat == EtatConnexion.Pret && avecEvenementClaude.PremierEvenementObserve == true
+    && avecEvenementClaude.PrepareLe == preparationClaude, "Une vraie observation est distinguée sans modifier la préparation.");
+Vrai(connexionClaude.PremierEvenementObserve is null, "Une configuration seule ne fabrique aucune observation.");
+var connexionClaudeAReparer = new Connexion(EtatConnexion.Reparer, "missing file");
+Vrai(ConnexionPad.AvecObservationClaude(connexionClaudeAReparer, true) == connexionClaudeAReparer,
+    "Un callback ne transforme jamais une configuration à réparer en connexion prête.");
 
 // Essai réel du presse-papiers (écrase son contenu : jamais dans test.ps1) : dotnet run --project verifier -- presse-papiers
 if (args.Contains("presse-papiers"))
@@ -72,6 +103,11 @@ var instantane = new Instantane([[C(0, Etat.Travaille)], [], []], [1, 0, 0], san
 Vrai(instantane.EtatIA(0) == Etat.Travaille, "conversation qui travaille → travaille");
 Vrai(instantane.EtatIA(1) == Etat.Repos, "appli ouverte sans conversation → repos");
 Vrai(instantane.EtatIA(2) == Etat.Ferme, "appli fermée → fermé");
+Vrai(ConnexionPad.RelanceOccupee(0, instantane), "relance refusée pendant un travail");
+Vrai(!ConnexionPad.RelanceOccupee(1, instantane), "une autre IA au repos peut être relancée");
+Vrai(ConnexionPad.RelanceOccupee(1, instantane with { DicteeIa = 1 }), "relance refusée pendant sa dictée");
+Vrai(ConnexionPad.RelanceOccupee(0, null), "état inconnu : pas de relance");
+Vrai(ConnexionPad.RelanceOccupee(0, instantane with { Conversations = [[C(0, Etat.Attend)], [], []] }), "relance refusée pendant une question");
 
 // Quotas d'Antigravity lus sur sa page Settings › Models (relevé réel du 20/10) : groupe le plus entamé par fenêtre.
 var page = """
@@ -125,6 +161,45 @@ finally
 {
     QuotaAntigravity.Fichier = vraiCache;
     Directory.Delete(Path.GetDirectoryName(cache), true);
+}
+// Quota de Claude lu dans son historique de bureau (plan-usage-history.json)
+var exempleClaude = """{"version":2,"samples":[{"t":1793221096102,"org":"e35395a4","u":{"fh":9,"sd":69}}]}""";
+var tClaude = DateTimeOffset.FromUnixTimeMilliseconds(1793221096102).UtcDateTime;
+var qClaude = Observateur.QuotaHistoriqueClaude(exempleClaude, tClaude);
+Vrai(qClaude?.Cinq == 0.09 && qClaude?.Semaine == 0.69, "historique Claude : 5 h à 9 % et semaine à 69 %");
+var qClaudeExpCinq = Observateur.QuotaHistoriqueClaude(exempleClaude, tClaude.AddHours(6));
+Vrai(qClaudeExpCinq?.Cinq == 0 && qClaudeExpCinq?.Semaine == 0.69, "historique Claude après 6 h : 5 h remise à 0 %, semaine conservée");
+var qClaudeExpSemaine = Observateur.QuotaHistoriqueClaude(exempleClaude, tClaude.AddDays(8));
+Vrai(qClaudeExpSemaine?.Cinq == 0 && qClaudeExpSemaine?.Semaine == 0, "historique Claude après 8 j : 5 h et semaine remises à 0 %");
+// Filtrage des conversations actives de Claude
+var maintClaude = DateTime.UtcNow;
+var cTravaille = new Conversation(0, "c1", "Tâche en cours", Etat.Travaille, maintClaude.AddHours(-10), maintClaude.AddHours(-10), false);
+Vrai(Observateur.ConversationClaudeActive(cTravaille, @"C:\ProjetA", "Autre", @"C:\ProjetB", maintClaude), "Claude : tâche en cours toujours active");
+var cAffichee = new Conversation(0, "c2", "Tâche affichée", Etat.Repos, maintClaude.AddHours(-10), maintClaude.AddHours(-10), true);
+Vrai(Observateur.ConversationClaudeActive(cAffichee, @"C:\ProjetA", cAffichee.Id, @"C:\ProjetA", maintClaude), "Claude : session exacte affichée à l'écran toujours active");
+var cVieille = new Conversation(0, "c3", "Vieille tâche", Etat.Repos, maintClaude.AddHours(-8), maintClaude.AddHours(-8), true);
+Vrai(!Observateur.ConversationClaudeActive(cVieille, @"C:\ProjetA", "Autre", @"C:\ProjetA", maintClaude), "Claude : tâche au repos > 6 h ignorée");
+var cAutreProjet = new Conversation(0, "c4", "Tâche autre projet", Etat.Repos, maintClaude.AddMinutes(-30), maintClaude.AddMinutes(-30), true);
+Vrai(!Observateur.ConversationClaudeActive(cAutreProjet, @"C:\ProjetB", cAffichee.Id, @"C:\ProjetA", maintClaude), "Claude : tâche au repos d'un autre projet ignorée");
+var cMemeProjet = new Conversation(0, "c5", "Tâche même projet récente", Etat.Repos, maintClaude.AddMinutes(-30), maintClaude.AddMinutes(-30), true);
+Vrai(Observateur.ConversationClaudeActive(cMemeProjet, @"C:\ProjetA", cAffichee.Id, @"C:\ProjetA", maintClaude), "Claude : tâche au repos du même projet < 6 h retenue");
+var cMemeTitre = cAffichee with { Id = "c6" };
+Vrai(!Observateur.ConversationClaudeActive(cMemeTitre, @"C:\ProjetA", cAffichee.Id, @"C:\ProjetA", maintClaude),
+    "Claude : deux vieux chats de même titre, seul l'ID réellement affiché est retenu.");
+Vrai(!Observateur.ConversationClaudeActive(cAffichee, @"C:\ProjetA", null, @"C:\ProjetA", maintClaude),
+    "Claude : titre connu sans ID affiché ne conserve pas une vieille session.");
+Vrai(!Observateur.ConversationClaudeActive(cMemeTitre with { Activite = maintClaude.AddMinutes(-1) }, @"C:\ProjetB", cAffichee.Id, @"C:\ProjetA", maintClaude),
+    "Claude : homonyme récent d'un autre projet reste filtré.");
+foreach (var etatUrgent in new[] { Etat.Travaille, Etat.Attend, Etat.Autorisation, Etat.Fini, Etat.Erreur, Etat.Limite })
+{
+    Vrai(Observateur.ConversationClaudeActive(cMemeTitre with { Etat = etatUrgent }, @"C:\ProjetB", cAffichee.Id, @"C:\ProjetA", maintClaude),
+        "Claude : état actif préservé indépendamment du titre, de l'âge et du projet : " + etatUrgent);
+}
+
+if (args.Contains("claude-connexion"))
+{
+    Console.WriteLine(echecs.Count == 0 ? "Claude : disponibilité, première observation et filtrage par ID vérifiés hors ligne." : String.Join("\n", echecs));
+    return echecs.Count == 0 ? 0 : 1;
 }
 // Questions de Codex sans attente (request_user_input_async, format relevé le 27/10) : le chat passe en question jusqu'à
 // la réponse (<send_user_message_question_reply> qui cite le call_id), même si le tour est fini ; jamais pour le relais.
@@ -183,6 +258,58 @@ Vrai(Observateur.EtatJournalCodex([debut, question, interruption, reprise, nouve
     "réponse réelle à la carte du tour annulé : ne ferme pas la nouvelle question");
 Vrai(Observateur.EtatJournalCodex([debut, question, interruption, reprise, nouvelleQuestion, nouvelleFin, reponseTardive, nouvelleReponse], false, instantJournal).Item1 == Etat.Fini,
     "réponse réelle à la nouvelle question après annulation : fin du nouveau tour");
+
+// Les hooks accélèrent les états d'un tour parent prouvé ; le journal garde toutes ses informations durables.
+var debutHook = debut.Replace("\"task_started\"", "\"task_started\",\"turn_id\":\"tour-a\"");
+var repriseHook = reprise.Replace("\"task_started\"", "\"task_started\",\"turn_id\":\"tour-b\"");
+String HookCodex(String etat, String evenement, String tour = "tour-a", String heure = "20:50:00.000") => JsonSerializer.Serialize(new
+{
+    schema = 1, scope = "main", state = etat, @event = evenement, turn_id = tour,
+    at = DateTimeOffset.Parse("2026-10-27T" + heure + "Z").ToUnixTimeMilliseconds() / 1000.0,
+});
+Etat Fusion(IEnumerable<String> journal, String hook, Boolean relais = false, DateTime? quand = null) =>
+    Observateur.EtatJournalCodexAvecHook(journal, relais, quand ?? instantJournal, hook).Item1;
+Vrai(Fusion([debutHook], HookCodex("perm", "PermissionRequest")) == Etat.Autorisation,
+    "Codex : permission parent immédiate avant son événement de journal");
+var accordHook = L("20:49:10.000", "\"type\":\"event_msg\",\"payload\":{\"type\":\"exec_approval_request\"}");
+Vrai(Fusion([debutHook, accordHook], HookCodex("run", "PreToolUse")) == Etat.Travaille,
+    "Codex : reprise après permission par hook parent récent");
+Vrai(Fusion([debutHook], HookCodex("perm", "PermissionRequest", heure: "20:48:00.000")) == Etat.Travaille,
+    "Codex : ancien hook n'écrase pas un journal plus récent");
+Vrai(Fusion([debutHook], HookCodex("done", "Stop", tour: "autre-tour")) == Etat.Travaille,
+    "Codex : fin d'un autre tour ignorée");
+Vrai(Fusion([debutHook, fin, repriseHook], HookCodex("done", "Stop", heure: "20:59:00.000")) == Etat.Travaille,
+    "Codex : hook tardif du tour précédent ne finit pas le nouveau tour");
+Vrai(Fusion([debutHook], HookCodex("done", "Stop").Replace("\"main\"", "\"subagent\"")) == Etat.Travaille,
+    "Codex : enfant ne finit pas la conversation parent");
+Vrai(Fusion([debutHook], HookCodex("done", "Stop").Replace("\"schema\":1", "\"schema\":0")) == Etat.Travaille,
+    "Codex : ancien schéma sans preuve d'origine ignoré");
+Vrai(Fusion([debut], HookCodex("perm", "PermissionRequest")) == Etat.Travaille,
+    "Codex : journal sans identité de tour conserve son comportement historique");
+Vrai(Fusion([debutHook], "{broken") == Etat.Travaille && Fusion([debutHook], "{}") == Etat.Travaille,
+    "Codex : fichier incomplet ou illisible garde le secours journal");
+Vrai(Fusion([debutHook], HookCodex("done", "UnknownEvent")) == Etat.Travaille,
+    "Codex : événement inconnu ignoré");
+Vrai(Fusion([debutHook], HookCodex("unknown", "Stop")) == Etat.Travaille,
+    "Codex : état inconnu ignoré");
+Vrai(Fusion([debutHook], HookCodex("done", "Stop", heure: "21:01:00.000")) == Etat.Travaille,
+    "Codex : horodatage futur ne crée pas une fausse fin");
+Vrai(Fusion([debutHook], HookCodex("perm", "PermissionRequest"), quand: instantJournal.AddHours(13)) == Etat.Travaille,
+    "Codex : hook expiré ne remplace pas le lecteur du journal");
+Vrai(Fusion([debutHook], HookCodex("done", "Stop")) == Etat.Fini,
+    "Codex : Stop parent accélère la fin avant task_complete");
+Vrai(Fusion([debutHook, question], HookCodex("done", "Stop")) == Etat.Attend,
+    "Codex : Stop hook garde une carte async sans réponse");
+Vrai(Fusion([debutHook, question], HookCodex("done", "Stop"), relais: true) == Etat.Fini,
+    "Codex : carte async du relais ne sollicite pas l'utilisateur");
+Vrai(Fusion([debutHook, fin], HookCodex("run", "PostToolUse", heure: "20:52:00.000")) == Etat.Fini,
+    "Codex : callback tardif ne ressuscite pas un tour terminé au journal");
+Vrai(Fusion([debutHook, question, interruption], HookCodex("done", "Stop", heure: "20:53:00.000")) == Etat.Repos,
+    "Codex : annulation réelle du journal prime sur un Stop tardif");
+Vrai(Fusion([debutHook, question], HookCodex("repos", "Interrupt")) == Etat.Repos,
+    "Codex : interruption immédiate ne réaffiche pas une ancienne carte");
+Vrai(Fusion([debutHook, question, fin, repriseHook], HookCodex("done", "Stop", tour: "tour-b", heure: "20:59:00.000")) == Etat.Fini,
+    "Codex : le nouveau tour ne reprend pas les questions du précédent");
 
 Robustesse.Delais(Vrai);
 Robustesse.Tout(Vrai, [debut, question, fin, reponse, Multi(), Reponse(Item(0) + "," + Item(1)), ordinaire, citee], page);
@@ -245,6 +372,7 @@ using (var carre = new BitmapBuilder(Rendu.T, Rendu.T))
 
 Vrai(!Rendu.Image(Moteur.Photo, S(0.1, instantane with { Photo = null })).Pixels.AsSpan().SequenceEqual(Rendu.Image(Moteur.Photo, S(0.6, instantane with { Photo = null })).Pixels), "sans téléphone : horloge animée");
 Vrai(!Rendu.Image(0, S(0.1)).Pixels.AsSpan().SequenceEqual(Rendu.Image(0, S(0.6)).Pixels), "tête qui travaille animée");
+Vrai(Rendu.Image(5, S(0.1)).Pixels.AsSpan().SequenceEqual(Rendu.Image(5, S(0.6)).Pixels), "appli fermée : touche d'infos éteinte et immobile");
 
 // Mise à jour de l'édition complète : versions comparées, réglage, état pour l'appli Nexus, paquet contrôlé (SHA-256 de
 // la release, plugin et version attendus) et déballé dans un dossier de travail. Dossiers temporaires seulement.

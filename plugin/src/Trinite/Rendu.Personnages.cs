@@ -39,11 +39,12 @@ namespace Loupedeck.TrinitePlugin
                 Etoiles(b, agent, s.Temps); // derrière lui : dessinées avant
             }
 
-            if (ferme && s.Lancements[agent] < 15)
+            var reveil = ferme && s.Lancements[agent] < 15;
+            if (reveil)
             {
                 Reveil(b, agent, x0, y0, 5, s.Lancements[agent], s.Temps);
             }
-            else
+            else if (ecoute || !PersonnageConnexion(b, agent, x0, y0, 5, etat, s))
             {
                 Personnage(b, agent, x0, y0, 5, etat, s.Temps, depuis: depuis, signe: !ecoute);
                 if (ferme)

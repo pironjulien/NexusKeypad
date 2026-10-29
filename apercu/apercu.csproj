@@ -15,6 +15,7 @@
   <ItemGroup>
     <Compile Include="..\plugin\src\Trinite\*.cs" />
     <Compile Include="..\plugin\src\Helpers\PluginLog.cs" />
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
   </ItemGroup>
 
   <ItemGroup Condition="Exists('$(LogiService)PluginApi.dll')">

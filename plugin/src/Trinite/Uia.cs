@@ -20,6 +20,7 @@ namespace Loupedeck.TrinitePlugin
         private const Int32 ActifPropriete = 30010; // UIA_IsEnabledPropertyId
         private const Int32 ValeurPropriete = 30045; // UIA_ValueValuePropertyId
         private const Int32 FocusClavier = 30008; // UIA_HasKeyboardFocusPropertyId
+        private const Int32 HorsEcran = 30022; // UIA_IsOffscreenPropertyId
         private const Int32 TypeEdit = 50004; // UIA_EditControlTypeId
         private const Int32 TypeBouton = 50000; // UIA_ButtonControlTypeId
         private const Int32 TypeDocument = 50030; // UIA_DocumentControlTypeId
@@ -242,6 +243,47 @@ namespace Loupedeck.TrinitePlugin
         private static extern Int32 GetWindowTextLength(IntPtr h);
 
 #if !POSTE
+        // Claude expose l'ID de sa session dans la valeur du document WebView. Le titre n'est qu'un affichage :
+        // plusieurs conversations peuvent avoir le même nom. Une adresse absente, étrangère ou ambiguë ne prouve rien.
+        public static String SessionClaudeDepuisAdresses(System.Collections.Generic.IEnumerable<String> adresses)
+        {
+            var ids = adresses.Where(a => Uri.TryCreate(a, UriKind.Absolute, out var u)
+                    && u.Scheme == Uri.UriSchemeHttps && u.Host.Equals("claude.ai", StringComparison.OrdinalIgnoreCase)
+                    && u.IsDefaultPort && String.IsNullOrEmpty(u.UserInfo))
+                .Select(a => new Uri(a).AbsolutePath)
+                .Select(p => Regex.Match(p, @"^/epitaxy/local_([0-9a-fA-F-]{36})/?$"))
+                .Where(m => m.Success && Guid.TryParseExact(m.Groups[1].Value, "D", out _))
+                .Select(m => "local_" + Guid.Parse(m.Groups[1].Value).ToString("D"))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            return ids.Length == 1 ? ids[0] : null;
+        }
+
+        public static String SessionClaudeAffichee()
+        {
+            try { return SessionClaudeFenetre(FenetrePrincipale("claude")); }
+            catch (Exception) { return null; }
+        }
+
+        private static String SessionClaudeFenetre(IntPtr fenetre)
+        {
+            try
+            {
+                if (fenetre == IntPtr.Zero) { return null; }
+                var uia = Nouveau();
+                var documents = uia.ElementFromHandle(fenetre)?.FindAll(TreeScopeDescendants,
+                    uia.CreatePropertyCondition(TypePropriete, TypeDocument));
+                var adresses = new System.Collections.Generic.List<String>();
+                for (var i = 0; i < (documents?.Length ?? 0); i++)
+                {
+                    var document = documents.GetElement(i);
+                    if (document.GetCurrentPropertyValue(HorsEcran) is false
+                        && document.GetCurrentPropertyValue(ValeurPropriete) is String adresse) { adresses.Add(adresse); }
+                }
+                return SessionClaudeDepuisAdresses(adresses);
+            }
+            catch (Exception) { return null; }
+        }
+
         // Titre de la conversation affichée dans Claude : son en-tête « <titre>, renommer la session » ; null si illisible.
         public static String TitreClaudeAffiche()
         {
@@ -368,7 +410,46 @@ namespace Loupedeck.TrinitePlugin
             return Fenetres("claude").Select(fenetre => uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, Utilisation, sousChaine: true)));
         }
 
-        // Referme la boîte « Utilisation » de Claude si elle est dépliée ; vrai si elle l'était.
+        // État relu, sans geste. Null distingue une lecture impossible d'une boîte réellement refermée.
+        public static Boolean? UtilisationClaudeOuverte()
+        {
+            try
+            {
+                var etats = BoutonsUtilisation().Where(b => b is not null).Select(b =>
+                    b.GetCurrentPattern(MotifDeplier) is IUIAutomationExpandCollapsePattern menu
+                        ? menu.CurrentExpandCollapseState : -1).ToArray();
+                return etats.Length == 1 && etats[0] is 0 or 1 ? etats[0] == 1 : null;
+            }
+            catch (Exception) { return null; }
+        }
+
+        // Relire une conséquence jusqu'à son échéance. Une lecture en échec reste inconnue, jamais « fermé ».
+        // Horloge et pause injectables pour les scénarios de délai/erreur hors du poste, sans simuler une preuve native.
+        public static Boolean ConfirmerEtat(Func<Boolean?> lire, Boolean voulu, Int32 delaiMs = 1618,
+            Action<Int32> pause = null, Func<Int64> horloge = null)
+        {
+            pause ??= System.Threading.Thread.Sleep;
+            horloge ??= () => Environment.TickCount64;
+            var fin = horloge() + delaiMs;
+            do
+            {
+                try { if (lire() is Boolean etat && etat == voulu) { return true; } }
+                catch (Exception) { }
+                if (horloge() >= fin) { return false; }
+                pause(100);
+            } while (true);
+        }
+
+        // Le geste part une fois ; ni lecture lente, ni erreur après son envoi ne provoque de second clic.
+        public static Boolean GestePuisEtat(Action geste, Func<Boolean?> lire, Boolean voulu, Int32 delaiMs = 1618,
+            Action<Int32> pause = null, Func<Int64> horloge = null)
+        {
+            try { geste(); }
+            catch (Exception) { return false; }
+            return ConfirmerEtat(lire, voulu, delaiMs, pause, horloge);
+        }
+
+        // Referme la boîte « Utilisation » de Claude si elle est dépliée ; vrai seulement après relecture de sa fermeture.
         public static Boolean FermerUtilisationClaude()
         {
             foreach (var bouton in BoutonsUtilisation())
@@ -376,8 +457,7 @@ namespace Loupedeck.TrinitePlugin
                 if (bouton?.GetCurrentPattern(MotifDeplier) is IUIAutomationExpandCollapsePattern menu
                     && menu.CurrentExpandCollapseState == 1)
                 {
-                    menu.Collapse();
-                    return true;
+                    return GestePuisEtat(menu.Collapse, UtilisationClaudeOuverte, false);
                 }
             }
 
@@ -391,39 +471,63 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (bouton?.GetCurrentPattern(MotifDeplier) is IUIAutomationExpandCollapsePattern menu)
                 {
-                    menu.Expand();
-                    return true;
+                    if (menu.CurrentExpandCollapseState == 1) { return true; }
+                    return GestePuisEtat(menu.Expand, UtilisationClaudeOuverte, true);
                 }
 
                 if (bouton?.GetCurrentPattern(MotifInvoke) is IUIAutomationInvokePattern appui)
                 {
-                    appui.Invoke();
-                    return true;
+                    return GestePuisEtat(appui.Invoke, UtilisationClaudeOuverte, true);
                 }
             }
 
             return false;
         }
 
-        // Secours, sans le plugin Nexus Pad de Claude : le nom de son bouton « Utilisation », jamais ouvert (déplié, il
-        // prenait le clavier). Il ne donne que la fenêtre la plus entamée (« Utilisation : Hebdomadaire · tous les
-        // modèles : 68% et … ») ; l'autre reste inconnue.
-        public static Quota QuotaClaude()
+        // Une mesure courante n'appartient à une session que si son identité est relue avant ET après elle. Le lecteur
+        // natif ci-dessous capture un seul HWND : une autre fenêtre ou un changement de compte/session reste inconnu.
+        public static Quota QuotaClaudeVerifiee(String sessionAttendue, Func<String> sessionCourante, Func<Quota> lire)
         {
-            var uia = Nouveau();
-            foreach (var fenetre in Fenetres("claude"))
+            try
             {
-                var bouton = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, Utilisation, sousChaine: true));
-                if (bouton?.GetCurrentPropertyValue(NomPropriete) is not String nom || Regex.Match(nom, @"(\d+(?:[.,]\d+)?)\s*%") is not { Success: true } part)
+                if (String.IsNullOrWhiteSpace(sessionAttendue)
+                    || !String.Equals(sessionCourante(), sessionAttendue, StringComparison.OrdinalIgnoreCase))
                 {
-                    continue;
+                    return null;
                 }
 
-                var valeur = Double.Parse(part.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture) / 100;
-                return nom.Contains("session", StringComparison.OrdinalIgnoreCase) ? new(valeur, null) : new(null, valeur);
+                var quota = lire();
+                return quota is not null && String.Equals(sessionCourante(), sessionAttendue, StringComparison.OrdinalIgnoreCase) ? quota : null;
             }
+            catch (Exception) { return null; }
+        }
 
-            return null;
+        // Secours courant, sans ouvrir le menu. La mesure reste partielle, mais aucune fenêtre ni jauge d'une autre
+        // session ne peut être empruntée. Le sessionId attendu provient du relevé de l'organisation côté Observateur.
+        public static Quota QuotaClaude(String sessionAttendue)
+        {
+            try
+            {
+                var fenetre = FenetrePrincipale("claude");
+                if (fenetre == IntPtr.Zero) { return null; }
+                return QuotaClaudeVerifiee(sessionAttendue, () => SessionClaudeFenetre(fenetre), () =>
+                {
+                    var uia = Nouveau();
+                    var boutons = uia.ElementFromHandle(fenetre)?.FindAll(TreeScopeDescendants,
+                        uia.CreateAndCondition(Bouton(uia, Utilisation, sousChaine: true), uia.CreatePropertyCondition(HorsEcran, false)));
+                    if (boutons?.Length != 1 || boutons.GetElement(0).GetCurrentPropertyValue(NomPropriete) is not String nom
+                        || Regex.Match(nom, @"(\d+(?:[.,]\d+)?)\s*%") is not { Success: true } part) { return null; }
+                    var valeur = Double.Parse(part.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture) / 100;
+                    var estCinq = nom.Contains("session", StringComparison.OrdinalIgnoreCase)
+                        || nom.Contains("5 h", StringComparison.OrdinalIgnoreCase)
+                        || nom.Contains("5-h", StringComparison.OrdinalIgnoreCase)
+                        || nom.Contains("cinq", StringComparison.OrdinalIgnoreCase)
+                        || nom.Contains("5 hour", StringComparison.OrdinalIgnoreCase)
+                        || nom.Contains("5 heure", StringComparison.OrdinalIgnoreCase);
+                    return estCinq ? new(valeur, null) : new(null, valeur);
+                });
+            }
+            catch (Exception) { return null; }
         }
 #endif
 

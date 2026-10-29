@@ -65,6 +65,11 @@
     <Compile Remove="Trinite\Etats.Claude.cs;Trinite\Etats.Codex.cs;Trinite\Etats.Antigravity.cs;Trinite\QuotaAntigravity.cs" />
     <Compile Remove="Trinite\Rendu.Personnages.cs;Trinite\ImageIa.cs;Trinite\Js.cs;Trinite\Cdp.cs;Trinite\EtatsEnDirect.cs" />
     <Compile Remove="Trinite\Ecran.cs;Trinite\PressePapiers.cs;Actions\LiveStatesCommand.cs" />
+    <Compile Remove="Trinite\Connecteurs.cs;Trinite\ConnexionPad.cs;Trinite\Lanceurs.cs;Trinite\Rendu.Connexion.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Edition)' != 'Poste'">
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Edition)' == 'Complete'">
@@ -112,7 +117,7 @@
     <HookProjet>$(MSBuildThisFileDirectory)..\..\hook\</HookProjet>
     <HookSortie>$(NexusBuild)hook-build\publish\</HookSortie>
   </PropertyGroup>
-  <Target Name="HookPublie" Inputs="$(HookProjet)Program.cs;$(HookProjet)PluginLog.cs;$(HookProjet)Touches.cs;$(HookProjet)Echange.cs;$(HookProjet)hook.csproj;$(MSBuildThisFileDirectory)Trinite\EtatsEnDirect.cs" Outputs="$(HookSortie)nexuskeypad-hook.exe"
+  <Target Name="HookPublie" Inputs="$(HookProjet)Program.cs;$(HookProjet)Codex.cs;$(HookProjet)Son.cs;$(HookProjet)assets\antigravity.wav;$(HookProjet)assets\claude.wav;$(HookProjet)PluginLog.cs;$(HookProjet)Touches.cs;$(HookProjet)Echange.cs;$(HookProjet)hook.csproj;$(MSBuildThisFileDirectory)Trinite\EtatsEnDirect.cs;$(MSBuildThisFileDirectory)Trinite\Connecteurs.cs" Outputs="$(HookSortie)nexuskeypad-hook.exe"
           Condition="'$(Edition)' != 'Poste'">
     <Exec Command="set &quot;PATH=$(MSBuildProgramFiles32)\Microsoft Visual Studio\Installer;%PATH%&quot; &amp;&amp; dotnet publish &quot;$(HookProjet)hook.csproj&quot; -c Release -nologo -v q -o &quot;$(HookSortie.TrimEnd('\'))&quot;"
           EnvironmentVariables="DOTNET_CLI_TELEMETRY_OPTOUT=1" />
@@ -124,6 +129,10 @@
       <ModsClaude Include="$(MSBuildThisFileDirectory)..\..\claude-quota\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(ModsClaude)" DestinationFolder="$(OutputPath)claude-quota\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <ConnecteursPad Include="$(MSBuildThisFileDirectory)..\..\connecteurs\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ConnecteursPad)" DestinationFolder="$(OutputPath)connecteurs\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 
   <!-- test.ps1 compile avec NexusTest=true : ni lien posé, ni rechargement du plugin en service. -->

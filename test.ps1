@@ -44,6 +44,9 @@ if ($LASTEXITCODE) { throw "L'édition AI Coding Agents + PC ne compile pas." }
 dotnet build (Join-Path $PSScriptRoot 'plugin\src\TrinitePadPlugin.csproj') -c Release -nologo -v q -p:NexusTest=true -p:Edition=Nexus -p:NexusBuild=$sortie
 if ($LASTEXITCODE) { throw "La version complète (NexusKeypad) ne compile pas." }
 & (Join-Path $PSScriptRoot 'tests\test_get.ps1') -Compilation (Join-Path $sortie 'nexus\bin\Release') -Travail (Join-Path $env:TEMP 'nexuskeypad-test-get')
+& (Join-Path $PSScriptRoot 'tests\test_get_signature.ps1')
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'tests\test_get_signature.ps1')
+if ($LASTEXITCODE) { throw 'Installer signature verification failed under Windows PowerShell 5.1.' }
 # Stream Deck : privé (ni streamdeck\ ni son test dans l'export public), essayé seulement là où il existe.
 if (Test-Path (Join-Path $PSScriptRoot 'streamdeck')) {
     & (Join-Path $PSScriptRoot 'tests\test_get_streamdeck.ps1') -Travail (Join-Path $env:TEMP 'nexuskeypad-test-get-streamdeck')
@@ -61,6 +64,30 @@ foreach ($nom in 'actif', 'calme', 'tetes') {
 # Règles de la logique (états, ordre, quotas, cache d'images), hors du pad.
 dotnet run --project (Join-Path $PSScriptRoot 'verifier') -v q
 if ($LASTEXITCODE) { throw 'Une règle du pad ne tient plus.' }
+
+dotnet run --project (Join-Path $PSScriptRoot 'tests\connecteurs') -v q -- $PSScriptRoot
+if ($LASTEXITCODE) { throw 'Une règle de connexion ou de préservation des réglages ne tient plus.' }
+dotnet run --project (Join-Path $PSScriptRoot 'tests\hook-son') -v q
+if ($LASTEXITCODE) { throw 'Une règle de fin de tour ou de son du connecteur ne tient plus.' }
+dotnet run --project (Join-Path $PSScriptRoot 'tests\hook-codex') -v q
+if ($LASTEXITCODE) { throw 'Une règle des événements Codex ou de leur isolation ne tient plus.' }
+dotnet run --project (Join-Path $PSScriptRoot 'tests\parite-uia') -v q
+if ($LASTEXITCODE) { throw 'Une preuve de conversation ou de quota ne tient plus.' }
+dotnet run --project (Join-Path $PSScriptRoot 'tests\claude-quota') -v q
+if ($LASTEXITCODE) { throw 'Le périmètre du quota Claude ne tient plus.' }
+dotnet run --project (Join-Path $PSScriptRoot 'tests\quota-antigravity') -v q
+if ($LASTEXITCODE) { throw 'La lecture des anciens et nouveaux quotas Antigravity ne tient plus.' }
+dotnet run --project (Join-Path $PSScriptRoot 'tests\snapshot') -v q
+if ($LASTEXITCODE) { throw 'Le contrat du snapshot du pad ne tient plus.' }
+dotnet run --project (Join-Path $PSScriptRoot 'tests\lanceurs') -v q
+if ($LASTEXITCODE) { throw 'Une règle de lancement des applications officielles ne tient plus.' }
+
+# Node ne sert qu'à éprouver le JavaScript UI du pad, sans npm ni application réelle.
+$node = (Get-Command node -ErrorAction Stop).Source
+& $node --test (Join-Path $PSScriptRoot 'tests\test_usage_antigravity.cjs')
+if ($LASTEXITCODE) { throw 'La preuve du panneau de quotas Antigravity ne tient plus.' }
+& $node --test (Join-Path $PSScriptRoot 'tests\test_quota_antigravity.cjs')
+if ($LASTEXITCODE) { throw 'La lecture passive des quotas visibles Antigravity ne tient plus.' }
 
 $python = (Get-Command python -ErrorAction Stop).Source
 # sons\ est privé (absent de l'export public) : seuls les dossiers présents sont lus.

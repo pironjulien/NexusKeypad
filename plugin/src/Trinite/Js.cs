@@ -49,6 +49,44 @@ namespace Loupedeck.TrinitePlugin
             "(() => { const s = document.querySelector('[data-testid=model-selector-trigger]'); if (s?.getAttribute('aria-expanded') !== 'true') return null;" +
             " const r = s.getBoundingClientRect(); return [r.x + (r.width / 2), r.y + (r.height / 2)] })()";
 
+        // Preuve du détail des quotas, sans clic : ancien « Limit Remaining », ou panneau actuel « Usage » et ses
+        // limites. UIA peut annoncer ses enfants hors écran : on vérifie le texte réellement peint dans le DOM,
+        // jamais innerText d'un menu parent qui pourrait aussi contenir un sous-menu fermé ou transparent.
+        public const String UtilisationAntigravityOuverte = """
+            (() => {
+              const dansVue = r => r.width > 0 && r.height > 0 && r.right > 0 && r.bottom > 0
+                && r.left < window.innerWidth && r.top < window.innerHeight;
+              const masque = e => {
+                for (let p = e; p; p = p.parentElement) {
+                  const c = getComputedStyle(p);
+                  if (p.hidden || p.hasAttribute('data-closed') || p.hasAttribute('inert')
+                    || p.getAttribute('aria-hidden') === 'true' || c.display === 'none'
+                    || c.visibility === 'hidden' || c.visibility === 'collapse'
+                    || c.contentVisibility === 'hidden' || Number(c.opacity) === 0) return true;
+                }
+                return false;
+              };
+              const visible = e => !masque(e) && [...e.getClientRects()].some(dansVue);
+              const s = document.querySelector('[data-testid=model-selector-trigger]');
+              if (!s) return null;
+              if (s.getAttribute('aria-expanded') !== 'true' || !visible(s)) return false;
+              return [...document.querySelectorAll('[role=menu]')].some(m => {
+                if (!visible(m)) return false;
+                const morceaux = [], textes = document.createTreeWalker(m, NodeFilter.SHOW_TEXT);
+                for (let n = textes.nextNode(); n; n = textes.nextNode()) {
+                  const e = n.parentElement;
+                  if (!n.nodeValue.trim() || e.closest('[role=menu]') !== m || masque(e)) continue;
+                  const r = document.createRange();
+                  r.selectNodeContents(n);
+                  if ([...r.getClientRects()].some(dansVue)) morceaux.push(n.nodeValue);
+                }
+                const texte = morceaux.join(' ');
+                return /\b\d{1,3}(?:[.,]\d+)?\s*%/.test(texte) && (/\bLimit\s+Remaining\b/i.test(texte)
+                  || (/\bUsage\b/i.test(texte) && /\b(?:Weekly|5\s*h)\s+limit\b/i.test(texte)));
+              });
+            })()
+            """;
+
         // Antigravity : sa boîte « View Usage » (menu des modèles › View Usage), comme la boîte « Utilisation » de Claude,
         // laissée ouverte pour l'utilisateur (il la ferme d'un clic ailleurs). __nexusRepris : un relevé du quota en cours lui
         // laisse la main.
@@ -80,10 +118,10 @@ namespace Loupedeck.TrinitePlugin
         // Antigravity : son mémo vocal.
         public static readonly String[] MicroAntigravity = ["Record voice memo"];
 
-        // Codex : son chat vocal dans la conversation ouverte (« Démarrer le chat vocal ») ; à défaut, la dictée
-        // (« Dicter », puis « Transcrire et insérer » : le texte va dans le champ, sans envoi). Chaque libellé français est
+        // Codex : sa dictée en priorité (« Dicter », puis « Transcrire et insérer » : texte dans le champ, sans envoi).
+        // Son chat vocal reste le secours lorsque la dictée n'est pas proposée par cette version. Chaque libellé français est
         // suivi de son anglais (messages composer.realtime.* et composer.dictation.* de l'appli).
-        public static readonly String[] MicroCodex = ["Démarrer le chat vocal", "Start voice chat", "Dicter", "Dictate"];
+        public static readonly String[] MicroCodex = ["Dicter", "Dictate", "Démarrer le chat vocal", "Start voice chat"];
 
         // Une dictée en cours, quelle qu'elle soit : son bouton d'arrêt (chat vocal ou dictée de Codex, mémo vocal
         // d'Antigravity). Le texte dicté reste dans le champ, sans envoi. Le bouton « Transcrire et insérer » se dit

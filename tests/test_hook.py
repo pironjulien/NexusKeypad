@@ -50,6 +50,8 @@ CAS = [
     ("claude", "SessionEnd", {}, "run", None, "end"),
     ("antigravity", "PreInvocation", {}, "done", None, "run"),
     ("antigravity", "PostToolUse", {}, "wait", None, "run"),
+    ("antigravity", "Stop", {"terminationReason": "USER_CANCELED"}, "run", None, "repos"),
+    ("antigravity", "Stop", {"terminationReason": "USER_CANCELED", "fullyIdle": False}, "run", None, "run"),
     ("antigravity", "PreToolUse", {"toolCall": {"name": "ask_question"}}, None, None, "wait"),
     ("antigravity", "PreToolUse", {"toolCall": {"name": "run_command"}}, None, None, "run"),
     ("antigravity", "Stop", {"fullyIdle": False}, None, None, "run"),  # un sous-agent travaille encore
@@ -59,12 +61,24 @@ CAS = [
 
 
 def lancer(d, *arguments, entree="{}"):
+    environnement = {**os.environ, "USERPROFILE": d, "LOCALAPPDATA": str(Path(d) / "local")}
+    environnement.pop("CLAUDE_CONFIG_DIR", None)
     return subprocess.run([HOOK, *arguments], input=entree, text=True, encoding="utf-8", capture_output=True,
-                          env={**os.environ, "USERPROFILE": d}, check=True)
+                          env=environnement, check=True)
 
 
 @unittest.skipUnless(HOOK and Path(HOOK).exists(), "nexuskeypad-hook.exe non compilé (lancer test.ps1)")
 class Etats(unittest.TestCase):
+    def test_connecteur_desactive_ne_publie_plus(self):
+        with tempfile.TemporaryDirectory() as d:
+            recus = Path(d) / "local" / "NexusKeypad" / "connecteurs" / "etats"
+            recus.mkdir(parents=True)
+            for agent in ("claude", "antigravity"):
+                (recus / f"{agent}.json").write_text('{"active":false}', encoding="utf-8")
+                sortie = lancer(d, agent, "PreToolUse", entree='{"session_id":"s1","conversationId":"s1"}')
+                self.assertEqual(json.loads(sortie.stdout), {"decision": "allow"} if agent == "antigravity" else {})
+                self.assertFalse((Path(d) / ".nexus" / "trinite" / agent / "s1.json").exists())
+
     def test_regles(self):
         with tempfile.TemporaryDirectory() as d:
             journal = Path(d) / "t.jsonl"

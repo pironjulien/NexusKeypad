@@ -4,12 +4,13 @@
 # Remove it (plugin, live states, keys; Logi Options+ itself is left alone):
 #   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1))) -Remove
 #
-# It downloads the latest release's NexusKeypad package (checked against the release's SHA256SUMS.txt; its build
+# It downloads the latest release's NexusKeypad package (its hash and the offline ECDSA signature of SHA256SUMS.txt
+# are verified before extraction or execution; its build
 # provenance can be checked with `gh attestation verify <file> --repo pironjulien/NexusKeypad`), copies it into Logi
 # Options+'s plugin folder (%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad), where the Logi Plugin Service
 # loads it, then offers to place the 18 keys on the keypad's general profile (backed up first; Logi Options+ restarts
-# for a few seconds). The plugin itself asks, at its first start, whether to turn on Claude's and Antigravity's live
-# states. Run it again to update.
+# for a few seconds). Press each AI's unplugged character to activate its NexusKeypad connector.
+# Run this installer again to update.
 #   -Keys yes|no   place the keys without asking (yes) or leave them to drag in Logi Options+ (no)
 # NEXUS_PACK=1 (the Nexus pack, get-nexus.ps1): no question, no wait, no window, keys left to place by hand; exit code
 # 0 on success; a last "NEXUS_PACK_RESULT ..." line.
@@ -30,8 +31,56 @@ $Logi = if ($Sandbox) { $env:NEXUS_KEYPAD_LOGI } else { Join-Path $env:LOCALAPPD
 $Target = Join-Path $Logi "Plugins\$Plugin"
 $Agent = Join-Path $env:ProgramFiles 'LogiOptionsPlus\logioptionsplus_agent.exe'
 $Results = [ordered]@{}
+# Same SPKI public keys as MiseAJour.Cles. No private key or newly installed runtime is needed.
+$ReleaseKeys = @('MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwSIk2pqKmyLcWfNgwY6uXVzS7qq6kj14BxckZIvSvE2R3tPqi4yITye4c8czlGrdEMYM1PrnIN8o3ba2APvbJQ==')
 
 function Say([string]$Text, [string]$Color = 'Gray') { Write-Host $Text -ForegroundColor $Color }
+
+function Test-ReleaseSignature([byte[]]$Content, [string]$Signature, [string[]]$PublicKeys = $ReleaseKeys) {
+    try { $signatureBytes = [Convert]::FromBase64String($Signature.Trim()) } catch { return $false }
+    # ECDSA P-256 / SHA-256, fixed-width IEEE P1363 (r || s), as written by signer_release.ps1.
+    if ($signatureBytes.Length -ne 64) { return $false }
+    # .NET Framework in Windows PowerShell 5.1 has no ImportSubjectPublicKeyInfo. Accept only this exact
+    # P-256 SPKI prefix, then import its public X/Y coordinates into Windows CNG (also available in PS7).
+    $prefix = '30-59-30-13-06-07-2A-86-48-CE-3D-02-01-06-08-2A-86-48-CE-3D-03-01-07-03-42-00-04'
+    foreach ($publicKey in $PublicKeys) {
+        $key = $null
+        $ecdsa = $null
+        try {
+            $spki = [Convert]::FromBase64String($publicKey)
+            if ($spki.Length -ne 91 -or [BitConverter]::ToString($spki, 0, 27) -cne $prefix) { continue }
+            # BCRYPT_ECDSA_PUBLIC_P256_MAGIC ('ECS1'), cbKey=32, followed by X and Y (big-endian each).
+            $blob = New-Object byte[] 72
+            [Array]::Copy([byte[]](0x45, 0x43, 0x53, 0x31, 0x20, 0, 0, 0), 0, $blob, 0, 8)
+            [Array]::Copy($spki, 27, $blob, 8, 64)
+            $key = [Security.Cryptography.CngKey]::Import($blob, [Security.Cryptography.CngKeyBlobFormat]::EccPublicBlob)
+            $ecdsa = [Security.Cryptography.ECDsaCng]::new($key)
+            if ($ecdsa.VerifyData($Content, $signatureBytes, [Security.Cryptography.HashAlgorithmName]::SHA256)) { return $true }
+        } catch {
+            # Invalid/unsupported keys never turn a failed signature into success; another configured key may match.
+        } finally {
+            if ($ecdsa) { $ecdsa.Dispose() }
+            if ($key) { $key.Dispose() }
+        }
+    }
+    return $false
+}
+
+function Get-VerifiedPackageHash([byte[]]$Manifest, [string]$Signature, [string]$PackageName) {
+    if (-not (Test-ReleaseSignature $Manifest $Signature)) { throw 'SHA256SUMS.txt has no valid release signature: installation refused.' }
+    # The signature covers the original bytes, including line endings. Decode only after verifying them.
+    $text = [Text.UTF8Encoding]::new($false, $true).GetString($Manifest).TrimStart([char]0xfeff)
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+    $expected = $null
+    foreach ($line in ($text -split '\r?\n' | Where-Object { $_.Trim() })) {
+        if ($line -cnotmatch '^([0-9a-f]{64})\s+\*?(\S+)\s*$') { throw 'SHA256SUMS.txt has an invalid entry: installation refused.' }
+        $hash, $name = $Matches[1], $Matches[2]
+        if (-not $seen.Add($name)) { throw 'SHA256SUMS.txt lists a file more than once: installation refused.' }
+        if ($name -ceq $PackageName) { $expected = $hash }
+    }
+    if (-not $expected) { throw "$PackageName is absent from the signed manifest: installation refused." }
+    return $expected
+}
 
 function Get-LatestTag {
     # The latest release's tag from the redirect of github.com/<repo>/releases/latest (to .../releases/tag/vX.Y.Z): no
@@ -94,7 +143,7 @@ public static class NexusKeypadLauncher {
 '@
     }
     if (-not [NexusKeypadLauncher]::Start("`"$Agent`" /minimized", (Split-Path $Agent))) {
-        Start-Process -FilePath $Agent -ArgumentList '/minimized'
+        Start-Process -FilePath $Agent -ArgumentList '/minimized' -WindowStyle Hidden
     }
 }
 
@@ -136,8 +185,9 @@ function Install-NexusKeypad {
             Say "Downloading NexusKeypad $tag..."
             $package = Join-Path $work $name
             Invoke-WebRequest -UseBasicParsing "$base/$name" -OutFile $package
-            $expected = ([Text.Encoding]::UTF8.GetString((Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS.txt").RawContentStream.ToArray()) -split "`n" |
-                Where-Object { $_ -match "^([0-9a-f]{64})\s+\*?$([regex]::Escape($name))\s*$" } | ForEach-Object { $Matches[1] }) | Select-Object -First 1
+            $manifest = (Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS.txt").RawContentStream.ToArray()
+            $signature = [Text.Encoding]::UTF8.GetString((Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS.txt.sig").RawContentStream.ToArray())
+            $expected = Get-VerifiedPackageHash $manifest $signature $name
             $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($expected -ne $actual) { throw "SHA-256 mismatch for $($name): the download is not the published package." }
         }
@@ -170,7 +220,7 @@ function Install-NexusKeypad {
     if ($Results['Keys'] -ne 'placed') {
         Say 'Keys: in Logi Options+, open the MX Keypad, Customize keys, and drag Key 1 to Key 9 of the "AI agents" group onto page 1, then Key 10 to Key 18 onto page 2.'
     }
-    Say 'Live states: at its first start the plugin asks whether to show what Claude and Antigravity are doing as it happens (answer Yes).'
+    Say 'AI connections: press each unplugged character to set up its NexusKeypad connector. A restart arrow means the app connection needs a restart; no shortcut editing is needed.'
     return 0
 }
 

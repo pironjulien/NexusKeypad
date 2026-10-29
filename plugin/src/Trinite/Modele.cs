@@ -49,6 +49,11 @@ namespace Loupedeck.TrinitePlugin
         // L'IA où tourne la dictée lancée par le pad (0 à 2), -1 sinon : sa tête écoute.
         public Int32 DicteeIa { get; init; } = -1;
 
+#if !POSTE
+        // Null dans les aperçus historiques ; une liaison réellement vérifiée pour chaque IA sur le pad.
+        public Connexion[] Connexions { get; init; }
+#endif
+
         public static readonly Instantane Vide = new([[], [], []], [0, 0, 0], [null, null, null], [false, false, false], false, null, -1);
 
         public Conversation Premiere(Int32 agent) => this.Conversations[agent].Length > 0 ? this.Conversations[agent][0] : null;

@@ -1,0 +1,111 @@
+{
+  "modules": [
+    "./register.ts"
+  ],
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude UserPromptSubmit } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude PreToolUse } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude PostToolUse } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude PostToolUseFailure } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude Notification } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude Stop } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude StopFailure } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude SessionEnd } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

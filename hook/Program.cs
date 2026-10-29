@@ -27,12 +27,20 @@ public static class Program
     {
         try
         {
+            if (args is ["connecteur", ..])
+            {
+                Loupedeck.TrinitePlugin.Connecteurs.Initialiser(Environment.ProcessPath!);
+                return Loupedeck.TrinitePlugin.Connecteurs.Executer(args);
+            }
+
             // Outils de get.ps1 (installation sans Python) : retrait des états en direct, pose ou retrait des touches.
             switch (args)
             {
                 case ["--remove"]:
                     // hooks du pad et mod du quota, sans question (le retrait a été demandé)
-                    return Loupedeck.TrinitePlugin.EtatsEnDirect.Appliquer(null, pose: false) ? 0 : 1;
+                    Loupedeck.TrinitePlugin.Connecteurs.Initialiser(Environment.ProcessPath!);
+                    return Loupedeck.TrinitePlugin.Connecteurs.RetirerInstallations()
+                        && Loupedeck.TrinitePlugin.EtatsEnDirect.Appliquer(null, pose: false) ? 0 : 1;
                 case ["keys", var profil, var plugin]:
                     return Touches.Executer(profil, plugin, retirer: false);
                 case ["keys", var profil, var plugin, "--remove"]:
@@ -40,6 +48,10 @@ public static class Program
                 case ["swap", var nouveau, var cible, var ancien, var etat, var version]:
                     // échange des dossiers d'une mise à jour, lancé détaché par le plugin
                     return Echange.Executer(nouveau, cible, ancien, etat, version, Echange.LogiPour(cible));
+                case ["--play-note", var note] when note is "claude" or "antigravity":
+                    // Processus bref, sans fenêtre : le hook appelant a déjà rendu sa réponse JSON.
+                    Son.Jouer(note);
+                    return 0;
             }
 
             var debut = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
@@ -66,7 +78,21 @@ public static class Program
             // Antigravity : son PreToolUse exige une décision (sans « allow », l'outil est REFUSÉ). Ailleurs, « {} ».
             Console.Out.Write(agent == "antigravity" && evenement == "PreToolUse" ? "{\"decision\": \"allow\"}\n" : "{}\n");
             Console.Out.Flush();
-            Noter(agent, evenement, charge, debut);
+            if (!Loupedeck.TrinitePlugin.Connecteurs.EvenementsActifs(agent))
+            {
+                return 0;
+            }
+
+            if (agent == "codex")
+            {
+                Codex.Noter(evenement, charge, debut, Racine);
+                return 0;
+            }
+
+            if (Noter(agent, evenement, charge, debut) && Son.AppartientAuPlugin(agent))
+            {
+                Son.Demander(agent);
+            }
         }
         catch (Exception)
         {
@@ -276,6 +302,16 @@ public static class Program
                     return "run"; // Antigravity : un sous-agent travaille encore
                 }
 
+                if (Texte(charge["terminationReason"]) == "USER_CANCELED")
+                {
+                    return "repos"; // une annulation n'est pas une tâche terminée
+                }
+
+                if (Texte(precedent["event"]) == "Stop" && Texte(precedent["state"]) == "repos")
+                {
+                    return "repos"; // un doublon ne transforme pas une annulation en réussite
+                }
+
                 if (LanceeParUneSession(Texte(charge["session_id"])))
                 {
                     return "repos";
@@ -297,8 +333,9 @@ public static class Program
     private static double Nombre(JsonNode? n) =>
         n is JsonValue v && v.TryGetValue<double>(out var d) ? d : 0;
 
-    // Écrit l'état de la session, sous son verrou ; un événement parti avant celui déjà noté est ignoré.
-    public static void Noter(string agent, string evenement, JsonObject charge, double debut, string? racine = null)
+    // Écrit l'état sous son verrou ; ignore un événement parti avant celui déjà noté. Renvoie true uniquement
+    // lorsqu'un nouveau Stop terminal Claude/AGY justifie sa note. La lecture/écriture seule ne joue aucun son.
+    public static bool Noter(string agent, string evenement, JsonObject charge, double debut, string? racine = null)
     {
         var dossier = Path.Combine(racine ?? Racine, agent);
         Directory.CreateDirectory(dossier);
@@ -339,7 +376,7 @@ public static class Program
 
         if (!pris)
         {
-            return;
+            return false;
         }
 
         try
@@ -356,19 +393,25 @@ public static class Program
 
             if (Nombre(precedent["at"]) > debut)
             {
-                return; // un événement parti après celui-ci a déjà écrit
+                return false; // un événement parti après celui-ci a déjà écrit
             }
 
             var etat = evenement == "SessionEnd" ? "end" : EtatPour(evenement, charge, precedent);
             if (etat is null)
             {
-                return;
+                return false;
             }
 
             var temporaire = Path.Combine(dossier, $"{session}.{Environment.ProcessId}.tmp");
             var contenu = new JsonObject { ["state"] = etat, ["at"] = debut, ["event"] = evenement };
             File.WriteAllText(temporaire, contenu.ToJsonString(), new UTF8Encoding(false));
             File.Move(temporaire, fichier, overwrite: true);
+            // Le son suit la même activation et le même verrou que l'état, une seule fois par fin de tour.
+            // Un PreInvocation/outil du tour suivant réarme naturellement le son. Ne jamais annoncer une annulation
+            // ou un arrêt laissant des sous-agents travailler ; une question terminale garde sa note d'attention.
+            return agent is ("claude" or "antigravity") && evenement == "Stop" && brut.Length > 0 && etat is ("done" or "wait")
+                && Texte(charge["terminationReason"]) != "USER_CANCELED"
+                && !(Texte(precedent["event"]) == "Stop" && Texte(precedent["state"]) is ("done" or "wait"));
         }
         finally
         {

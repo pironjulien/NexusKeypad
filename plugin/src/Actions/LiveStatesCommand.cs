@@ -3,16 +3,18 @@ namespace Loupedeck.TrinitePlugin
 {
     using System;
 
-    // Pose ou retire les états en direct de Claude et d'Antigravity (EtatsEnDirect), toujours après une question : un
-    // appui ne change rien sans « Oui ». Une action à part, pas une des 18 touches : on la pose le temps de s'en servir.
+    // La même commande de connexion pour chacune des trois IA ; aucune modification sans accord.
     public class LiveStatesCommand : PluginDynamicCommand
     {
         public LiveStatesCommand()
-            : base("Live states", "Sets up or removes live states for Claude and Antigravity (asks first).", ToucheCommand.Groupe)
+            : base("Live states", "Enable or disable a NexusKeypad AI connection (asks first).", ToucheCommand.Groupe)
         {
+            this.AddParameter("claude", "NexusKeypad · Claude", ToucheCommand.Groupe);
+            this.AddParameter("codex", "NexusKeypad · Codex", ToucheCommand.Groupe);
+            this.AddParameter("antigravity", "NexusKeypad · Antigravity", ToucheCommand.Groupe);
         }
 
-        protected override void RunCommand(String actionParameter) => EtatsEnDirect.Basculer();
+        protected override void RunCommand(String actionParameter) => ConnexionPad.Basculer(actionParameter switch { "codex" => 1, "antigravity" => 2, _ => 0 });
     }
 }
 #endif

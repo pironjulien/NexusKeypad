@@ -166,6 +166,10 @@ namespace Loupedeck.TrinitePlugin
         private Timer _telephone;
 #endif
         private Instantane _instantane = Instantane.Vide;
+#if !POSTE
+        // Objet entier publié après une lecture normale du moteur. Le pilote ne déclenche aucune nouvelle lecture.
+        private volatile Tuple<Instantane, DateTime> _diagnostic = Tuple.Create(Instantane.Vide, DateTime.MinValue);
+#endif
         private Double _photoCopiee = -9;
         private String _resume = ""; // reste vide dans l'édition PC Dashboard (aucun agent lu)
         private Int64 _tic;
@@ -210,6 +214,58 @@ namespace Loupedeck.TrinitePlugin
 
         // Résumé de la dernière lecture (journal et pilote).
         public String Resume => this._resume;
+
+#if !POSTE
+        // Lecture du cache seulement : ni Observateur, ni CDP/UIA, ni vérification de connexion supplémentaire.
+        public String Snapshot()
+        {
+            var diagnostic = this._diagnostic;
+            return SnapshotJson(diagnostic.Item1, diagnostic.Item2, DateTime.UtcNow);
+        }
+
+        // Forme minimale et versionnée, sans titre, prompt, réponse ni chemin de photo.
+        public static String SnapshotJson(Instantane instantane, DateTime lu, DateTime maintenant)
+        {
+            instantane ??= Instantane.Vide;
+            String Date(DateTime date) => date == DateTime.MinValue ? null : date.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+            Double? Nombre(Double? nombre) => nombre is Double n && Double.IsFinite(n) ? n : null;
+            String[] agents = ["claude", "codex", "antigravity"];
+            String Agent(Int32 index) => index is >= 0 and < 3 ? agents[index] : null;
+            return System.Text.Json.JsonSerializer.Serialize(new
+            {
+                schema = 1,
+                product = "NexusKeypad",
+                source = "cached-pad-snapshot",
+                generated_at = Date(maintenant),
+                sampled_at = Date(lu),
+                available = lu != DateTime.MinValue,
+                screen_off = instantane.Eteint,
+                foreground_agent = Agent(instantane.Devant),
+                dictation = new { active = instantane.Dictee, agent = Agent(instantane.DicteeIa) },
+                agents = Enumerable.Range(0, agents.Length).Select(i =>
+                {
+                    var conversations = instantane.Conversations?.ElementAtOrDefault(i) ?? [];
+                    var ouverte = instantane.Ouverte?.ElementAtOrDefault(i) == true;
+                    var quota = instantane.Quotas?.ElementAtOrDefault(i);
+                    var connexion = instantane.Connexions?.ElementAtOrDefault(i);
+                    return new
+                    {
+                        id = agents[i],
+                        app_open = ouverte,
+                        active_conversations = instantane.Ouvertes?.ElementAtOrDefault(i) ?? 0,
+                        state = (!ouverte ? Etat.Ferme : conversations.FirstOrDefault()?.Etat ?? Etat.Repos).ToString(),
+                        conversations = conversations.Select(c => new { id = c.Id, state = c.Etat.ToString(),
+                            since = Date(c.Depuis), activity_at = Date(c.Activite), seen = c.Vu, relay = c.Relais }).ToArray(),
+                        quota = quota is null ? null : new { five_hour_used = Nombre(quota.Cinq), week_used = Nombre(quota.Semaine),
+                            groups = quota.Groupes.Select(g => new { five_hour = g.Cinq, used = Nombre(g.Utilise), resets_at = g.Fin is DateTime fin ? Date(fin) : null }).ToArray() },
+                        connection = connexion is null ? null : new { state = connexion.Etat.ToString(),
+                            prepared_at = connexion.PrepareLe is DateTime prepare ? Date(prepare) : null,
+                            first_activity_event_observed = connexion.PremierEvenementObserve },
+                    };
+                }).ToArray(),
+            });
+        }
+#endif
 
         // Les 9 touches d'une page telles qu'envoyées au pad, en grille 3 × 3 (PNG) : ce que l'utilisateur voit, pour les
         // essais. Page 2 cachée : son poste est relu et ses touches dessinées à neuf (rien d'envoyé au pad).
@@ -370,6 +426,16 @@ namespace Loupedeck.TrinitePlugin
                 String cause = null;
                 try
                 {
+#if !POSTE
+                    // Le même appui prépare son IA avant toute commande ; un appui de configuration ne peut pas
+                    // ouvrir ensuite un ancien chat, ni valider un collage déjà en attente dans la file.
+                    if (touche < Capture && ConnexionPad.Traiter(touche % 3, this._instantane, () => this._instantane))
+                    {
+                        (cible, geste) = (touche % 3, "connect");
+                        this._teteRatee = this._horloge.Elapsed.TotalSeconds;
+                        return;
+                    }
+#endif
                     switch (touche)
                     {
 #if !POSTE
@@ -390,10 +456,16 @@ namespace Loupedeck.TrinitePlugin
                             break;
                         case Dictee:
                             geste = "dictate";
-                            if (Gestes.Dicter() is var ia and >= 0 and < 3)
+                            var dictee = Gestes.Dicter();
+                            if (dictee >= 0 && dictee < 3)
                             {
-                                cible = ia;
-                                this._observateur.SuivreDictee(ia); // touche rouge seulement pour une dictée lancée, dans son appli
+                                cible = dictee;
+                                this._observateur.SuivreDictee(dictee); // touche rouge seulement pour une dictée lancée, dans son appli
+                            }
+                            else if (dictee < 0)
+                            {
+                                // -1 couvre un arrêt comme une commande refusée : aucune preuve d'effet à annoncer.
+                                (reussi, cause) = ("~", "dictation effect not verified");
                             }
 
                             break;
@@ -467,13 +539,14 @@ namespace Loupedeck.TrinitePlugin
                         this._teteRatee = this._horloge.Elapsed.TotalSeconds; // tête en échec : la suite viserait l'appli d'avant
                     }
                 }
-#if NEXUS || STREAMDECK
                 finally
                 {
+#if NEXUS || STREAMDECK
                     // Sans cause : réussi ; cause d'un abandon sans échec explicite (copie, collage) : échec.
                     Journal.Ecrire(cible, geste, cause is null ? "✓" : reussi == "✓" ? "✗" : reussi, chrono.Elapsed.TotalMilliseconds, cause);
-                }
 #endif
+                    issue.TrySetResult(ResultatGeste(reussi, cause));
+                }
             }, issue)))
             {
                 PluginLog.Warning($"touche {touche + 1} ignorée : plugin en cours d'arrêt");
@@ -482,6 +555,11 @@ namespace Loupedeck.TrinitePlugin
 
             return issue.Task;
         }
+
+        // Réponse du pilote : un refus ou un résultat inconnu ne peut jamais être annoncé comme « fait ».
+        public static String ResultatGeste(String issue, String cause) => cause is null && issue == "✓" ? "fait"
+            : issue == "~" ? "inconnu : " + (cause ?? "effect not verified")
+            : "échec : " + (cause ?? "effect not verified");
 
         // Une lecture à la fois : une lecture lente (page Models d'Antigravity, port muet) ne doit ni se doubler ni écraser une plus récente.
         private void Lire()
@@ -499,13 +577,14 @@ namespace Loupedeck.TrinitePlugin
                 this._instantane = avant with { Eteint = this._observateur.Eteint };
 #else
                 this._instantane = this._observateur.Lire();
+                this._diagnostic = Tuple.Create(this._instantane, DateTime.UtcNow);
                 if (this._instantane.Devant >= 0)
                 {
                     this._derniereIa = this._instantane.Devant;
                 }
 
                 var resume = String.Join(" | ", Enumerable.Range(0, 3).Select(i =>
-                    $"{Observateur.Agents[i]} {this._instantane.Ouvertes[i]} conv. : {this._instantane.Premiere(i)?.Etat.ToString() ?? "—"}{(this._instantane.Premiere(i)?.Alerte == true ? "·alerte" : "")}" +
+                    $"{Observateur.Agents[i]} {this._instantane.Ouvertes[i]} conv. : {(!this._instantane.Ouverte[i] ? "Fermé" : this._instantane.Premiere(i)?.Etat.ToString() ?? "—")}{(this._instantane.Premiere(i)?.Alerte == true ? "·alerte" : "")}" +
                     $" ; quota 5 h {this._instantane.Quotas[i]?.Cinq * 100:0} % semaine {this._instantane.Quotas[i]?.Semaine * 100:0} %"));
                 if (resume != this._resume)
                 {
@@ -729,6 +808,11 @@ namespace Loupedeck.TrinitePlugin
             {
                 PluginLog.Warning($"{geste} : aucune IA utilisée depuis le démarrage, rien n'a été copié");
                 return (-1, "no ai");
+            }
+
+            if (!Connecteurs.EvenementsActifs(Observateur.Agents[cible]))
+            {
+                return (cible, "NexusKeypad disabled");
             }
 
             if (!copier() || this._arret)
