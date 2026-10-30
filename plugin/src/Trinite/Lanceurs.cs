@@ -356,14 +356,18 @@ namespace Loupedeck.TrinitePlugin
         {
             try
             {
-                var commande = "$s=Get-AuthenticodeSignature -LiteralPath '" + exe.Replace("'", "''", StringComparison.Ordinal)
-                    + "'; if ($s.Status -eq 'Valid' -and $s.SignerCertificate.Subject -match '(^|, )CN=Google (LLC|Inc\\.?)(,|$)') { exit 0 }; exit 1";
+                // A fixed, readable command (never -EncodedCommand, which antivirus heuristics flag); the path travels in an
+                // environment variable, so nothing is ever quoted into the script.
+                const String commande = "$s=Get-AuthenticodeSignature -LiteralPath $env:NEXUSKEYPAD_EXE; "
+                    + "if ($s.Status -eq 'Valid' -and $s.SignerCertificate.Subject -match '(^|, )CN=Google (LLC|Inc\\.?)(,|$)') { exit 0 }; exit 1";
                 var info = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
                     "WindowsPowerShell", "v1.0", "powershell.exe")) { UseShellExecute = false, CreateNoWindow = true };
-                foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(commande)) })
+                foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-Command", commande })
                 {
                     info.ArgumentList.Add(arg);
                 }
+
+                info.Environment["NEXUSKEYPAD_EXE"] = exe;
 
                 using var verification = Process.Start(info);
                 return verification is not null && verification.WaitForExit(5000) && verification.ExitCode == 0;

@@ -158,31 +158,35 @@ flowchart LR
 
 ## Installation
 
-### Complete edition, one command (both pages, everything)
+### Complete edition (both pages, everything)
 
-The complete **NexusKeypad** is everything described above, both pages, as the author runs it. In PowerShell (no
-administrator rights):
+The complete **NexusKeypad** is everything described above, both pages, as the author runs it, with no administrator
+rights. The simplest way is the **NexusSystem** app from the
+[Microsoft Store](https://apps.microsoft.com/detail/9NSH2P3QLWT1) (or `winget install --id 9NSH2P3QLWT1 --source msstore`),
+which installs and updates the Nexus products.
+
+By hand: download `get.ps1` and `SHA256SUMS.txt` from the latest release, check the script, then run it as a file:
 
 ```powershell
-irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1 | iex
+$r = 'https://github.com/pironjulien/NexusKeypad/releases/latest/download'
+Invoke-WebRequest "$r/get.ps1" -OutFile get.ps1
+Invoke-WebRequest "$r/SHA256SUMS.txt" -OutFile SHA256SUMS.txt
+(Get-FileHash get.ps1 -Algorithm SHA256).Hash   # must match the get.ps1 line of SHA256SUMS.txt
+gh attestation verify get.ps1 --repo pironjulien/NexusKeypad   # optional: build provenance
+powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1
 ```
-
-Prefer not to pipe a script into `iex`? Releases after 1.4.1 also carry `get.ps1`, listed in its
-`SHA256SUMS.txt` and attested like the packages: download it from the
-[latest release](https://github.com/pironjulien/NexusKeypad/releases/latest), check it
-(`gh attestation verify get.ps1 -R pironjulien/NexusKeypad`, or compare its SHA-256), then right-click it >
-**Run with PowerShell** (or `powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1`, add `-Remove` to remove).
 
 It downloads the latest release's `NexusKeypad` package (its hash and the ECDSA signature of `SHA256SUMS.txt` are
 verified before extraction or execution), copies it
 into Logi Options+'s plugin folder (`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad`), where the Logi Plugin
 Service loads it, and offers to place the 18 keys for you (your keypad profile is backed up first and Logi Options+
-restarts for a few seconds; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). Press each AI's
-unplugged character and approve setup to connect that AI. Run the same command to update. To remove it (plugin, live
-states and keys; Logi Options+ is left alone):
+restarts for a few seconds; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). It then sets up the
+connector of each AI app found (Claude, Codex, Antigravity); an unplugged character on the keypad sets one up again. Run
+it again to update. To remove it (plugin, live states and keys; Logi Options+ is left alone), run the same verified file
+with `-Remove`:
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1))) -Remove
+powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1 -Remove
 ```
 
 **Updates.** The complete edition updates itself: once a day it looks at the latest release (the

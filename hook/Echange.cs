@@ -211,16 +211,20 @@ public static partial class Echange
         finally { LocalFree(arguments); }
         try
         {
-            static string Ps(string value) => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
-            var commande = "$ErrorActionPreference='Stop'; $s=New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ShowWindow=[uint16]0}; "
-                + "$r=Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine="
-                + Ps(ligne) + ";CurrentDirectory=" + Ps(dossier ?? "") + ";ProcessStartupInformation=$s}; if($r.ReturnValue -ne 0){exit 1}";
+            // A fixed, readable command (never -EncodedCommand, which antivirus heuristics flag); the values travel in
+            // environment variables, so nothing is ever quoted into the script.
+            const string commande = "$ErrorActionPreference='Stop'; $s=New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ShowWindow=[uint16]0}; "
+                + "$r=Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=$env:NEXUSKEYPAD_LIGNE;"
+                + "CurrentDirectory=$env:NEXUSKEYPAD_DOSSIER;ProcessStartupInformation=$s}; if($r.ReturnValue -ne 0){exit 1}";
             var info = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
                 "WindowsPowerShell", "v1.0", "powershell.exe")) { UseShellExecute = false, CreateNoWindow = true };
-            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(commande)) })
+            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-Command", commande })
             {
                 info.ArgumentList.Add(argument);
             }
+
+            info.Environment["NEXUSKEYPAD_LIGNE"] = ligne;
+            info.Environment["NEXUSKEYPAD_DOSSIER"] = dossier ?? "";
             using var client = Process.Start(info);
             // Un délai ne déclenche aucun second lancement : le résultat reste inconnu et sera signalé en échec.
             return client is not null && client.WaitForExit(10000) && client.ExitCode == 0;

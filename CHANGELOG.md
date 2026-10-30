@@ -20,6 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   helper's real path) right after installing, as the source installer does; a failure only leaves that key unplugged.
 
 ### Security
+- No more `-EncodedCommand`: the update helper's WMI restart of Logi and the Antigravity signature check run a fixed,
+  readable PowerShell command and pass their values in environment variables (antivirus heuristics flag encoded commands).
+- Installation documented without `irm | iex`: the NexusSystem app (Microsoft Store), or the release's `get.ps1` downloaded,
+  checked against the signed `SHA256SUMS.txt` and run with `-File`.
 - The CI scans the whole history for secrets (gitleaks) and audits the workflows (zizmor) on every push and pull
   request, next to the tests.
 

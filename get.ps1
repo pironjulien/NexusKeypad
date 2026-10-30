@@ -1,8 +1,9 @@
 # NexusKeypad complete edition, outside the Logi Marketplace, for Windows 10/11 (Windows PowerShell 5.1 or PowerShell 7),
-# no administrator rights. Everything the author runs on his own keypad, in one line:
-#   irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1 | iex
-# Remove it (plugin, live states, keys; Logi Options+ itself is left alone):
-#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/get.ps1))) -Remove
+# no administrator rights. Everything the author runs on his own keypad. This file is attached to every release, listed in
+# its signed SHA256SUMS.txt and attested: download it, check it, then run it as a file (never piped into iex):
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1            (-Remove removes the plugin, live states and
+#                                                                              keys; Logi Options+ itself is left alone)
+# The NexusSystem app (Microsoft Store) runs it the same way.
 #
 # It downloads the latest release's NexusKeypad package (its hash and the offline ECDSA signature of SHA256SUMS.txt
 # are verified before extraction or execution; its build
@@ -259,7 +260,7 @@ try {
 if ($Pack) {
     Write-Output ('NEXUS_PACK_RESULT ' + (($Results.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join '; '))
 }
-# Run as a file (the Nexus pack, -File): its exit code. Run by `irm | iex` or a script block: never `exit`, which would
-# close the user's window; a failure is an error instead.
+# Run as a file (-File, as documented): its exit code. Loaded into an existing session instead: never `exit`, which
+# would close the user's window; a failure is an error instead.
 if ($PSCommandPath) { exit $code }
 if ($code) { throw 'NexusKeypad: not installed (see above).' }
