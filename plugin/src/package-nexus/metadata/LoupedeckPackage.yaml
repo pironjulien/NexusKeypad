@@ -18,7 +18,7 @@ description: The complete NexusKeypad, outside the Marketplace. Page 1, Claude, 
 pluginFileName: NexusKeypadPlugin.dll
 
 # Plugin version.
-version: 1.8.6
+version: 1.8.7
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: Julien Piron

@@ -31,10 +31,15 @@ $script:signatureChecks = [Collections.Generic.List[string]]::new()
 function robocopy.exe {
     param([string]$From, [string]$Destination, [Parameter(ValueFromRemainingArguments = $true)] [string[]]$Options)
     Assert (-not $script:running) 'A package copy/rollback must never run while the plugin service is active.'
-    if ($Case -like 'copy-failed-*' -and $From -notlike '*previous-plugin') {
+    if (($Case -like 'copy-failed-*' -or $Case -eq 'rollback-failed') -and $From -notlike '*previous-plugin') {
         New-Item -ItemType Directory -Force -Path (Join-Path $Destination 'bin') | Out-Null
         [IO.File]::WriteAllText((Join-Path $Destination 'bin\NexusKeypadPlugin.dll'), 'partial copy')
         $script:events.Add('copy-failed')
+        $global:LASTEXITCODE = 8
+        return
+    }
+    if ($Case -eq 'rollback-failed' -and $From -like '*previous-plugin') {
+        $script:events.Add('rollback-failed')
         $global:LASTEXITCODE = 8
         return
     }
@@ -93,7 +98,7 @@ $Pack = $true
 $Keys = 'no'
 $Logi = Join-Path $Root 'logi'
 $Target = Join-Path $Logi 'Plugins\NexusKeypad'
-if ($Case -eq 'copy-failed-existing') {
+if ($Case -in 'copy-failed-existing', 'rollback-failed') {
     New-Item -ItemType Directory -Force -Path (Join-Path $Target 'bin') | Out-Null
     [IO.File]::WriteAllText((Join-Path $Target 'bin\NexusKeypadPlugin.dll'), 'previous complete package')
 }
@@ -125,9 +130,13 @@ if ($Case -eq 'success') {
         'start-unconfirmed' { 'did not start' }
         'copy-failed-existing' { 'Copy to .* failed' }
         'copy-failed-new' { 'Copy to .* failed' }
+        'rollback-failed' { 'Plugin recovery failed' }
     }
     Assert ($failure -match $pattern) "Expected refusal was not reported: $failure"
-    if ($Case -like 'copy-failed-*') {
+    if ($Case -eq 'rollback-failed') {
+        Assert (-not $script:running -and -not $script:events.Contains('start')) 'Failed recovery must keep the plugin service stopped.'
+        Assert (Test-Path -LiteralPath (Join-Path $work 'previous-plugin\bin\NexusKeypadPlugin.dll')) 'Failed recovery must preserve the backup.'
+    } elseif ($Case -like 'copy-failed-*') {
         Assert ($script:events[$script:events.Count - 1] -ceq 'start') 'A failed copy must recover the plugin service.'
         if ($Case -eq 'copy-failed-existing') { Assert ($script:events.Contains('rollback')) 'The previous package must be restored.' }
     } elseif ($Case -notlike 'start-*') {

@@ -235,6 +235,7 @@ function Install-NexusKeypad {
         return 1
     }
     $work = Join-Path ([IO.Path]::GetTempPath()) "nexuskeypad-$PID"
+    $preserveRecovery = $false
     New-Item -ItemType Directory -Force -Path $work | Out-Null
     try {
         if ($env:NEXUS_KEYPAD_SOURCE) {
@@ -262,6 +263,7 @@ function Install-NexusKeypad {
         if ($previous) { Copy-Item -LiteralPath $Target -Destination $backup -Recurse }
         # Stop before copying: a live reload of a partial package can quarantine the plugin. No keyboard/mouse agent stop.
         Stop-Logi
+        $restartSafe = $true
         try {
             New-Item -ItemType Directory -Force -Path $Target | Out-Null
             & robocopy.exe $unpacked $Target /MIR /NFL /NDL /NJH /NJS /NP /R:5 /W:1 | Out-Null
@@ -269,18 +271,24 @@ function Install-NexusKeypad {
             Get-ChildItem -LiteralPath $Target -Recurse -File | Unblock-File
         } catch {
             $copyFailure = $_
-            if ($previous) {
-                & robocopy.exe $backup $Target /MIR /NFL /NDL /NJH /NJS /NP /R:5 /W:1 | Out-Null
-                if ($LASTEXITCODE -ge 8) { throw "Plugin copy failed and restoring the previous package failed (robocopy $LASTEXITCODE)." }
-            } elseif (Test-Path -LiteralPath $Target) {
-                Remove-Item -LiteralPath $Target -Recurse -Force
+            try {
+                if ($previous) {
+                    & robocopy.exe $backup $Target /MIR /NFL /NDL /NJH /NJS /NP /R:5 /W:1 | Out-Null
+                    if ($LASTEXITCODE -ge 8) { throw "Restoring the previous package failed (robocopy $LASTEXITCODE)." }
+                } elseif (Test-Path -LiteralPath $Target) {
+                    Remove-Item -LiteralPath $Target -Recurse -Force
+                }
+            } catch {
+                $restartSafe = $false
+                $preserveRecovery = $true
+                throw "Plugin recovery failed; the plugin service stays stopped and recovery files stay in $work. $($_.Exception.Message)"
             }
             throw $copyFailure
-        } finally { Start-Logi }
+        } finally { if ($restartSafe) { Start-Logi } }
         $Results['Plugin'] = 'installed'
         Say "NexusKeypad is in $Target." Green
     } finally {
-        Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+        if (-not $preserveRecovery) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
     }
 
     $hook = Join-Path $Target 'bin\nexuskeypad-hook.exe'

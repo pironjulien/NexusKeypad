@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.7] - 2026-10-30
+
+### Fixed
+- If restoring a failed plugin copy also fails, keep the verified backup and leave the plugin service stopped.
+  Never load a partial package or discard its recovery files; the installer reports their location.
+
 ## [1.8.6] - 2026-10-30
 
 ### Fixed
