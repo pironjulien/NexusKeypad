@@ -38,6 +38,39 @@ public sealed class EtatsEnDirectTests
             "états en direct : format d'Antigravity (outils en enveloppe { matcher, hooks }, sinon gestionnaires directs)");
     }
 
+    [Theory]
+    [InlineData(EtatsEnDirect.PluginClaude)]
+    [InlineData(EtatsEnDirect.PluginClaudePublic)]
+    public void Plugin_complet_prive_ou_du_catalogue_NexusSystem_sans_hooks_en_double(String identite)
+    {
+        var dossier = Directory.CreateTempSubdirectory("nexus-etats-complet").FullName;
+        try
+        {
+            var claude = Path.Combine(dossier, ".claude", "settings.json");
+            var gemini = Path.Combine(dossier, ".gemini", "config", "hooks.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(claude));
+            Directory.CreateDirectory(Path.GetDirectoryName(gemini));
+            var paquet = Path.Combine(dossier, "paquet", "nexuskeypad-hook.exe");
+            Directory.CreateDirectory(Path.Combine(dossier, "paquet", EtatsEnDirect.DossierModsPaquet, ".claude-plugin"));
+            File.WriteAllText(paquet, "exe");
+            File.WriteAllText(Path.Combine(dossier, "paquet", EtatsEnDirect.DossierModsPaquet, ".claude-plugin", "marketplace.json"), "{}");
+            var exe = Path.Combine(dossier, "local", "nexuskeypad-hook.exe");
+            var catalogue = Path.Combine(dossier, "local", "claude-marketplace");
+            File.WriteAllText(claude, new JsonObject { ["hooks"] = new JsonObject(), ["enabledPlugins"] = new JsonObject { [identite] = false } }.ToJsonString());
+            Vrai(EtatsEnDirect.PluginCompletDeclare(J(File.ReadAllText(claude))) == identite, "identité du plugin complet reconnue : " + identite);
+            Vrai(EtatsEnDirect.Appliquer(paquet, true, claude, gemini, exe, catalogue), "pose avec le plugin complet " + identite);
+            var pose = J(File.ReadAllText(claude));
+            Vrai(pose["hooks"]!.AsObject().Count == 0 && pose["enabledPlugins"]![identite]!.GetValue<Boolean>() && pose["enabledPlugins"]!.AsObject().Count == 1
+                && !pose.ContainsKey("extraKnownMarketplaces"), "plugin complet activé, aucun hook ni mod de quota en double : " + identite);
+            Vrai(EtatsEnDirect.Appliquer(paquet, false, claude, gemini, exe, catalogue) && !J(File.ReadAllText(claude))["enabledPlugins"]![identite]!.GetValue<Boolean>(),
+                "retrait : plugin complet coupé : " + identite);
+        }
+        finally
+        {
+            Directory.Delete(dossier, true);
+        }
+    }
+
     [Fact]
     public void Pose_et_retrait_dans_des_profils_d_essai()
     {

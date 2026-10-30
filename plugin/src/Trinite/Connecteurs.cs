@@ -234,12 +234,20 @@ namespace Loupedeck.TrinitePlugin
             return Equals(a, b);
         }
 
-        private static String PluginClaudePrive(JsonObject reglages)
+        // Complete NexusKeypad Claude plugin already declared and installed (private nexus catalog, or NexusSystem's public
+        // nexus-plugins catalog): its identity and install folder, or null.
+        private static (String Identite, String Dossier)? PluginClaudePrive(JsonObject reglages)
         {
-            if ((reglages["enabledPlugins"] as JsonObject)?[EtatsEnDirect.PluginClaude] is null) { return null; }
             var installs = LireJson(Path.Combine(Claude, "plugins", "installed_plugins.json"))["plugins"] as JsonObject;
-            var entrees = installs?[EtatsEnDirect.PluginClaude] as JsonArray;
-            return entrees?.OfType<JsonObject>().Select(x => x["installPath"]?.GetValue<String>()).FirstOrDefault(x => !String.IsNullOrEmpty(x));
+            foreach (var identite in EtatsEnDirect.PluginsClaude)
+            {
+                if ((reglages["enabledPlugins"] as JsonObject)?[identite] is null) { continue; }
+                var dossier = (installs?[identite] as JsonArray)?.OfType<JsonObject>().Select(x => x["installPath"]?.GetValue<String>())
+                    .FirstOrDefault(x => !String.IsNullOrEmpty(x));
+                if (dossier is not null) { return (identite, dossier); }
+            }
+
+            return null;
         }
 
         public static Connexion LireConfiguration(Int32 agent)
@@ -678,7 +686,8 @@ namespace Loupedeck.TrinitePlugin
                         _ => Path.Combine(Gemini, "plugins", Nom),
                     };
                     var reglagesClaude = agent == 0 ? LireJson(Path.Combine(Claude, "settings.json")) : null;
-                    var prive = agent == 0 ? PluginClaudePrive(reglagesClaude) : null;
+                    var complet = agent == 0 ? PluginClaudePrive(reglagesClaude) : null;
+                    var prive = complet?.Dossier;
                     if (agent == 0 && actif && prive is null) { VerifierCatalogueClaude(); } // before any transaction write
                     if (actif && prive is null)
                     {
@@ -699,7 +708,7 @@ namespace Loupedeck.TrinitePlugin
                     {
                         EtatsEnDirect.ArrangerClaude(reglagesClaude, false); // remove only our former global hooks
                         EtatsEnDirect.ArrangerQuota(reglagesClaude, null); // quota now travels with the connector
-                        identite = prive is not null ? EtatsEnDirect.PluginClaude : Nom + "@nexuskeypad";
+                        identite = complet?.Identite ?? Nom + "@nexuskeypad";
                         if (actif && prive is not null)
                         {
                             // Preserve the private plugin and its Relay UI; only enable its existing identity.

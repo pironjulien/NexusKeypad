@@ -39,6 +39,67 @@ public sealed class ConnecteursTests
         }
     }
 
+    [Fact]
+    public void Plugin_Claude_du_catalogue_public_NexusSystem_reconnu_sans_doublon()
+    {
+        // The complete plugin installed from NexusSystem's public catalog (nexus-keypad@nexus-plugins) is the connector:
+        // enabled in place, never a second public identity nor the pad's own hooks or quota mod.
+        var racine = Directory.CreateTempSubdirectory("nexuskeypad-connecteurs-public-").FullName;
+        try
+        {
+            var maison = Path.Combine(racine, "user");
+            var local = Path.Combine(racine, "local");
+            var paquet = Path.Combine(racine, "package");
+            Directory.CreateDirectory(paquet);
+            var executable = Path.Combine(paquet, "nexuskeypad-hook.exe");
+            File.WriteAllText(executable, "isolated fixture, never executed");
+            foreach (var fichier in Directory.EnumerateFiles(Path.Combine(Depot, "connecteurs"), "*", SearchOption.AllDirectories))
+            {
+                var cible = Path.Combine(paquet, "connecteurs", Path.GetRelativePath(Path.Combine(Depot, "connecteurs"), fichier));
+                Directory.CreateDirectory(Path.GetDirectoryName(cible));
+                File.Copy(fichier, cible);
+            }
+
+            var quota = Path.Combine(paquet, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts");
+            Directory.CreateDirectory(Path.GetDirectoryName(quota));
+            File.Copy(Path.Combine(Depot, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"), quota);
+            Connecteurs.DossiersEssai(maison, local, executable);
+            var appels = new List<String>();
+            Connecteurs.CommandeClaudeEssai(arguments => { appels.Add(String.Join("|", arguments)); return (0, "{\"outcome\":\"ok\"}"); });
+            var installe = Path.Combine(maison, ".claude", "plugins", "cache", "nexus-plugins", "nexus-keypad", "2.2.0");
+            Directory.CreateDirectory(Path.Combine(installe, ".claude-plugin"));
+            Directory.CreateDirectory(Path.Combine(installe, "hooks"));
+            Directory.CreateDirectory(Path.Combine(installe, "skills", "nexus-keypad"));
+            File.WriteAllText(Path.Combine(installe, ".claude-plugin", "plugin.json"), "{\"name\":\"nexus-keypad\",\"version\":\"2.2.0\"}");
+            File.WriteAllText(Path.Combine(installe, "hooks", "hooks.json"), "{\"hooks\":{}}");
+            File.Copy(Path.Combine(Depot, "connecteurs", "claude", "skills", "nexus-keypad", "SKILL.md"), Path.Combine(installe, "skills", "nexus-keypad", "SKILL.md"));
+            var reglagesChemin = Path.Combine(maison, ".claude", "settings.json");
+            File.WriteAllText(reglagesChemin, "{\"enabledPlugins\":{\"nexus-keypad@nexus-plugins\":false,\"third-party@other\":true}}");
+            File.WriteAllText(Path.Combine(maison, ".claude", "plugins", "installed_plugins.json"), new JsonObject { ["version"] = 2, ["plugins"] = new JsonObject {
+                [EtatsEnDirect.PluginClaudePublic] = new JsonArray(new JsonObject { ["scope"] = "user", ["installPath"] = installe }) } }.ToJsonString());
+
+            var active = Connecteurs.Activer(0);
+            Vrai(active.Etat == EtatConnexion.Pret, "public NexusSystem Claude plugin activated as the connector: " + active.Detail);
+            var reglages = JsonNode.Parse(File.ReadAllText(reglagesChemin))!.AsObject();
+            Vrai(reglages["enabledPlugins"]![EtatsEnDirect.PluginClaudePublic]!.GetValue<Boolean>()
+                && reglages["enabledPlugins"]!["nexus-keypad@nexuskeypad"] is null && reglages["enabledPlugins"]!["third-party@other"]!.GetValue<Boolean>(),
+                "public NexusSystem identity enabled in place, no duplicate identity, third parties kept");
+            Vrai(appels.Count == 0, "the official manager is not asked to install a competing plugin");
+            Vrai(!EtatsEnDirect.ClaudeAvecPad(new JsonObject { ["hooks"] = reglages["hooks"]?.DeepClone() }), "no pad hooks set next to the plugin's own");
+            var recu = JsonNode.Parse(File.ReadAllText(Path.Combine(local, "NexusKeypad", "connecteurs", "etats", "claude.json")))!;
+            Vrai(recu["identity"]!.GetValue<String>() == EtatsEnDirect.PluginClaudePublic, "receipt names the public NexusSystem identity");
+            Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Pret && Connecteurs.EvenementsActifs("claude"), "configuration read back as ready");
+            Vrai(Connecteurs.Desactiver(0).Etat == EtatConnexion.Activer
+                && !JsonNode.Parse(File.ReadAllText(reglagesChemin))!["enabledPlugins"]![EtatsEnDirect.PluginClaudePublic]!.GetValue<Boolean>(),
+                "disabling turns the public NexusSystem plugin off");
+        }
+        finally
+        {
+            Connecteurs.CommandeClaudeEssai(null);
+            Directory.Delete(racine, recursive: true);
+        }
+    }
+
     // One scenario: the connectors' folders are redirected for the whole process, and each step builds on the previous one.
     [Fact]
     public void Installation_reparation_migration_et_retour_arriere()

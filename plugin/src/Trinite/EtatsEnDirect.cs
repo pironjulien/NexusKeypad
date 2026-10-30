@@ -219,12 +219,19 @@ namespace Loupedeck.TrinitePlugin
                 g.OfType<JsonObject>().Any(x => x["hooks"] is JsonArray l && l.Any(DuPad))) == true ||
             PluginComplet(reglages) == true;
 
-        // Plugin Claude complet de NexusKeypad (hooks, note de fin de tâche et quota dans un seul plugin, catalogue nexus) :
-        // là où il est déclaré, c'est lui qui porte les états en direct. Null : absent, le pad pose ses hooks lui-même.
+        // Plugin Claude complet de NexusKeypad (hooks, note de fin de tâche et quota dans un seul plugin) : catalogue privé
+        // nexus, ou catalogue public de NexusSystem (nexus-plugins). Là où il est déclaré, c'est lui qui porte les états en
+        // direct. Null : absent, le pad pose ses hooks lui-même.
         public const String PluginClaude = "nexus-keypad@nexus";
+        public const String PluginClaudePublic = "nexus-keypad@nexus-plugins";
+        public static readonly String[] PluginsClaude = [PluginClaude, PluginClaudePublic];
+
+        // Identité du plugin complet déclarée dans les réglages (la privée d'abord), sinon null.
+        public static String PluginCompletDeclare(JsonObject reglages) =>
+            PluginsClaude.FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean _));
 
         public static Boolean? PluginComplet(JsonObject reglages) =>
-            (reglages?["enabledPlugins"] as JsonObject)?[PluginClaude] is JsonValue v && v.TryGetValue(out Boolean actif) ? actif : null;
+            PluginCompletDeclare(reglages) is { } p && reglages["enabledPlugins"]![p] is JsonValue v && v.TryGetValue(out Boolean actif) ? actif : null;
 
         private static JsonObject Lire(String chemin)
         {
@@ -355,7 +362,7 @@ namespace Loupedeck.TrinitePlugin
                         // Le plugin complet porte tout : on l'active ou on le coupe, sans hooks ni mod de quota en double.
                         ArrangerClaude(reglages, false);
                         ArrangerQuota(reglages, null);
-                        reglages["enabledPlugins"]![PluginClaude] = pose;
+                        reglages["enabledPlugins"]![PluginCompletDeclare(reglages)!] = pose;
                     }
                     else
                     {

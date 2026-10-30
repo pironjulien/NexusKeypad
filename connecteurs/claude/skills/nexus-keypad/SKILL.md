@@ -13,6 +13,6 @@ Read-only diagnostic:
 & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\hook\nexuskeypad-hook.exe') connecteur claude status
 ```
 
-On the user's explicit request, replace `status` with `enable` or `disable`. The installer preserves third-party settings and avoids installing duplicate activity hooks. A pre-existing private `nexus-keypad@nexus` plugin is preserved and used as the connector instead of adding another one.
+On the user's explicit request, replace `status` with `enable` or `disable`. The installer preserves third-party settings and avoids installing duplicate activity hooks. A pre-existing complete `nexus-keypad@nexus` (private) or `nexus-keypad@nexus-plugins` (NexusSystem catalog) plugin is preserved and used as the connector instead of adding another one.
 
 The diagnostic proves the files and enabled configuration. The pad also checks the current session. Respect any host confirmation or reload prompt. Never claim a microphone or conversation-opening action works merely because the connector is installed.

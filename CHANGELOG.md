@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.8.2] - 2026-10-30
 
+### Fixed
+- The complete Claude plugin installed from NexusSystem's public catalog (`nexus-keypad@nexus-plugins`) is recognised
+  like the private one (`nexus-keypad@nexus`): enabled in place as the connector, without the pad's own hooks, quota mod
+  or public identity set a second time.
+
+### Security
+- The CI scans the whole history for secrets (gitleaks) and audits the workflows (zizmor) on every push and pull
+  request, next to the tests.
+
 ### Changed
 - Tests follow the C# standard: four xUnit v3 projects (`tests/Logique`, `tests/Connecteurs`, `tests/Isole`,
   `tests/Hook`) run by `dotnet test` on Microsoft.Testing.Platform, selected by a root `global.json`. They replace the
