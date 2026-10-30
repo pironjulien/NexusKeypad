@@ -257,6 +257,9 @@ function Install-NexusKeypad {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory($package, $unpacked)
         if (-not (Test-Path -LiteralPath (Join-Path $unpacked "bin\$($Plugin)Plugin.dll"))) { throw 'Not a NexusKeypad package.' }
+        $backup = Join-Path $work 'previous-plugin'
+        $previous = Test-Path -LiteralPath $Target
+        if ($previous) { Copy-Item -LiteralPath $Target -Destination $backup -Recurse }
         # Stop before copying: a live reload of a partial package can quarantine the plugin. No keyboard/mouse agent stop.
         Stop-Logi
         try {
@@ -264,6 +267,15 @@ function Install-NexusKeypad {
             & robocopy.exe $unpacked $Target /MIR /NFL /NDL /NJH /NJS /NP /R:5 /W:1 | Out-Null
             if ($LASTEXITCODE -ge 8) { throw "Copy to $Target failed (robocopy $LASTEXITCODE)." }
             Get-ChildItem -LiteralPath $Target -Recurse -File | Unblock-File
+        } catch {
+            $copyFailure = $_
+            if ($previous) {
+                & robocopy.exe $backup $Target /MIR /NFL /NDL /NJH /NJS /NP /R:5 /W:1 | Out-Null
+                if ($LASTEXITCODE -ge 8) { throw "Plugin copy failed and restoring the previous package failed (robocopy $LASTEXITCODE)." }
+            } elseif (Test-Path -LiteralPath $Target) {
+                Remove-Item -LiteralPath $Target -Recurse -Force
+            }
+            throw $copyFailure
         } finally { Start-Logi }
         $Results['Plugin'] = 'installed'
         Say "NexusKeypad is in $Target." Green

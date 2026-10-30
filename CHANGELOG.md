@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.6] - 2026-10-30
+
+### Fixed
+- A failed package copy restores the complete previous plugin before restarting its service. A partial first
+  installation is removed before restart. Isolated fault-injection checks cover both failures and prove that the
+  service never reloads mixed or partial package files.
+
 ## [1.8.5] - 2026-10-30
 
 ### Fixed

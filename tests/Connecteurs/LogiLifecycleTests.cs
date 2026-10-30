@@ -16,6 +16,8 @@ public sealed class LogiLifecycleTests
     [InlineData("stop-unconfirmed")]
     [InlineData("start-refused")]
     [InlineData("start-unconfirmed")]
+    [InlineData("copy-failed-existing")]
+    [InlineData("copy-failed-new")]
     public async Task OfficialPluginServiceLifecycleNeverTouchesTheKeyboardAgent(String scenario)
     {
         String Metadata(String key) => typeof(LogiLifecycleTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()

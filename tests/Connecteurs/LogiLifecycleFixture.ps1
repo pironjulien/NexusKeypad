@@ -28,6 +28,21 @@ $script:running = $true
 $script:started = $false
 $script:events = [Collections.Generic.List[string]]::new()
 $script:signatureChecks = [Collections.Generic.List[string]]::new()
+function robocopy.exe {
+    param([string]$From, [string]$Destination, [Parameter(ValueFromRemainingArguments = $true)] [string[]]$Options)
+    Assert (-not $script:running) 'A package copy/rollback must never run while the plugin service is active.'
+    if ($Case -like 'copy-failed-*' -and $From -notlike '*previous-plugin') {
+        New-Item -ItemType Directory -Force -Path (Join-Path $Destination 'bin') | Out-Null
+        [IO.File]::WriteAllText((Join-Path $Destination 'bin\NexusKeypadPlugin.dll'), 'partial copy')
+        $script:events.Add('copy-failed')
+        $global:LASTEXITCODE = 8
+        return
+    }
+    if (Test-Path -LiteralPath $Destination) { Remove-Item -LiteralPath $Destination -Recurse -Force }
+    Copy-Item -LiteralPath $From -Destination $Destination -Recurse
+    $script:events.Add($(if ($From -like '*previous-plugin') { 'rollback' } else { 'copy' }))
+    $global:LASTEXITCODE = 0
+}
 function Get-AuthenticodeSignature([string]$LiteralPath) {
     $script:signatureChecks.Add($LiteralPath)
     return [pscustomobject]@{ Status = $(if ($Case -eq 'bad-signature') { 'NotTrusted' } else { 'Valid' });
@@ -57,7 +72,9 @@ function Invoke-CimMethod([string]$ClassName, [string]$MethodName, [hashtable]$A
     Assert ($ClassName -ceq 'Win32_Process' -and $MethodName -ceq 'Create') 'Restart must be detached by WMI.'
     $expected = '"' + (Join-Path $env:SystemRoot 'System32\conhost.exe') + '" --headless "' + (Join-Path $serviceDirectory 'LogiPluginServiceTool.exe') + '" start'
     Assert ($Arguments.CommandLine -ceq $expected -and $Arguments.CurrentDirectory -ceq $serviceDirectory) 'Restart must target the official plugin tool in a headless console.'
-    Assert ($Case -eq 'stop-failed-after-stop' -or (Test-Path -LiteralPath (Join-Path $Target 'bin\NexusKeypadPlugin.dll'))) 'Restart must happen after copy or as recovery from a known completed stop.'
+    Assert ($Case -in 'stop-failed-after-stop', 'copy-failed-new' -or (Test-Path -LiteralPath (Join-Path $Target 'bin\NexusKeypadPlugin.dll'))) 'Restart must happen after copy or recovery.'
+    if ($Case -eq 'copy-failed-existing') { Assert ([IO.File]::ReadAllText((Join-Path $Target 'bin\NexusKeypadPlugin.dll')) -ceq 'previous complete package') 'Restart must wait for rollback.' }
+    if ($Case -eq 'copy-failed-new') { Assert (-not (Test-Path -LiteralPath $Target)) 'Partial first installation must be removed before restart.' }
     $script:events.Add('start')
     if ($Case -notin 'start-refused', 'start-unconfirmed') { $script:running = $true; $script:started = $true }
     return [pscustomobject]@{ ReturnValue = $(if ($Case -eq 'start-refused') { 5 } else { 0 }); ProcessId = 4236 }
@@ -76,6 +93,10 @@ $Pack = $true
 $Keys = 'no'
 $Logi = Join-Path $Root 'logi'
 $Target = Join-Path $Logi 'Plugins\NexusKeypad'
+if ($Case -eq 'copy-failed-existing') {
+    New-Item -ItemType Directory -Force -Path (Join-Path $Target 'bin') | Out-Null
+    [IO.File]::WriteAllText((Join-Path $Target 'bin\NexusKeypadPlugin.dll'), 'previous complete package')
+}
 $Results = [ordered]@{}
 $fixture = Join-Path $Root 'fixture\bin'
 New-Item -ItemType Directory -Force -Path $fixture | Out-Null
@@ -90,7 +111,7 @@ try { $null = Install-NexusKeypad } catch { $failure = $_.Exception.Message }
 if ($Case -eq 'success') {
     Assert (-not $failure) "Isolated successful installation failed: $failure"
     Assert (Test-Path -LiteralPath (Join-Path $Target 'bin\NexusKeypadPlugin.dll')) 'Successful copy is absent.'
-    Assert (($script:events -join ',') -ceq 'stop,start') 'One cooperative stop must precede one detached start.'
+    Assert (($script:events -join ',') -ceq 'stop,copy,start') 'One cooperative stop must precede copy and one detached start.'
 } else {
     $pattern = switch ($Case) {
         'bad-signature' { 'no valid Logitech signature' }
@@ -102,9 +123,14 @@ if ($Case -eq 'success') {
         'stop-unconfirmed' { 'did not stop' }
         'start-refused' { 'could not start independently' }
         'start-unconfirmed' { 'did not start' }
+        'copy-failed-existing' { 'Copy to .* failed' }
+        'copy-failed-new' { 'Copy to .* failed' }
     }
     Assert ($failure -match $pattern) "Expected refusal was not reported: $failure"
-    if ($Case -notlike 'start-*') {
+    if ($Case -like 'copy-failed-*') {
+        Assert ($script:events[$script:events.Count - 1] -ceq 'start') 'A failed copy must recover the plugin service.'
+        if ($Case -eq 'copy-failed-existing') { Assert ($script:events.Contains('rollback')) 'The previous package must be restored.' }
+    } elseif ($Case -notlike 'start-*') {
         Assert (-not (Test-Path -LiteralPath $Target)) 'A failed stop/identity check must refuse copying.'
         if ($Case -eq 'stop-failed-after-stop') {
             Assert (($script:events -join ',') -ceq 'stop,start' -and $script:running) 'A completed stop that failed after stopping must recover cooperatively, retain failure and refuse copy.'
