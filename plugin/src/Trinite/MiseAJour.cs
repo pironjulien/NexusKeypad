@@ -296,12 +296,11 @@ namespace Loupedeck.TrinitePlugin
                     var echangeur = Path.Combine(Travail, "nexuskeypad-hook.exe");
                     File.Copy(Path.Combine(pret, "bin", "nexuskeypad-hook.exe"), echangeur, overwrite: true);
                     Ecrire(version, derniere, "updating", "installing");
-                    Process.Start(new ProcessStartInfo(echangeur)
+                    UserApplication.Start(new ProcessStartInfo(echangeur)
                     {
-                        ArgumentList = { "swap", pret, dossierPlugin, Path.Combine(Travail, "ancien"), FichierEtat, derniere },
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                    });
+                        Arguments = UserApplication.ArgumentString("swap", pret, dossierPlugin, Path.Combine(Travail, "ancien"), FichierEtat, derniere),
+                        WorkingDirectory = Travail,
+                    }, () => { }, 0); // aucun repli enfant : l'échangeur doit survivre à l'arrêt du service Logi
                     PluginLog.Info($"mise à jour vers {derniere} lancée");
                 }
                 catch (Exception ex)

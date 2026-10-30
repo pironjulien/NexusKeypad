@@ -117,34 +117,12 @@ function Stop-Logi {
 
 function Start-Logi {
     if ($Sandbox -or -not (Test-Path -LiteralPath $Agent)) { return }
-    # Detached and out of the caller's job object: started from an app (an AI agent's shell), the agent would otherwise
-    # die with that app.
-    if (-not ('NexusKeypadLauncher' -as [type])) {
-        Add-Type @'
-using System; using System.Runtime.InteropServices;
-public static class NexusKeypadLauncher {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    struct STARTUPINFO { public int cb; public string r, d, t; public int x, y, w, h, xc, yc, fa, fl; public short sw, cb2; public IntPtr r2, i, o, e; }
-    [StructLayout(LayoutKind.Sequential)]
-    struct PROCESS_INFORMATION { public IntPtr hp, ht; public int pid, tid; }
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    static extern bool CreateProcess(string app, string cmd, IntPtr pa, IntPtr ta, bool inherit, uint flags, IntPtr env, string dir, ref STARTUPINFO si, out PROCESS_INFORMATION pi);
-    [DllImport("kernel32.dll")]
-    static extern bool CloseHandle(IntPtr h);
-    public static bool Start(string line, string dir) {
-        var si = new STARTUPINFO(); si.cb = Marshal.SizeOf(si);
-        PROCESS_INFORMATION pi;
-        // CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS
-        if (!CreateProcess(null, line, IntPtr.Zero, IntPtr.Zero, false, 0x01000000 | 0x00000200 | 0x00000008, IntPtr.Zero, dir, ref si, out pi)) return false;
-        CloseHandle(pi.hp); CloseHandle(pi.ht);
-        return true;
-    }
-}
-'@
-    }
-    if (-not [NexusKeypadLauncher]::Start("`"$Agent`" /minimized", (Split-Path $Agent))) {
-        Start-Process -FilePath $Agent -ArgumentList '/minimized' -WindowStyle Hidden
-    }
+    # Always through WMI: started from an AI app, even with CREATE_BREAKAWAY_FROM_JOB the agent stayed tied to that app
+    # (MSIX package) and died with it (30/10). The WMI service creates it outside any job or package of the caller;
+    # no child fallback, which would tie it to the app again.
+    $wmi = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+        CommandLine = "`"$Agent`" /minimized"; CurrentDirectory = (Split-Path $Agent) }
+    if ($wmi.ReturnValue -ne 0) { Write-Warning "Logi Options+ could not be restarted (WMI code $($wmi.ReturnValue)); restart it from the Start menu." }
 }
 
 function Set-Keys([string]$Hook, [switch]$Clear) {

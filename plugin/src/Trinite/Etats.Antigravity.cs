@@ -52,7 +52,8 @@ namespace Loupedeck.TrinitePlugin
 
             var depuis = hook?.Quand ?? activite;
             var vu = this.Vu(2, id, depuis);
-            return new(2, id, titre, etat == Etat.Fini && (vu || relais) ? Etat.Repos : etat, depuis, activite == DateTime.MinValue ? depuis : activite, vu, relais);
+            var regardee = etat == Etat.Fini && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
+            return new(2, id, titre, regardee ? Etat.Repos : etat, depuis, activite == DateTime.MinValue ? depuis : activite, vu, relais);
         }
 
         // Conversations d'Antigravity ouvertes par le relais, par sujet : conversation → sujet.
@@ -98,7 +99,7 @@ namespace Loupedeck.TrinitePlugin
         {
             // Lignes de sa barre latérale, et la conversation affichée par son adresse (/c/<id>) : la barre peut être masquée,
             // les lignes absentes ; la liste d'avant est alors gardée, la sélection vient de l'adresse.
-            var agy = Connecteurs.EvenementsActifs("antigravity") ? Cdp.Evaluer(Cdp.PortAntigravity, "({ lignes: [...document.querySelectorAll('[data-testid=conversation-row-sidebar]')].map(r => [r.getAttribute('data-cascade-id'), r.innerText, r.getAttribute('data-selected') === 'true']), affichee: (location.pathname.match(/^\\/c\\/([0-9a-f-]+)/) || [])[1] || null })") : null;
+            var agy = Connecteurs.EvenementsActifs("antigravity") ? Cdp.Evaluer(Cdp.PortAntigravity, "({ lignes: [...document.querySelectorAll('[data-testid=conversation-row-sidebar]')].map(r => [r.getAttribute('data-cascade-id'), r.innerText, r.getAttribute('data-selected') === 'true']), affichee: (location.pathname.match(/^\\/c\\/([0-9a-f-]+)/) || [])[1] || null, modele: " + Js.ModeleAntigravity + " })") : null;
             if (agy is { ValueKind: JsonValueKind.Object } page)
             {
                 var lignes = page.GetProperty("lignes").EnumerateArray().Select(l =>
@@ -113,6 +114,21 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 this._selectionAgy = lignes.FirstOrDefault(l => l.Item4).Item1 ?? affichee;
+                if (page.TryGetProperty("modele", out var modele) && modele.ValueKind == JsonValueKind.String && this._quotas[2] is { } quota)
+                {
+                    var famille = QuotaAntigravity.FamilleModele(modele.GetString());
+                    if (quota.GroupeSelectionne != famille)
+                    {
+                        this._quotas[2] = QuotaAntigravity.Actuel(quota with { GroupeSelectionne = famille }, this._quotaAgyLu);
+                        // Choisir un modèle ne rafraîchit pas les données de consommation : garder leur vraie date.
+                        QuotaAntigravity.Garder(this._quotas[2], this._quotaAgyLu);
+                        if (QuotaAntigravity.Garde(out var date) is { } partagee)
+                        {
+                            this._quotas[2] = partagee;
+                            this._quotaAgyLu = date;
+                        }
+                    }
+                }
             }
             else
             {

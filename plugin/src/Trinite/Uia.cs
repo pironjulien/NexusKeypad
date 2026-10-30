@@ -301,11 +301,26 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Une dictée de Claude est en cours : son bouton « Arrêter la dictée » est là (rien n'est cliqué).
-        public static Boolean DicteeClaude()
+        public static Boolean DicteeClaude() => DicteeClaudeObservee() == true;
+
+        // Sans fenêtre ou sans commande micro lisible, l'absence du bouton d'arrêt ne prouve pas un micro arrêté.
+        public static Boolean? DicteeClaudeObservee()
         {
-            var uia = Nouveau();
-            return Fenetres("claude")
-                .Any(h => uia.ElementFromHandle(h)?.FindFirst(TreeScopeDescendants, Bouton(uia, ArretDictee)) is not null);
+            try
+            {
+                var uia = Nouveau();
+                var fenetres = Fenetres("claude");
+                if (fenetres.Count == 0) { return null; }
+                var inconnue = false;
+                foreach (var fenetre in fenetres)
+                {
+                    var racine = uia.ElementFromHandle(fenetre);
+                    if (racine?.FindFirst(TreeScopeDescendants, Bouton(uia, ArretDictee)) is not null) { return true; }
+                    if (racine?.FindFirst(TreeScopeDescendants, Bouton(uia, Micro)) is null) { inconnue = true; }
+                }
+                return inconnue ? null : false;
+            }
+            catch (Exception) { return null; }
         }
 
         // Arrête une dictée de Claude en cours, dans n'importe laquelle de ses fenêtres ; vrai s'il y en avait une.
@@ -315,15 +330,15 @@ namespace Loupedeck.TrinitePlugin
             {
                 var uia = Nouveau();
                 var bouton = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, ArretDictee));
-                if (bouton?.GetCurrentPattern(MotifToggle) is IUIAutomationTogglePattern bascule)
-                {
-                    bascule.Toggle();
-                    return true;
-                }
-
                 if (bouton?.GetCurrentPattern(MotifInvoke) is IUIAutomationInvokePattern appui)
                 {
                     appui.Invoke();
+                    return true;
+                }
+
+                if (bouton?.GetCurrentPattern(MotifToggle) is IUIAutomationTogglePattern bascule)
+                {
+                    bascule.Toggle();
                     return true;
                 }
             }
@@ -347,13 +362,15 @@ namespace Loupedeck.TrinitePlugin
                 return "bouton de dictée de Claude introuvable";
             }
 
-            if (micro.GetCurrentPattern(MotifToggle) is IUIAutomationTogglePattern bascule)
-            {
-                bascule.Toggle();
-            }
-            else if (micro.GetCurrentPattern(MotifInvoke) is IUIAutomationInvokePattern appui)
+            // Préférer le clic du bouton Chromium à son motif Toggle également exposé. La conséquence reste
+            // vérifiée par l'appelant, sans second clic de secours lorsqu'elle est inconnue.
+            if (micro.GetCurrentPattern(MotifInvoke) is IUIAutomationInvokePattern appui)
             {
                 appui.Invoke();
+            }
+            else if (micro.GetCurrentPattern(MotifToggle) is IUIAutomationTogglePattern bascule)
+            {
+                bascule.Toggle();
             }
             else
             {
@@ -457,6 +474,11 @@ namespace Loupedeck.TrinitePlugin
                 if (bouton?.GetCurrentPattern(MotifDeplier) is IUIAutomationExpandCollapsePattern menu
                     && menu.CurrentExpandCollapseState == 1)
                 {
+                    // Le bouton Chromium est un basculeur. Son Collapse peut ne rien faire malgré le motif exposé.
+                    if (bouton.GetCurrentPattern(MotifInvoke) is IUIAutomationInvokePattern appui)
+                    {
+                        return GestePuisEtat(appui.Invoke, UtilisationClaudeOuverte, false);
+                    }
                     return GestePuisEtat(menu.Collapse, UtilisationClaudeOuverte, false);
                 }
             }
@@ -469,16 +491,20 @@ namespace Loupedeck.TrinitePlugin
         {
             foreach (var bouton in BoutonsUtilisation())
             {
+                if (bouton?.GetCurrentPattern(MotifDeplier) is IUIAutomationExpandCollapsePattern ouvert && ouvert.CurrentExpandCollapseState == 1)
+                {
+                    return true;
+                }
+                if (bouton?.GetCurrentPattern(MotifInvoke) is IUIAutomationInvokePattern appui)
+                {
+                    return GestePuisEtat(appui.Invoke, UtilisationClaudeOuverte, true);
+                }
                 if (bouton?.GetCurrentPattern(MotifDeplier) is IUIAutomationExpandCollapsePattern menu)
                 {
                     if (menu.CurrentExpandCollapseState == 1) { return true; }
                     return GestePuisEtat(menu.Expand, UtilisationClaudeOuverte, true);
                 }
 
-                if (bouton?.GetCurrentPattern(MotifInvoke) is IUIAutomationInvokePattern appui)
-                {
-                    return GestePuisEtat(appui.Invoke, UtilisationClaudeOuverte, true);
-                }
             }
 
             return false;

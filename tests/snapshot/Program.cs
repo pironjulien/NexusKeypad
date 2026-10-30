@@ -37,4 +37,10 @@ Vrai(Moteur.ResultatGeste("✓", null) == "fait", "Effet vérifié annoncé comm
 Vrai(Moteur.ResultatGeste("~", "app not ready") == "inconnu : app not ready", "Résultat inconnu jamais annoncé comme fait.");
 Vrai(Moteur.ResultatGeste("✓", "draft not empty") == "échec : draft not empty", "Refus avec cause jamais annoncé comme fait.");
 Vrai(Moteur.ResultatGeste("✗", "InvalidOperationException").StartsWith("échec : "), "Exception conservée comme échec du pilote.");
+using var choisi = JsonDocument.Parse(Moteur.SnapshotJson(cache with { Quotas = [null, null,
+    new(.8, .3) { GroupeSelectionne = "gemini", Groupes = [new(false, .3, null, true, "gemini")] }] }, maintenant, maintenant));
+var quotaChoisi = choisi.RootElement.GetProperty("agents")[2].GetProperty("quota");
+Vrai(quotaChoisi.GetProperty("selected_group").GetString() == "gemini", "Le diagnostic nomme la famille réellement sélectionnée.");
+Vrai(quotaChoisi.GetProperty("groups")[0].GetProperty("group").GetString() == "gemini"
+    && quotaChoisi.GetProperty("groups")[0].GetProperty("principal").GetBoolean(), "Le diagnostic conserve les identités et marqueurs des groupes.");
 Console.WriteLine($"Snapshot : {captures} contrôles purs réussis, aucun moteur construit ni interface lue.");

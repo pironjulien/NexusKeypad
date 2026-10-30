@@ -1,6 +1,6 @@
 <Project>
     <!-- Compilation hors de OneDrive. -->
     <PropertyGroup>
-        <BaseIntermediateOutputPath>$(LocalAppData)\NexusKeypad\apercu\obj\</BaseIntermediateOutputPath>
+        <BaseIntermediateOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\apercu\obj\</BaseIntermediateOutputPath>
     </PropertyGroup>
 </Project>

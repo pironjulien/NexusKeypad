@@ -4,8 +4,8 @@
 param([Parameter(Mandatory)] [string]$PackagePath)
 $ErrorActionPreference = 'Stop'
 $package = (Resolve-Path -LiteralPath $PackagePath).Path
-$root = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA ('NexusKeypad\test\package-connecteurs\' + [guid]::NewGuid().ToString('N'))))
-$allowed = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'NexusKeypad\test\package-connecteurs')) + '\'
+$root = [IO.Path]::GetFullPath((Join-Path $HOME ('.nexus\build\nexuskeypad\test\package-connecteurs\' + [guid]::NewGuid().ToString('N'))))
+$allowed = [IO.Path]::GetFullPath((Join-Path $HOME '.nexus\build\nexuskeypad\test\package-connecteurs')) + '\'
 if (-not $root.StartsWith($allowed, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid isolated test path.' }
 $extracted = Join-Path $root 'package'
 # Spaces are deliberate: the actual Windows hook path rendering is part of this package test.

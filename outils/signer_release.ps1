@@ -16,7 +16,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $depot = 'pironjulien/NexusKeypad'
-$travail = Join-Path $env:LOCALAPPDATA "NexusKeypad\signature\$Tag"
+$travail = Join-Path $HOME ".nexus\build\nexuskeypad\signature\$Tag"
 
 # Clés publiques d'un MiseAJour.cs (Cles).
 function Get-Cles([string]$Source) {

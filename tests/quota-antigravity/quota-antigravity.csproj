@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <RunAnalyzers>false</RunAnalyzers>
-    <BaseOutputPath>$(LocalAppData)\NexusKeypad\test\quota-antigravity\bin\</BaseOutputPath>
+    <BaseOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\test\quota-antigravity\bin\</BaseOutputPath>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\verifier\verifier.csproj" />

@@ -68,27 +68,9 @@ namespace Loupedeck.TrinitePlugin
                     return clic && Attendre(() => Cdp.Evaluer(Cdp.PortCodex, Js.SelectionCodex, attente: 1)?.GetString() == c.Id, 2000);
                 default:
                     // Fenêtre fermée (dans la zone de notification) : pas de page sur le port tant qu'elle n'est pas rouverte. Sa
-                    // ligne est cherchée 5 s (la barre latérale arrive après la fenêtre), puis sa route en dernier recours.
+                    // page est attendue passivement avant le clic unique sur sa ligne ou sa route.
                     Premier(agent);
-                    var ouverte = false;
-                    for (var essai = 0; essai < 10 && !ouverte; essai++)
-                    {
-                        // 2 s par essai au plus (appli figée : 25 s, plus une minute de file bloquée).
-                        ouverte = Cdp.Evaluer(Cdp.PortAntigravity, Js.OuvrirAntigravity(c.Id), attente: 2) is { ValueKind: System.Text.Json.JsonValueKind.True };
-
-                        if (!ouverte)
-                        {
-                            Thread.Sleep(500);
-                        }
-                    }
-
-                    if (!ouverte && Cdp.Evaluer(Cdp.PortAntigravity, Js.OuvrirAntigravity(c.Id, route: true)) is not { ValueKind: System.Text.Json.JsonValueKind.True })
-                    {
-                        return false;
-                    }
-
-                    // Ouverte pour de bon : son adresse /c/<id> (la route recharge la page : 4 s au plus).
-                    return Attendre(() => Cdp.Evaluer(Cdp.PortAntigravity, "location.pathname", attente: 1)?.GetString() == "/c/" + c.Id, 4000);
+                    return NavigationAntigravity.Ouvrir(c.Id);
             }
         }
 
@@ -308,14 +290,16 @@ namespace Loupedeck.TrinitePlugin
         // Claude, mémo vocal d'Antigravity), cet appui l'arrête, même si l'utilisateur est passé sur une autre appli entre-temps
         // (le texte reste dans son champ, sans envoi) ; l'appui suivant en ouvre une sur l'appli affichée, par son propre
         // bouton micro. Aucune IA devant : la dictée Windows (Win+H) là où est le curseur.
-        // Rend l'IA où une dictée vient d'être lancée (0 à 2), 3 pour la dictée Windows, -1 si rien n'a été lancé (une dictée
-        // arrêtée, ou une appli dont on ne sait pas si elle dicte encore : jamais deux micros ouverts).
+        // Rend l'IA où une dictée vient d'être lancée (0 à 2), 3 pour la dictée Windows, -2 pour un arrêt relu et -1 si
+        // l'effet reste inconnu. Une application muette ne permet jamais de démarrer un deuxième micro.
+        public const Int32 DicteeArretee = -2;
+
         public static Int32 Dicter()
         {
             switch (ArreterDicteeOuverte())
             {
                 case true:
-                    return -1;
+                    return DicteeArretee;
                 case null:
                     PluginLog.Warning("Dictée : une appli d'IA ne répond pas (dictée peut-être en cours), rien n'a été lancé");
                     return -1;
@@ -324,6 +308,13 @@ namespace Loupedeck.TrinitePlugin
             var fenetre = GetForegroundWindow();
             var agent = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan());
             if (agent >= 0 && !Connecteurs.EvenementsActifs(Observateur.Agents[agent])) { return -1; }
+            if (agent == 2 && !Uia.ConfirmerEtat(() => GetForegroundWindow() == fenetre
+                && Uia.BoutonActif(fenetre, Js.MicroAntigravity), true, 3000))
+            {
+                PluginLog.Warning("Dictée : le micro de l'application n'est pas encore disponible, aucun clic envoyé.");
+                return -1;
+            }
+            if (agent >= 0 && GetForegroundWindow() != fenetre) { return -1; }
             var probleme = agent switch
             {
                 0 => AttendreEt(() => Uia.DicterClaude(fenetre)),
@@ -334,6 +325,12 @@ namespace Loupedeck.TrinitePlugin
             if (probleme is not null)
             {
                 PluginLog.Warning($"Dictée : {probleme}");
+                return -1;
+            }
+
+            if (agent >= 0 && !Uia.ConfirmerEtat(() => DicteeObservee(agent), true))
+            {
+                PluginLog.Warning("Dictée : geste parti, mais aucun enregistrement actif n’a pu être confirmé.");
                 return -1;
             }
 
@@ -414,7 +411,13 @@ namespace Loupedeck.TrinitePlugin
             // Un micro déjà ouvert doit toujours pouvoir être arrêté par ce geste explicite, même si le connecteur
             // a été désactivé entre-temps. Seul le démarrage d'une nouvelle dictée respecte ensuite sa désactivation.
             Boolean Lancee(Int32 agent) => Process.GetProcessesByName(Observateur.Processus[agent]).Length > 0;
-            Boolean? Clic(String url = null) => Cdp.Evaluer(Cdp.PortCodex, Js.Cliquer(Js.Arrets), url)?.GetString() is { } r ? r == "ok" : null;
+            Boolean? Clic(String url = null)
+            {
+                var resultat = Cdp.Evaluer(Cdp.PortCodex, Js.Cliquer(Js.Arrets), url)?.GetString();
+                if (resultat is null) { return null; }
+                if (resultat != "ok") { return false; }
+                return Uia.ConfirmerEtat(() => DicteeObservee(1), false) ? true : null;
+            }
             Boolean? codex = !Lancee(1) ? false
                 : Cdp.PageOuverte(Cdp.PortCodex, Cdp.BulleVocaleCodex) switch
                 {
@@ -427,12 +430,53 @@ namespace Loupedeck.TrinitePlugin
                 return true;
             }
 
-            if ((Lancee(2) && Uia.Cliquer(Observateur.Processus[2], Js.Arrets)) || (Lancee(0) && Uia.ArreterDicteeClaude()))
+            var inconnue = codex is null;
+            if (Lancee(2))
             {
-                return true;
+                if (Uia.Cliquer(Observateur.Processus[2], Js.Arrets))
+                {
+                    return Uia.ConfirmerEtat(() => DicteeObservee(2), false) ? true : null;
+                }
+                inconnue |= DicteeObservee(2) != false;
             }
 
-            return codex; // false : aucune dictée ; null : Codex muet, on ne sait pas
+            if (Lancee(0))
+            {
+                if (Uia.ArreterDicteeClaude())
+                {
+                    return Uia.ConfirmerEtat(Uia.DicteeClaudeObservee, false) ? true : null;
+                }
+                inconnue |= Uia.DicteeClaudeObservee() != false;
+            }
+
+            return inconnue ? null : false; // aucune dictée seulement si les trois applications ont pu être relues
+        }
+
+        private static Boolean? DicteeObservee(Int32 agent)
+        {
+            Boolean? Lire(Int32 port, String url = null) => Cdp.Evaluer(port, Js.DicteeEnCours, url, attente: 1) is { } lu
+                ? lu.ValueKind == System.Text.Json.JsonValueKind.True ? true
+                    : lu.ValueKind == System.Text.Json.JsonValueKind.False ? false : null : null;
+            try
+            {
+                if (agent == 0) { return Uia.DicteeClaudeObservee(); }
+                if (agent == 2) { return Lire(Cdp.PortAntigravity); }
+                if (agent != 1) { return null; }
+                var principale = Lire(Cdp.PortCodex);
+                var bulle = Cdp.PageOuverte(Cdp.PortCodex, Cdp.BulleVocaleCodex) switch
+                {
+                    false => false,
+                    true => Lire(Cdp.PortCodex, Cdp.BulleVocaleCodex),
+                    _ => null,
+                };
+                return (principale, bulle) switch
+                {
+                    (true, _) or (_, true) => true,
+                    (false, false) => false,
+                    _ => null,
+                };
+            }
+            catch (Exception) { return null; }
         }
 
         private static String Saisie(Int32 port, String js, String url = null)
@@ -741,7 +785,10 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 var shell = cible.StartsWith("shell:", StringComparison.Ordinal);
-                Process.Start(new ProcessStartInfo(shell ? "explorer.exe" : cible, shell ? cible : "") { UseShellExecute = true });
+                UserApplication.Start(new ProcessStartInfo(shell ? "explorer.exe" : cible)
+                {
+                    Arguments = shell ? UserApplication.ArgumentString(cible) : "",
+                }, () => { });
             }
             catch (Exception e)
             {

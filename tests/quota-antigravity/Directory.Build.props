@@ -1,5 +1,5 @@
 <Project>
   <PropertyGroup>
-    <BaseIntermediateOutputPath>$(LocalAppData)\NexusKeypad\test\quota-antigravity\obj\</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\test\quota-antigravity\obj\</BaseIntermediateOutputPath>
   </PropertyGroup>
 </Project>

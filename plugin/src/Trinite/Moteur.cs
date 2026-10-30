@@ -235,6 +235,7 @@ namespace Loupedeck.TrinitePlugin
             {
                 schema = 1,
                 product = "NexusKeypad",
+                version = typeof(Moteur).Assembly.GetName().Version?.ToString(3),
                 source = "cached-pad-snapshot",
                 generated_at = Date(maintenant),
                 sampled_at = Date(lu),
@@ -256,8 +257,9 @@ namespace Loupedeck.TrinitePlugin
                         state = (!ouverte ? Etat.Ferme : conversations.FirstOrDefault()?.Etat ?? Etat.Repos).ToString(),
                         conversations = conversations.Select(c => new { id = c.Id, state = c.Etat.ToString(),
                             since = Date(c.Depuis), activity_at = Date(c.Activite), seen = c.Vu, relay = c.Relais }).ToArray(),
-                        quota = quota is null ? null : new { five_hour_used = Nombre(quota.Cinq), week_used = Nombre(quota.Semaine),
-                            groups = quota.Groupes.Select(g => new { five_hour = g.Cinq, used = Nombre(g.Utilise), resets_at = g.Fin is DateTime fin ? Date(fin) : null }).ToArray() },
+                        quota = quota is null ? null : new { five_hour_used = Nombre(quota.Cinq), week_used = Nombre(quota.Semaine), selected_group = quota.GroupeSelectionne,
+                            groups = quota.Groupes.Select(g => new { five_hour = g.Cinq, used = Nombre(g.Utilise), resets_at = g.Fin is DateTime fin ? Date(fin) : null,
+                                group = g.Groupe, principal = g.Principal }).ToArray() },
                         connection = connexion is null ? null : new { state = connexion.Etat.ToString(),
                             prepared_at = connexion.PrepareLe is DateTime prepare ? Date(prepare) : null,
                             first_activity_event_observed = connexion.PremierEvenementObserve },
@@ -462,9 +464,13 @@ namespace Loupedeck.TrinitePlugin
                                 cible = dictee;
                                 this._observateur.SuivreDictee(dictee); // touche rouge seulement pour une dictée lancée, dans son appli
                             }
+                            else if (dictee == Gestes.DicteeArretee)
+                            {
+                                cible = this._instantane.DicteeIa;
+                            }
                             else if (dictee < 0)
                             {
-                                // -1 couvre un arrêt comme une commande refusée : aucune preuve d'effet à annoncer.
+                                // Geste refusé ou effet illisible : aucune preuve d'effet à annoncer.
                                 (reussi, cause) = ("~", "dictation effect not verified");
                             }
 

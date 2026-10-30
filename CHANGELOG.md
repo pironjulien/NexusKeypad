@@ -5,6 +5,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Shared log in `%USERPROFILE%\.nexus\journal\keypad` instead of AppData, like every Nexus product: an MSIX app
+  (Claude Desktop) redirects its AppData writes into a private copy other tools cannot see.
+- A question that has been looked at (conversation opened from the pad or shown in the app) goes back to idle: the
+  "?" clears as soon as the conversation is shown, like the done check mark, for Claude, Codex and Antigravity.
+  Permission requests (padlock) stay until they are answered.
+
+### Fixed
+- Black pad after Claude restarts: Logi Options+ restarted from an AI app stayed tied to that app's package and died
+  with it. Logi is now restarted through WMI only (parent: the WMI service), with no child-process fallback.
+- Black pad after an install: copying the plugin while Logi was running triggered a reload, cut by the restart, and
+  Logi quarantined the plugin. The installer now stops Logi before copying.
+- Builds (plugin, hook, tests, packages) go to `~\.nexus\build\nexuskeypad` instead of AppData.
+- Independent launches: AI apps, links and PWAs opened from the pad, and its update helper, go through the Explorer
+  desktop broker, outside the caller's process tree and job. No child fallback after an uncertain launch; a failed
+  Logi restart is reported instead of announcing a successful update.
+- Antigravity quota: the model actually selected picks its quota family; an exhausted family no longer hides Gemini
+  Flash. The shared cache keeps every group, its reset times and the selection; an old copy never overwrites newer usage.
+- Antigravity navigation: one bounded passive wait before a single open, then the displayed conversation ID is
+  checked; no more ten-click replays, and an archived conversation is recognised by its real view.
+- Dictation: start confirmed by the active record button; stop confirmed separately from a failure or an unknown
+  read, without a second click.
+- Claude: the usage details use the button's `Invoke` click when Chromium exposes a `Collapse` that does nothing;
+  microphone commands prefer `Invoke` and their effect is read back.
+- Assembly and package versions aligned (1.8.1); logs no longer report the old 1.0.0 assembly version.
+
 ## [1.8.0] - 2026-10-29
 
 ### Security

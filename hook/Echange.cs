@@ -41,6 +41,7 @@ public static partial class Echange
     {
         Thread.Sleep(attenteMs); // le plugin finit d'écrire son état et rend la main
         var arrete = false;
+        var resultat = 0;
         var etape = "removing the previous backup";
         try
         {
@@ -84,22 +85,26 @@ public static partial class Echange
             }
 
             Ecrire(etat, version, version, "done", "updated");
-            return 0;
         }
         catch (Exception ex)
         {
             // La version réellement en place (l'ancienne, remise), et un message lisible : le hook est compilé avec
             // UseSystemResourceKeys, ex.Message n'y est qu'une clé de ressource.
             Ecrire(etat, Version(cible), version, "failed", $"update failed while {etape}: {Raison(ex)}");
-            return 1;
+            resultat = 1;
         }
         finally
         {
             if (arrete && logi!.Agent is { } agent)
             {
-                Lancer(agent);
+                if (!Lancer(agent))
+                {
+                    resultat = 1;
+                    Ecrire(etat, Version(cible), version, "failed", "Logi could not be restarted independently after the plugin update attempt");
+                }
             }
         }
+        return resultat;
     }
 
     // Version du plugin d'un dossier (metadata/LoupedeckPackage.yaml) ; null s'il n'y en a pas.
@@ -188,45 +193,39 @@ public static partial class Echange
         }
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct StartupInfo
-    {
-        public int Cb;
-        public IntPtr Reserve, Bureau, Titre;
-        public int X, Y, L, H, Cx, Cy, Remplissage, Drapeaux;
-        public short Affichage, Cb2;
-        public IntPtr Reserve2, Entree, Sortie, Erreur;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct ProcessInformation
-    {
-        public IntPtr Processus, Fil;
-        public int Pid, Tid;
-    }
-
-    [DllImport("kernel32.dll", EntryPoint = "CreateProcessW", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool CreateProcess(IntPtr application, char[] ligne, IntPtr pa, IntPtr ta, bool heriter, uint drapeaux, IntPtr env, string? dossier, ref StartupInfo si, out ProcessInformation pi);
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr CommandLineToArgvW(string ligne, out int nombre);
 
     [DllImport("kernel32.dll")]
-    private static extern bool CloseHandle(IntPtr h);
+    private static extern IntPtr LocalFree(IntPtr memoire);
 
-    // Relance détachée, comme get.ps1 (Start-Logi) : hors de l'objet tâche de l'appelant si Windows l'accepte, sinon
-    // seulement détachée (lancé par le plugin, l'échangeur n'est dans aucun objet tâche).
-    private static void Lancer(string ligne)
+    // Comme relancer_logi.ps1 : toujours par WMI. Lancé depuis une IA, même avec CREATE_BREAKAWAY_FROM_JOB, l'agent
+    // restait lié à l'appli (paquet MSIX) et mourait avec elle (30/10). Le service WMI crée le vrai processus, hors de
+    // tout job et de tout paquet ; PowerShell n'est ici qu'un client temporaire, jamais le parent de Logi.
+    private static bool Lancer(string ligne)
     {
-        var dossier = Path.GetDirectoryName(ligne.Trim().Trim('"').Split('"')[0]);
-        foreach (var drapeaux in new uint[] { 0x01000000 | 0x00000200 | 0x00000008, 0x00000200 | 0x00000008 })
+        string? dossier;
+        var arguments = CommandLineToArgvW(ligne, out var nombre);
+        if (arguments == IntPtr.Zero || nombre == 0) { return false; }
+        try { dossier = Path.GetDirectoryName(Marshal.PtrToStringUni(Marshal.ReadIntPtr(arguments))); }
+        finally { LocalFree(arguments); }
+        try
         {
-            var si = new StartupInfo { Cb = Marshal.SizeOf<StartupInfo>() };
-            if (CreateProcess(IntPtr.Zero, (ligne + "\0").ToCharArray(), IntPtr.Zero, IntPtr.Zero, false, drapeaux, IntPtr.Zero,
-                    string.IsNullOrEmpty(dossier) ? null : dossier, ref si, out var pi))
+            static string Ps(string value) => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
+            var commande = "$ErrorActionPreference='Stop'; $s=New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ShowWindow=[uint16]0}; "
+                + "$r=Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine="
+                + Ps(ligne) + ";CurrentDirectory=" + Ps(dossier ?? "") + ";ProcessStartupInformation=$s}; if($r.ReturnValue -ne 0){exit 1}";
+            var info = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell", "v1.0", "powershell.exe")) { UseShellExecute = false, CreateNoWindow = true };
+            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(commande)) })
             {
-                CloseHandle(pi.Processus);
-                CloseHandle(pi.Fil);
-                return;
+                info.ArgumentList.Add(argument);
             }
+            using var client = Process.Start(info);
+            // Un délai ne déclenche aucun second lancement : le résultat reste inconnu et sera signalé en échec.
+            return client is not null && client.WaitForExit(10000) && client.ExitCode == 0;
         }
+        catch (Exception) { return false; }
     }
 
     private static void Ecrire(string fichier, string? version, string derniere, string etat, string message)

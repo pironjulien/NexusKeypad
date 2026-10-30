@@ -2,8 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <Version>1.8.1</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Loupedeck.TrinitePlugin</RootNamespace>
 
     <ErrorReport>prompt</ErrorReport>
@@ -65,6 +67,7 @@
     <Compile Remove="Trinite\Etats.Claude.cs;Trinite\Etats.Codex.cs;Trinite\Etats.Antigravity.cs;Trinite\QuotaAntigravity.cs" />
     <Compile Remove="Trinite\Rendu.Personnages.cs;Trinite\ImageIa.cs;Trinite\Js.cs;Trinite\Cdp.cs;Trinite\EtatsEnDirect.cs" />
     <Compile Remove="Trinite\Ecran.cs;Trinite\PressePapiers.cs;Actions\LiveStatesCommand.cs" />
+    <Compile Remove="Trinite\NavigationAntigravity.cs" />
     <Compile Remove="Trinite\Connecteurs.cs;Trinite\ConnexionPad.cs;Trinite\Lanceurs.cs;Trinite\Rendu.Connexion.cs" />
   </ItemGroup>
 

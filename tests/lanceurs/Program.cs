@@ -1,5 +1,31 @@
 using System.Text.Json;
 using Loupedeck.TrinitePlugin;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+
+// Fixture headless opt-in : aucune application de Julien. Le parent attend son rattachement au job de test.
+if (args is ["--lifetime-parent", var gate, var oracle, var stop, var receipt])
+{
+    var limit = DateTime.UtcNow.AddSeconds(10);
+    while (!File.Exists(gate) && DateTime.UtcNow < limit) Thread.Sleep(50);
+    if (!File.Exists(gate)) return 3;
+    var info = new ProcessStartInfo(Environment.ProcessPath)
+    {
+        Arguments = UserApplication.ArgumentString("--lifetime-child", oracle, stop, "a b", "", "quote\"value", @"end\", "é & % $(literal)"),
+        WorkingDirectory = AppContext.BaseDirectory,
+    };
+    var launched = Lanceurs.LancerUtilisateur(info, 0);
+    File.WriteAllText(receipt, JsonSerializer.Serialize(new { launched }));
+    Thread.Sleep(Timeout.Infinite);
+    return 0;
+}
+if (args is ["--lifetime-child", var childOracle, var childStop, .. var values])
+{
+    File.WriteAllText(childOracle, JsonSerializer.Serialize(new { pid = Environment.ProcessId, executable = Environment.ProcessPath, values }));
+    var limit = DateTime.UtcNow.AddSeconds(30);
+    while (!File.Exists(childStop) && DateTime.UtcNow < limit) Thread.Sleep(50);
+    return 0;
+}
 
 // Diagnostic opt-in, en lecture seule, de l'application officielle Antigravity : aucun démarrage/arrêt, aucune saisie.
 if (args.SequenceEqual(new[] { "--probe-antigravity" }))
@@ -64,10 +90,13 @@ Vrai(Lanceurs.EtatPage(2, 9227, Page("https://127.0.0.1:56416/", "ws://127.0.0.1
 
 var exe = @"C:\Program Files\Antigravity\Antigravity.exe";
 var commande = Lanceurs.CommandeAntigravity(exe);
-Vrai(commande.FileName == exe && !commande.UseShellExecute && commande.ArgumentList.SequenceEqual(
-    new[] { "--remote-debugging-port=9227", "--remote-debugging-address=127.0.0.1" }), "chemin à espaces isolé et port local");
+Vrai(commande.FileName == exe && commande.ArgumentList.Count == 0 && commande.Arguments ==
+    "--remote-debugging-port=9227 --remote-debugging-address=127.0.0.1", "chemin à espaces isolé et port local");
 var rappel = Lanceurs.CommandeAntigravity(exe, dejaOuverte: true);
-Vrai(rappel.FileName == exe && !rappel.UseShellExecute && rappel.ArgumentList.Count == 0, "application existante : activation sans nouveaux arguments de connexion");
+Vrai(rappel.FileName == exe && rappel.Arguments.Length == 0 && rappel.ArgumentList.Count == 0, "application existante : activation sans nouveaux arguments de connexion");
+var originaux = new[] { "", "a b", "quote\"value", @"end\", @"spaces\ and\", "é & % $(literal)", "line\nbreak" };
+var natif = ArgumentsWindows.Decoder("fixture.exe " + UserApplication.ArgumentString(originaux));
+Vrai(natif.Skip(1).SequenceEqual(originaux), "Le parseur Windows relit chaque argument exact, sans interprétation shell ni perte des barres finales.");
 Vrai(Lanceurs.IdentiteAntigravity("Antigravity.exe", "Antigravity", "Google"), "identité officielle acceptée");
 Vrai(!Lanceurs.IdentiteAntigravity("other.exe", "Antigravity", "Google")
     && !Lanceurs.IdentiteAntigravity("Antigravity.exe", "Other", "Google")
@@ -75,6 +104,19 @@ Vrai(!Lanceurs.IdentiteAntigravity("other.exe", "Antigravity", "Google")
 
 Console.WriteLine(echecs.Count == 0 ? $"Lanceurs : {controles} contrôles hors ligne réussis." : String.Join("\n", echecs));
 return echecs.Count == 0 ? 0 : 1;
+
+static class ArgumentsWindows
+{
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CommandLineToArgvW(String line, out Int32 count);
+    [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr memory);
+    public static String[] Decoder(String line)
+    {
+        var memory = CommandLineToArgvW(line, out var count);
+        if (memory == IntPtr.Zero) throw new InvalidOperationException("Arguments Windows illisibles.");
+        try { return Enumerable.Range(0, count).Select(i => Marshal.PtrToStringUni(Marshal.ReadIntPtr(memory, i * IntPtr.Size))).ToArray(); }
+        finally { LocalFree(memory); }
+    }
+}
 
 namespace Loupedeck.TrinitePlugin
 {

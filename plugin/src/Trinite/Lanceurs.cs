@@ -235,23 +235,29 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (!dejaOuverte && File.Exists(CodexLb))
                 {
-                    return Process.Start(new ProcessStartInfo(CodexLb) { UseShellExecute = false }) is not null;
+                    return LancerUtilisateur(new ProcessStartInfo(CodexLb));
                 }
 
                 return ActiverPaquet(CodexOfficiel, dejaOuverte ? "" : $"--remote-debugging-port={Cdp.PortCodex} --remote-debugging-address=127.0.0.1");
             }
 
             var exe = AntigravityExecutable();
-            return exe is not null && Process.Start(CommandeAntigravity(exe, dejaOuverte)) is not null;
+            return exe is not null && LancerUtilisateur(CommandeAntigravity(exe, dejaOuverte));
+        }
+
+        // Le shell interactif possède l'application : elle survit au service du pad et à son éventuel job Windows.
+        internal static Boolean LancerUtilisateur(ProcessStartInfo info, Int32 afficher = 1)
+        {
+            UserApplication.Start(info, () => { }, afficher);
+            return true;
         }
 
         internal static ProcessStartInfo CommandeAntigravity(String exe, Boolean dejaOuverte = false)
         {
-            var info = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) };
+            var info = new ProcessStartInfo(exe) { WorkingDirectory = Path.GetDirectoryName(exe) };
             if (!dejaOuverte)
             {
-                info.ArgumentList.Add($"--remote-debugging-port={Cdp.PortAntigravity}");
-                info.ArgumentList.Add("--remote-debugging-address=127.0.0.1");
+                info.Arguments = $"--remote-debugging-port={Cdp.PortAntigravity} --remote-debugging-address=127.0.0.1";
             }
 
             return info;

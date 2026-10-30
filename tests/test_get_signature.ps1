@@ -35,9 +35,9 @@ Assert ($fromInstaller.Count -gt 0 -and -not (Compare-Object $fromInstaller $fro
 
 $key = [Security.Cryptography.ECDsaCng]::new(256)
 $other = [Security.Cryptography.ECDsaCng]::new(256)
-$root = Join-Path $env:LOCALAPPDATA ('NexusKeypad\test\installer-signature\' + [guid]::NewGuid().ToString('N'))
+$root = Join-Path $HOME ('.nexus\build\nexuskeypad\test\installer-signature\' + [guid]::NewGuid().ToString('N'))
 $root = [IO.Path]::GetFullPath($root)
-$allowed = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'NexusKeypad\test\installer-signature')) + '\'
+$allowed = [IO.Path]::GetFullPath((Join-Path $HOME '.nexus\build\nexuskeypad\test\installer-signature')) + '\'
 if (-not $root.StartsWith($allowed, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid isolated test path.' }
 $oldSource = [Environment]::GetEnvironmentVariable('NEXUS_KEYPAD_SOURCE', 'Process')
 function PublicKey([Security.Cryptography.ECDsaCng]$Value) {

@@ -33,11 +33,14 @@ namespace Loupedeck.TrinitePlugin
     public sealed record Quota(Double? Cinq, Double? Semaine)
     {
         public System.Collections.Generic.IReadOnlyList<GroupeQuota> Groupes { get; init; } = [];
+
+        // Dernière famille réellement sélectionnée dans l'interface ; null si aucune sélection n'est prouvée.
+        public String GroupeSelectionne { get; init; }
     }
 
     // Une fenêtre d'un groupe de modèles : 5 h (Cinq) ou semaine, part utilisée, heure (UTC) de sa remise à zéro si l'IA
     // la donne.
-    public sealed record GroupeQuota(Boolean Cinq, Double Utilise, DateTime? Fin);
+    public sealed record GroupeQuota(Boolean Cinq, Double Utilise, DateTime? Fin, Boolean Principal = false, String Groupe = null);
 
     // Conversations : la plus pressante d'abord. Ouvertes : nombre de conversations actives de chaque IA.
     // Devant : l'IA dont l'appli est au premier plan (celle que Capture, Photo et Dictée visent), -1 si aucune.

@@ -17,7 +17,7 @@
     <OptimizationPreference>Size</OptimizationPreference>
     <DebugType>none</DebugType>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <BaseOutputPath>$(LocalAppData)\NexusKeypad\hook-build\bin\</BaseOutputPath>
+    <BaseOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\hook-build\bin\</BaseOutputPath>
   </PropertyGroup>
 
   <!-- Argument « remove » (get.ps1 -Remove) : le retrait des états en direct, le même code que l'action « Live states ». -->

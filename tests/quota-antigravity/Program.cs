@@ -79,4 +79,43 @@ foreach (var (texte, attendu) in new[] { ("Resets in 6d 6h", new TimeSpan(6, 6, 
 foreach (var texte in new[] { "Resets in 999999999999999999999d", "Resets in 8d 1s", "Resets in 6daylight", "Resets in 2.5 hours", "Weekly limit" })
     Vrai(QuotaAntigravity.Delai(texte) is null, "Délai invalide ignoré : " + texte);
 
-Console.WriteLine($"Quota Antigravity : {controles} contrôles purs réussis, aucun profil ou écran lu.");
+var plusieurs = "Gemini Models\nWeekly limit\n70% left\n5h limit\n20% left\nClaude and GPT models\nWeekly limit\n100% left\n5h limit\n100% left\nGemini 4 Argon\nWeekly limit\n0% left";
+var gemini = QuotaAntigravity.Analyser(plusieurs, "Select model, current: Gemini 3.8 Flash High");
+Vrai(Proche(gemini.Cinq, .8) && Proche(gemini.Semaine, .3) && gemini.GroupeSelectionne == "gemini", "Le modèle réellement sélectionné ne prend pas le quota Argon épuisé.");
+Vrai(gemini.Groupes.Count == 5 && gemini.Groupes.Count(g => g.Principal) == 2, "Le détail de tous les groupes et le marqueur principal préexistant sont conservés.");
+Vrai(Proche(QuotaAntigravity.Analyser(plusieurs).Semaine, 1), "Sans sélection prouvée, le maximum historique reste inchangé.");
+Vrai(Proche(QuotaAntigravity.Analyser(plusieurs, "Unknown model").Semaine, 1), "Modèle inconnu : aucun groupe inventé.");
+var claude = QuotaAntigravity.Analyser(plusieurs, "Select model, current: Claude Opus 5.5 Medium");
+Vrai(Proche(claude.Cinq, 0) && Proche(claude.Semaine, 0) && claude.GroupeSelectionne == "claude-gpt", "Le groupe Claude et GPT suit également la sélection réelle.");
+var argonChoisi = QuotaAntigravity.Analyser(plusieurs, "Gemini4Argon Medium");
+Vrai(argonChoisi.Cinq is null && Proche(argonChoisi.Semaine, 1) && argonChoisi.GroupeSelectionne == "argon", "Argon choisi : aucune fenêtre 5 h empruntée à Gemini.");
+Vrai(QuotaAntigravity.FamilleModele("GPT-OSS 120B") == "claude-gpt" && QuotaAntigravity.FamilleModele(null) is null, "Noms de modèles et lecture absente distincts.");
+var absent = QuotaAntigravity.Analyser("Gemini Models\nWeekly limit\n70% left", "Claude Opus 5.5");
+Vrai(absent.Cinq is null && absent.Semaine is null, "Famille choisie absente du relevé : quota inconnu, jamais un autre groupe.");
+var remis = QuotaAntigravity.Actuel(gemini with { Groupes = gemini.Groupes.Select(g => g.Groupe == "gemini" ? g with { Fin = DateTime.UtcNow.AddSeconds(-1) } : g).ToArray() }, DateTime.UtcNow);
+Vrai(Proche(remis.Cinq, 0) && Proche(remis.Semaine, 0), "Remise à zéro du modèle choisi : Argon épuisé ne prend jamais sa place.");
+var precedent = QuotaAntigravity.Fichier;
+var temporaire = Path.Combine(Path.GetTempPath(), "nexuskeypad-quota-" + Guid.NewGuid().ToString("N"));
+try
+{
+    QuotaAntigravity.Fichier = Path.Combine(temporaire, "quota.json");
+    var lu = DateTime.UtcNow.AddMinutes(-6);
+    QuotaAntigravity.Garder(gemini, lu);
+    var relu = QuotaAntigravity.Garde(out var date);
+    Vrai(date == lu && relu.GroupeSelectionne == "gemini" && Proche(relu.Semaine, .3), "Cache partagé : famille, consommation et vraie date conservées.");
+    Vrai(relu.Groupes.All(g => g.Groupe is not null) && relu.Groupes.Count(g => g.Principal) == 2, "Noms des groupes et anciens marqueurs relus sans perte.");
+    var plusRecente = lu.AddMinutes(1);
+    QuotaAntigravity.Garder(gemini with { Groupes = gemini.Groupes.Select(g => g.Groupe == "gemini" ? g with { Utilise = .4 } : g).ToArray() }, plusRecente);
+    QuotaAntigravity.Garder(gemini, lu);
+    var conservee = QuotaAntigravity.Garde(out var dateRecente);
+    Vrai(dateRecente == plusRecente && Proche(conservee.Semaine, .4), "Choix sur copie ancienne : le relevé de consommation plus récent n'est pas écrasé.");
+    File.WriteAllText(QuotaAntigravity.Fichier, "{\"cinq\":0.2,\"semaine\":0.4,\"groupes\":[{\"cinq\":true,\"utilise\":0.2,\"fin\":null,\"principal\":true}],\"lu\":\"" + DateTime.UtcNow.ToString("O") + "\"}");
+    var compatible = QuotaAntigravity.Garde(out _);
+    Vrai(Proche(compatible.Cinq, .2) && compatible.Groupes[0].Principal && compatible.GroupeSelectionne is null, "Cache précédent sans noms de groupes toujours compatible.");
+}
+finally
+{
+    QuotaAntigravity.Fichier = precedent;
+    if (Directory.Exists(temporaire)) Directory.Delete(temporaire, true);
+}
+Console.WriteLine($"Quota Antigravity : {controles} contrôles isolés réussis, aucun profil ou écran lu.");

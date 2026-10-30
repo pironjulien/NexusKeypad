@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>annotations</Nullable>
     <StartupObject>HookSoundTests</StartupObject>
-    <BaseOutputPath>$(LocalAppData)\NexusKeypad\test\hook-son\bin\</BaseOutputPath>
+    <BaseOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\test\hook-son\bin\</BaseOutputPath>
     <RunAnalyzers>false</RunAnalyzers>
   </PropertyGroup>
   <ItemGroup>

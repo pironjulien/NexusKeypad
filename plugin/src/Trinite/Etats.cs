@@ -115,7 +115,7 @@ namespace Loupedeck.TrinitePlugin
             Boolean? claude = false, codex = false, agy = false;
             try
             {
-                claude = this._dicteeIa == 0 && this.Lancee(0) && Uia.DicteeClaude();
+                claude = this._dicteeIa == 0 && this.Lancee(0) ? Uia.DicteeClaudeObservee() : false;
             }
             catch (Exception)
             {

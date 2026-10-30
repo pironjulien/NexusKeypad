@@ -1,5 +1,5 @@
 <Project>
   <PropertyGroup>
-    <BaseIntermediateOutputPath>$(LocalAppData)\NexusKeypad\test\parite-uia\obj\</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\test\parite-uia\obj\</BaseIntermediateOutputPath>
   </PropertyGroup>
 </Project>

@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <RunAnalyzers>false</RunAnalyzers>
-    <BaseOutputPath>$(LocalAppData)\NexusKeypad\test\snapshot\bin\</BaseOutputPath>
+    <BaseOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\test\snapshot\bin\</BaseOutputPath>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\verifier\verifier.csproj" />

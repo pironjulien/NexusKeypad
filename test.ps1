@@ -2,13 +2,13 @@
 # Compile le plugin à part (NexusTest : ni lien posé, ni rechargement du plugin en service), puis l'aperçu, qui
 # compile les mêmes sources et dessine les 9 touches dans chaque situation ; les règles de la logique (verifier) ;
 # enfin la syntaxe des scripts Python et les règles du hook natif livré dans le paquet (tests).
-# Tout ce qui est produit va dans %LOCALAPPDATA%\NexusKeypad\test, rien dans OneDrive.
+# Tout ce qui est produit va dans ~\.nexus\build\nexuskeypad\test, rien dans OneDrive.
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'
 $logiDir = 'C:\Program Files\Logi\LogiPluginService'
 if (Test-Path $logiDir) { $env:PATH = "$logiDir;$env:PATH" }
-$sortie = Join-Path $env:LOCALAPPDATA 'NexusKeypad\test\'
+$sortie = Join-Path $HOME '.nexus\build\nexuskeypad\test\'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 # Sans effet sur les python -I ci-dessous (-I ignore les variables PYTHON*) : c'est leur -B qui évite tout
 # __pycache__ dans OneDrive. Gardé pour un python lancé sans -I.
@@ -81,6 +81,8 @@ dotnet run --project (Join-Path $PSScriptRoot 'tests\snapshot') -v q
 if ($LASTEXITCODE) { throw 'Le contrat du snapshot du pad ne tient plus.' }
 dotnet run --project (Join-Path $PSScriptRoot 'tests\lanceurs') -v q
 if ($LASTEXITCODE) { throw 'Une règle de lancement des applications officielles ne tient plus.' }
+dotnet run --project (Join-Path $PSScriptRoot 'tests\navigation') -v q
+if ($LASTEXITCODE) { throw 'Une règle de navigation Antigravity ne tient plus.' }
 
 # Node ne sert qu'à éprouver le JavaScript UI du pad, sans npm ni application réelle.
 $node = (Get-Command node -ErrorAction Stop).Source
@@ -88,6 +90,8 @@ $node = (Get-Command node -ErrorAction Stop).Source
 if ($LASTEXITCODE) { throw 'La preuve du panneau de quotas Antigravity ne tient plus.' }
 & $node --test (Join-Path $PSScriptRoot 'tests\test_quota_antigravity.cjs')
 if ($LASTEXITCODE) { throw 'La lecture passive des quotas visibles Antigravity ne tient plus.' }
+& $node --test (Join-Path $PSScriptRoot 'tests\test_navigation_antigravity.cjs')
+if ($LASTEXITCODE) { throw 'La preuve de navigation Antigravity ne tient plus.' }
 
 $python = (Get-Command python -ErrorAction Stop).Source
 # sons\ est privé (absent de l'export public) : seuls les dossiers présents sont lus.

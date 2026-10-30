@@ -25,9 +25,22 @@ namespace Loupedeck.TrinitePlugin
         // dans une notification), sa route /c/<id> (l'interface est servie en https://127.0.0.1:<port>/ ; recharge la page).
         public static String OuvrirAntigravity(String conversation, Boolean route = false) =>
             $"(() => {{ window.__nexusRepris = true; const id = {JsonSerializer.Serialize(conversation)}; const r = document.querySelector('[data-testid=conversation-row-sidebar][data-cascade-id=' + JSON.stringify(id) + ']');" +
+            " if (location.pathname === '/c/' + id) return true;" +
             " if (r) { r.scrollIntoView({block: 'nearest'}); (r.querySelector('a') || r).click(); return true }" +
             (route ? " if (location.protocol !== 'https:' && location.protocol !== 'http:') return false;" +
                 " location.assign(location.origin + '/c/' + encodeURIComponent(id)); return true })()" : " return false })()");
+
+        // Lecture seule avant le geste unique : le chargement d'une barre latérale ne justifie aucun clic rejoué.
+        public static String NavigationAntigravity(String conversation) =>
+            $"(() => {{ const id = {JsonSerializer.Serialize(conversation)};" +
+            EtatNavigationAntigravity + " })()";
+
+        public const String EtatNavigationAntigravity = """
+            if (document.readyState === 'loading') return null;
+            const v = document.querySelector('[data-testid=conversation-view]');
+            if (location.pathname === '/c/' + id && v) return 'open';
+            return v || document.querySelector('[data-testid=model-selector-trigger]') ? 'ready' : null;
+            """;
 
         // Conversation descendue jusqu'au dernier message : sa plus grande zone visible qui défile (le fil ; Codex garde
         // aussi les fils déjà vus, cachés, à 0 px), hors barre latérale et dialogue. Leur bouton « en bas » reste dans la
@@ -41,6 +54,9 @@ namespace Loupedeck.TrinitePlugin
 
         // Antigravity prêt pour sa boîte des quotas : sélecteur de modèle présent (rien n'est cliqué).
         public const String SelecteurAntigravity = "!!document.querySelector('[data-testid=model-selector-trigger]')";
+
+        public const String ModeleAntigravity =
+            "(() => { const b = document.querySelector('[data-testid=model-selector-trigger]'); return b?.getClientRects().length ? ((b.getAttribute('aria-label') || b.innerText || '').trim() || null) : null })()";
 
         // Menu des modèles d'Antigravity ouvert (sa boîte des quotas comprise) : centre du sélecteur, pour le refermer d'un
         // clic de confiance ; null s'il est fermé. Son état est celui du sélecteur (aria-expanded) : fenêtre cachée, un menu

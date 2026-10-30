@@ -1,6 +1,6 @@
 <Project>
     <!-- Compilation hors de OneDrive, à part des autres projets (un dossier obj commun les mélangerait). -->
     <PropertyGroup>
-        <BaseIntermediateOutputPath>$(LocalAppData)\NexusKeypad\hook-build\obj\</BaseIntermediateOutputPath>
+        <BaseIntermediateOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\hook-build\obj\</BaseIntermediateOutputPath>
     </PropertyGroup>
 </Project>

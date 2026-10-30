@@ -137,15 +137,15 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (chrome is null)
                 {
-                    Process.Start(new ProcessStartInfo(this.Url) { UseShellExecute = true });
+                    UserApplication.Start(new ProcessStartInfo(this.Url), () => { });
                 }
                 else if (this.Raccourci() is { } raccourci)
                 {
-                    Process.Start(new ProcessStartInfo(raccourci) { UseShellExecute = true });
+                    UserApplication.Start(new ProcessStartInfo(raccourci), () => { });
                 }
                 else
                 {
-                    Process.Start(new ProcessStartInfo(chrome, $"--app=\"{this.Url}\"") { UseShellExecute = false });
+                    UserApplication.Start(new ProcessStartInfo(chrome) { Arguments = UserApplication.ArgumentString($"--app={this.Url}") }, () => { });
                 }
             }
             catch (Exception e)

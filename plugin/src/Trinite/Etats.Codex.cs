@@ -69,7 +69,8 @@ namespace Loupedeck.TrinitePlugin
 
                     var vu = this.Vu(1, id, depuis);
                     var titre = relais ? "Relais · " + Sujet(f) : this._indexCodex.Noms.GetValueOrDefault(id) ?? "Chat Codex";
-                    yield return new(1, id, titre, etat == Etat.Fini && (vu || relais) ? Etat.Repos : etat, depuis, f.LastWriteTimeUtc, vu, relais);
+                    var regardee = etat == Etat.Fini && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
+                    yield return new(1, id, titre, regardee ? Etat.Repos : etat, depuis, f.LastWriteTimeUtc, vu, relais);
                 }
             }
         }

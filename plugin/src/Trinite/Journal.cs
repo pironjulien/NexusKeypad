@@ -7,7 +7,7 @@ namespace Loupedeck.TrinitePlugin
     using System.Text.Json;
 
     // Journal commun des outils Nexus (NexusHarness\NexusShared\journal\FORMAT.md, produit « keypad ») : une ligne par
-    // touche pressée dans %LOCALAPPDATA%\NexusJournal\keypad\<IA visée>\<AAAA-MM>.jsonl, pour la revue des outils.
+    // touche pressée dans %USERPROFILE%\.nexus\journal\keypad\<IA visée>\<AAAA-MM>.jsonl, pour la revue des outils.
     // Seulement dans les éditions de Julien (NexusKeypad, Stream Deck) : rien dans les éditions du Marketplace.
     // Jamais de titre de conversation, de texte ni de chemin : action = nom fixe de la touche, erreur = nom du type
     // d'exception ou une cause fixe. Local au PC, jamais envoyé ; NEXUS_JOURNAL=0 le coupe. Jamais bloquant.
@@ -33,7 +33,7 @@ namespace Loupedeck.TrinitePlugin
         private static String Racine => Path.Combine(
             Environment.GetEnvironmentVariable("NEXUS_JOURNAL_HOME") is { Length: > 0 } dossier
                 ? dossier
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NexusJournal"),
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nexus", "journal"),
             "keypad");
 
         // ia : 0 Claude, 1 Codex, 2 Antigravity (hors de 0..2 : rien, le journal est rangé par IA visée).

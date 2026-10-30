@@ -1,8 +1,8 @@
 <Project>
-    <!-- Compilation hors de OneDrive : obj et bin vont dans %LOCALAPPDATA%\NexusKeypad. -->
+    <!-- Compilation hors de OneDrive : obj et bin vont dans ~\.nexus\build\nexuskeypad (hors AppData, que les applis MSIX dédoublent). -->
     <PropertyGroup>
         <LangVersion>latest</LangVersion>
-        <NexusBuild>$(LocalAppData)\NexusKeypad\</NexusBuild>
+        <NexusBuild>$(USERPROFILE)\.nexus\build\nexuskeypad\</NexusBuild>
         <BaseIntermediateOutputPath>$(NexusBuild)obj\</BaseIntermediateOutputPath>
     </PropertyGroup>
 </Project>

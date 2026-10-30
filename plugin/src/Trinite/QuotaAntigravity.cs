@@ -101,13 +101,19 @@ namespace Loupedeck.TrinitePlugin
         public static Quota Lire(Boolean ouvrir)
         {
             var texte = Cdp.Evaluer(Cdp.PortAntigravity, ouvrir ? Actif : Passif, attente: 10);
-            return texte is { ValueKind: JsonValueKind.String } t ? Analyser(t.GetString()) : null;
+            if (texte is not { ValueKind: JsonValueKind.String } t) { return null; }
+            var modele = Cdp.Evaluer(Cdp.PortAntigravity, Js.ModeleAntigravity, attente: 1);
+            var nom = modele is { ValueKind: JsonValueKind.String } m ? m.GetString() : null;
+            var quota = Analyser(t.GetString(), nom);
+            // Une archive n'a pas de sélecteur : conserver alors la dernière sélection réellement observée.
+            // Un nouveau libellé présent mais inconnu efface cette sélection et reprend le maximum historique.
+            return nom is null && quota is not null && Garde(out _)?.GroupeSelectionne is String dernier
+                ? Actuel(quota with { GroupeSelectionne = dernier }, DateTime.UtcNow) : quota;
         }
 
         // Jauge à l'instant : chaque groupe passé son heure de remise à zéro est à 0 % (sans heure connue : au bout de sa
-        // durée, 5 h ou 7 jours, depuis la lecture lu), puis le groupe le plus entamé de chaque fenêtre. Un groupe remis à
-        // zéro laisse la place au suivant (Gemini à 80 % remis à zéro, Claude et GPT à 50 % : 50 %). Sans détail, le quota
-        // tel quel (relecture de Codex, 25/10).
+        // durée, 5 h ou 7 jours, depuis la lecture lu). Sélection connue : sa famille seulement ; sinon le maximum
+        // historique de chaque fenêtre. Un quota d'un autre modèle ne remplace jamais une fenêtre choisie inconnue.
         public static Quota Actuel(Quota quota, DateTime lu)
         {
             if (quota is null || quota.Groupes.Count == 0)
@@ -116,10 +122,12 @@ namespace Loupedeck.TrinitePlugin
             }
 
             var maintenant = DateTime.UtcNow;
-            Double? Jauge(Boolean cinq) => quota.Groupes.Where(g => g.Cinq == cinq)
+            var groupes = quota.GroupeSelectionne is null ? quota.Groupes
+                : quota.Groupes.Where(g => (g.Groupe ?? (g.Principal ? "gemini" : null)) == quota.GroupeSelectionne).ToArray();
+            Double? Jauge(Boolean cinq) => groupes.Where(g => g.Cinq == cinq)
                 .Select(g => maintenant >= (g.Fin ?? lu + (cinq ? TimeSpan.FromHours(5) : TimeSpan.FromDays(7))) ? 0 : g.Utilise)
                 .Select(u => (Double?)u).DefaultIfEmpty(null).Max();
-            return new(Jauge(true), Jauge(false)) { Groupes = quota.Groupes };
+            return new(Jauge(true), Jauge(false)) { Groupes = quota.Groupes, GroupeSelectionne = quota.GroupeSelectionne };
         }
 
         // Dernière lecture gardée sur disque, avec son détail par groupe (lue au plus tous les quarts d'heure : sans elle, la
@@ -128,23 +136,36 @@ namespace Loupedeck.TrinitePlugin
         // Changé seulement par le vérificateur (fichier temporaire : jamais le vrai cache du plugin en service).
         public static String Fichier { get; set; } = System.IO.Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "", "NexusKeypad", "quota-antigravity.json");
 
-        public static void Garder(Quota quota)
+        private static readonly Object VerrouFichier = new();
+
+        public static void Garder(Quota quota, DateTime? lu = null)
         {
-            try
+            lock (VerrouFichier)
             {
-                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Fichier));
-                System.IO.File.WriteAllText(Fichier + ".tmp", JsonSerializer.Serialize(new
+                try
                 {
-                    cinq = quota.Cinq,
-                    semaine = quota.Semaine,
-                    groupes = quota.Groupes.Select(g => new { cinq = g.Cinq, utilise = g.Utilise, fin = g.Fin }),
-                    lu = DateTime.UtcNow,
-                }));
-                System.IO.File.Move(Fichier + ".tmp", Fichier, true);
-            }
-            catch (Exception e)
-            {
-                PluginLog.Error(e, "quota d'Antigravity gardé");
+                    // Une sélection peut arriver pendant un nouveau relevé. Elle choisit les groupes les plus récents,
+                    // sans les remplacer par la copie de consommation plus ancienne de son appelant.
+                    if (lu is DateTime date && Garde(out var recente) is { } actuelle && recente > date)
+                    {
+                        quota = Actuel(actuelle with { GroupeSelectionne = quota.GroupeSelectionne }, recente);
+                        lu = recente;
+                    }
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Fichier));
+                    System.IO.File.WriteAllText(Fichier + ".tmp", JsonSerializer.Serialize(new
+                    {
+                        cinq = quota.Cinq,
+                        semaine = quota.Semaine,
+                        groupes = quota.Groupes.Select(g => new { cinq = g.Cinq, utilise = g.Utilise, fin = g.Fin, principal = g.Principal, groupe = g.Groupe }),
+                        groupeSelectionne = quota.GroupeSelectionne,
+                        lu = (lu ?? DateTime.UtcNow).ToUniversalTime(),
+                    }));
+                    System.IO.File.Move(Fichier + ".tmp", Fichier, true);
+                }
+                catch (Exception e)
+                {
+                    PluginLog.Error(e, "quota d'Antigravity gardé");
+                }
             }
         }
 
@@ -170,7 +191,9 @@ namespace Loupedeck.TrinitePlugin
                 Double? Valeur(String nom) => r.GetProperty(nom).ValueKind == JsonValueKind.Number ? r.GetProperty(nom).GetDouble() : null;
                 var groupes = r.TryGetProperty("groupes", out var liste) && liste.ValueKind == JsonValueKind.Array
                     ? liste.EnumerateArray().Select(g => new GroupeQuota(g.GetProperty("cinq").GetBoolean(), g.GetProperty("utilise").GetDouble(),
-                        g.GetProperty("fin").ValueKind == JsonValueKind.String ? g.GetProperty("fin").GetDateTime().ToUniversalTime() : null)).ToList()
+                        g.GetProperty("fin").ValueKind == JsonValueKind.String ? g.GetProperty("fin").GetDateTime().ToUniversalTime() : null,
+                        g.TryGetProperty("principal", out var pr) && pr.ValueKind == JsonValueKind.True,
+                        g.TryGetProperty("groupe", out var famille) && famille.ValueKind == JsonValueKind.String ? famille.GetString() : null)).ToList()
                     : [];
                 if (groupes.Count == 0)
                 {
@@ -181,7 +204,9 @@ namespace Loupedeck.TrinitePlugin
                         .Where(v => v.Item2 is not null).Select(v => new GroupeQuota(v.Item1, v.Item2.Value, v.Item3))];
                 }
 
-                return Actuel(new(Valeur("cinq"), Valeur("semaine")) { Groupes = groupes }, lu);
+                return Actuel(new(Valeur("cinq"), Valeur("semaine")) { Groupes = groupes,
+                    GroupeSelectionne = r.TryGetProperty("groupeSelectionne", out var selection) && selection.ValueKind == JsonValueKind.String
+                        && selection.GetString() is "gemini" or "claude-gpt" or "argon" ? selection.GetString() : null }, lu);
             }
             catch (Exception)
             {
@@ -237,7 +262,15 @@ namespace Loupedeck.TrinitePlugin
         // Texte de la page (« Gemini Models », « Five Hour Limit Remaining », « … refresh in 2 hours, 42 minutes. »,
         // « 34% »…) → chaque groupe de modèles, sa part utilisée et son heure de remise à zéro par fenêtre ; jauge : le
         // groupe le plus entamé de chaque fenêtre ; null si rien n'est lisible.
-        public static Quota Analyser(String texte)
+        public static String FamilleModele(String modele)
+        {
+            if (String.IsNullOrWhiteSpace(modele)) { return null; }
+            if (Regex.IsMatch(modele, @"\bGemini\s*(?:[0-9.]+\s*)?Argon\b", RegexOptions.IgnoreCase)) { return "argon"; }
+            if (Regex.IsMatch(modele, @"\bGemini(?:\b|[0-9])", RegexOptions.IgnoreCase)) { return "gemini"; }
+            return Regex.IsMatch(modele, @"\b(?:Claude|GPT|OpenAI)\b", RegexOptions.IgnoreCase) ? "claude-gpt" : null;
+        }
+
+        public static Quota Analyser(String texte, String modele = null)
         {
             var groupes = new System.Collections.Generic.List<GroupeQuota>();
             TimeSpan? delai = null;
@@ -246,6 +279,8 @@ namespace Loupedeck.TrinitePlugin
             var pourcentages = 0;
             var groupe = false;
             var argon = false;
+            var principal = false;
+            String famille = null;
             var premiereFenetre = true;
             Double? avantFenetre = null;
             var valeursAvant = 0;
@@ -255,7 +290,7 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (cinq is Boolean fenetre && restant is Double valeur)
                 {
-                    groupes.Add(new(fenetre, 1 - (valeur / 100), delai is TimeSpan attente ? maintenant + attente : null));
+                    groupes.Add(new(fenetre, 1 - (valeur / 100), delai is TimeSpan attente ? maintenant + attente : null, principal, famille));
                 }
                 cinq = null;
                 restant = null;
@@ -277,6 +312,8 @@ namespace Loupedeck.TrinitePlugin
                     Terminer();
                     groupe = true;
                     argon = ligne.EndsWith("Argon", StringComparison.OrdinalIgnoreCase);
+                    principal = !argon && Regex.IsMatch(ligne, @"^Gemini(?:\s*[0-9.]+)?\s*Models$", RegexOptions.IgnoreCase);
+                    famille = argon ? "argon" : principal ? "gemini" : "claude-gpt";
                     premiereFenetre = true;
                     avantFenetre = null;
                     valeursAvant = 0;
@@ -326,7 +363,7 @@ namespace Loupedeck.TrinitePlugin
             }
             Terminer();
 
-            return groupes.Count == 0 ? null : Actuel(new(null, null) { Groupes = groupes }, maintenant);
+            return groupes.Count == 0 ? null : Actuel(new(null, null) { Groupes = groupes, GroupeSelectionne = FamilleModele(modele) }, maintenant);
         }
     }
 }
