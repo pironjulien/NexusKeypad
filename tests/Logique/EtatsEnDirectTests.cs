@@ -11,6 +11,15 @@ public sealed class EtatsEnDirectTests
     private static JsonObject J(String s) => (JsonObject)JsonNode.Parse(s);
 
     [Fact]
+    public void Le_catalogue_actif_precede_un_ancien_catalogue_desactive()
+    {
+        var reglages = J("{\"enabledPlugins\":{\"nexus-keypad@nexus\":false,\"nexus-keypad@nexus-plugins\":true}}");
+        Vrai(EtatsEnDirect.PluginCompletDeclare(reglages) == EtatsEnDirect.PluginClaudePublic
+            && EtatsEnDirect.PluginComplet(reglages) == true && EtatsEnDirect.ClaudeAvecPad(reglages),
+            "The selected public identity owns activity; a disabled private declaration must not override it.");
+    }
+
+    [Fact]
     public void Hooks_du_pad_poses_et_retires_sans_toucher_aux_autres()
     {
         var autre = """{"type": "command", "command": "& share-session.ps1", "timeout": 30}""";

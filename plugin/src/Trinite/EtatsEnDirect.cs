@@ -227,9 +227,11 @@ namespace Loupedeck.TrinitePlugin
         // Les mêmes identités nomment le plugin nexus-keypad de Codex dans les catalogues Nexus (Connecteurs.CodexDoublons).
         public static readonly String[] IdentitesNexus = [PluginClaude, PluginClaudePublic];
 
-        // Identité du plugin complet déclarée dans les réglages (la privée d'abord), sinon null.
+        // The currently enabled identity owns the hooks. A disabled legacy declaration cannot outrank that choice.
+        // With no enabled identity, an explicit enable still uses the already declared catalog instead of adding one.
         public static String PluginCompletDeclare(JsonObject reglages) =>
-            IdentitesNexus.FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean _));
+            IdentitesNexus.FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean actif) && actif)
+                ?? IdentitesNexus.FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean _));
 
         public static Boolean? PluginComplet(JsonObject reglages) =>
             PluginCompletDeclare(reglages) is { } p && reglages["enabledPlugins"]![p] is JsonValue v && v.TryGetValue(out Boolean actif) ? actif : null;

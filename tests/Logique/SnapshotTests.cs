@@ -46,6 +46,14 @@ public sealed class SnapshotTests
         Vrai(quotaChoisi.GetProperty("selected_group").GetString() == "gemini", "Le diagnostic nomme la famille réellement sélectionnée.");
         Vrai(quotaChoisi.GetProperty("groups")[0].GetProperty("group").GetString() == "gemini"
             && quotaChoisi.GetProperty("groups")[0].GetProperty("principal").GetBoolean(), "Le diagnostic conserve les identités et marqueurs des groupes.");
+        using var enAttente = JsonDocument.Parse(Moteur.SnapshotJson(cache with { Connexions = [
+            new(EtatConnexion.EnCours, secret) { CodeAttente = "claude_plugin_install_pending" }, null, null] }, maintenant, maintenant));
+        var connexionEnAttente = enAttente.RootElement.GetProperty("agents")[0].GetProperty("connection");
+        Vrai(connexionEnAttente.GetProperty("state").GetString() == "EnCours"
+            && connexionEnAttente.GetProperty("pending_reason").GetString() == "claude_plugin_install_pending"
+            && connexionEnAttente.GetProperty("prepared_at").ValueKind == JsonValueKind.Null,
+            "Pending public plugin installation has a structured reason without a fabricated preparation date.");
+        Vrai(!enAttente.RootElement.GetRawText().Contains(secret), "Pending reason never exports free-form details.");
     }
 
     [Fact]

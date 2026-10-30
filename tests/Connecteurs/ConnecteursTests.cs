@@ -78,17 +78,61 @@ public sealed class ConnecteursTests
             File.WriteAllText(Path.Combine(maison, ".claude", "plugins", "installed_plugins.json"), new JsonObject { ["version"] = 2, ["plugins"] = new JsonObject {
                 [EtatsEnDirect.PluginClaudePublic] = new JsonArray(new JsonObject { ["scope"] = "user", ["installPath"] = installe }) } }.ToJsonString());
 
+            // A real catalog migration leaves an old disabled private plugin installed while the selected public one
+            // is still pending in Claude's manager. No fallback may reactivate the old identity or forge a ready receipt.
+            var prive = Path.Combine(maison, ".claude", "plugins", "cache", "nexus", "nexus-keypad", "2.1.4");
+            foreach (var fichier in Directory.EnumerateFiles(installe, "*", SearchOption.AllDirectories))
+            {
+                var cible = Path.Combine(prive, Path.GetRelativePath(installe, fichier));
+                Directory.CreateDirectory(Path.GetDirectoryName(cible));
+                File.Copy(fichier, cible);
+            }
+
+            var registre = Path.Combine(maison, ".claude", "plugins", "installed_plugins.json");
+            var installs = new JsonObject { ["version"] = 2, ["plugins"] = new JsonObject {
+                [EtatsEnDirect.PluginClaude] = new JsonArray(new JsonObject { ["scope"] = "user", ["installPath"] = prive }) } };
+            File.WriteAllText(registre, installs.ToJsonString());
+            File.WriteAllText(reglagesChemin, "{\"enabledPlugins\":{\"nexus-keypad@nexus\":false,\"third-party@other\":true}}");
+            Vrai(Connecteurs.Activer(0).Etat == EtatConnexion.Pret, "old private connector prepared before catalog migration");
+            var recuChemin = Path.Combine(local, "NexusKeypad", "connecteurs", "etats", "claude.json");
+            var recuAvant = File.ReadAllBytes(recuChemin);
+            var migration = "{\"unrelated\":42,\"enabledPlugins\":{\"nexus-keypad@nexus\":false,\"nexus-keypad@nexus-plugins\":true,\"third-party@other\":true}}\n";
+            File.WriteAllText(reglagesChemin, migration);
+            Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.EnCours, "public plugin absent from manager is pending, not the old private connector");
+            Vrai(Connecteurs.Activer(0).Etat == EtatConnexion.EnCours, "enable waits for selected public plugin instead of reactivating private copy");
+            Vrai(File.ReadAllText(reglagesChemin) == migration && File.ReadAllBytes(recuChemin).AsSpan().SequenceEqual(recuAvant),
+                "pending migration preserves every setting and previous receipt");
+            installs["plugins"]![EtatsEnDirect.PluginClaudePublic] = new JsonArray(new JsonObject { ["scope"] = "user", ["installPath"] = installe + "-pending" });
+            File.WriteAllText(registre, installs.ToJsonString());
+            Vrai(Connecteurs.Activer(0).Etat == EtatConnexion.EnCours, "manager entry without a completed cache still waits");
+            installs["plugins"]![EtatsEnDirect.PluginClaudePublic]![0]!["installPath"] = installe;
+            File.WriteAllText(registre, installs.ToJsonString());
+            var hooksPublics = Path.Combine(installe, "hooks", "hooks.json");
+            var hooksAvant = File.ReadAllBytes(hooksPublics);
+            File.Delete(hooksPublics);
+            Vrai(Connecteurs.Activer(0).Etat == EtatConnexion.EnCours && File.ReadAllText(reglagesChemin) == migration,
+                "an incomplete public cache stays pending without falling back to the complete private cache");
+            File.WriteAllBytes(hooksPublics, hooksAvant);
+            Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Reparer, "complete public cache still requires adopting its identity, not a fabricated receipt");
+
             var active = Connecteurs.Activer(0);
             Vrai(active.Etat == EtatConnexion.Pret, "public NexusSystem Claude plugin activated as the connector: " + active.Detail);
             var reglages = JsonNode.Parse(File.ReadAllText(reglagesChemin))!.AsObject();
             Vrai(reglages["enabledPlugins"]![EtatsEnDirect.PluginClaudePublic]!.GetValue<Boolean>()
+                && !reglages["enabledPlugins"]![EtatsEnDirect.PluginClaude]!.GetValue<Boolean>()
                 && reglages["enabledPlugins"]!["nexus-keypad@nexuskeypad"] is null && reglages["enabledPlugins"]!["third-party@other"]!.GetValue<Boolean>(),
                 "public NexusSystem identity enabled in place, no duplicate identity, third parties kept");
+            Vrai(File.ReadAllText(reglagesChemin) == migration, "adopting the installed public identity preserves settings byte for byte");
             Vrai(appels.Count == 0, "the official manager is not asked to install a competing plugin");
             Vrai(!EtatsEnDirect.ClaudeAvecPad(new JsonObject { ["hooks"] = reglages["hooks"]?.DeepClone() }), "no pad hooks set next to the plugin's own");
             var recu = JsonNode.Parse(File.ReadAllText(Path.Combine(local, "NexusKeypad", "connecteurs", "etats", "claude.json")))!;
             Vrai(recu["identity"]!.GetValue<String>() == EtatsEnDirect.PluginClaudePublic, "receipt names the public NexusSystem identity");
             Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Pret && Connecteurs.EvenementsActifs("claude"), "configuration read back as ready");
+            var doublon = migration.Replace("\"nexus-keypad@nexus\":false", "\"nexus-keypad@nexus\":true", StringComparison.Ordinal);
+            File.WriteAllText(reglagesChemin, doublon);
+            Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Reparer && Connecteurs.Activer(0).Etat == EtatConnexion.Erreur
+                && File.ReadAllText(reglagesChemin) == doublon, "ambiguous duplicate activation is refused without changing user choices");
+            File.WriteAllText(reglagesChemin, migration);
             Vrai(Connecteurs.Desactiver(0).Etat == EtatConnexion.Activer
                 && !JsonNode.Parse(File.ReadAllText(reglagesChemin))!["enabledPlugins"]![EtatsEnDirect.PluginClaudePublic]!.GetValue<Boolean>(),
                 "disabling turns the public NexusSystem plugin off");

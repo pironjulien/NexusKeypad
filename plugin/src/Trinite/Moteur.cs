@@ -261,6 +261,7 @@ namespace Loupedeck.TrinitePlugin
                             groups = quota.Groupes.Select(g => new { five_hour = g.Cinq, used = Nombre(g.Utilise), resets_at = g.Fin is DateTime fin ? Date(fin) : null,
                                 group = g.Groupe, principal = g.Principal }).ToArray() },
                         connection = connexion is null ? null : new { state = connexion.Etat.ToString(),
+                            pending_reason = connexion.CodeAttente,
                             prepared_at = connexion.PrepareLe is DateTime prepare ? Date(prepare) : null,
                             first_activity_event_observed = connexion.PremierEvenementObserve },
                     };

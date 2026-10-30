@@ -28,6 +28,7 @@ namespace Loupedeck.TrinitePlugin
         public DateTime? PrepareLe { get; init; }
         // null : non vérifié ; false : premier callback pas encore observé. La configuration prête ne l'invente pas.
         public Boolean? PremierEvenementObserve { get; init; }
+        public String CodeAttente { get; init; }
     }
 
     // Three host adapters, one installed keypad runtime. Merely loading the pad never changes an AI profile.
@@ -257,21 +258,28 @@ namespace Loupedeck.TrinitePlugin
             return Equals(a, b);
         }
 
-        // Complete NexusKeypad Claude plugin already declared and installed (private nexus catalog, or NexusSystem's public
-        // nexus-plugins catalog): its identity and install folder, or null.
-        private static (String Identite, String Dossier)? PluginClaudePrive(JsonObject reglages)
-        {
-            var installs = LireJson(Path.Combine(Claude, "plugins", "installed_plugins.json"))["plugins"] as JsonObject;
-            foreach (var identite in EtatsEnDirect.IdentitesNexus)
-            {
-                if ((reglages["enabledPlugins"] as JsonObject)?[identite] is null) { continue; }
-                var dossier = (installs?[identite] as JsonArray)?.OfType<JsonObject>().Select(x => x["installPath"]?.GetValue<String>())
-                    .FirstOrDefault(x => !String.IsNullOrEmpty(x));
-                if (dossier is not null) { return (identite, dossier); }
-            }
+        private static readonly String[] FichiersClaudeNexus = [".claude-plugin/plugin.json", "hooks/hooks.json", "skills/nexus-keypad/SKILL.md"];
 
-            return null;
+        // Preserve the selected catalog even while Claude's manager has not installed its cache. Falling back to a
+        // disabled legacy catalog would silently reverse a migration and enable two sets of hooks.
+        private static (String Identite, String Dossier)? PluginClaudeNexus(JsonObject reglages)
+        {
+            var actives = EtatsEnDirect.IdentitesNexus.Where(p => (reglages["enabledPlugins"] as JsonObject)?[p]?.GetValue<Boolean>() == true).ToArray();
+            if (actives.Length > 1) { throw new InvalidDataException("Plusieurs connecteurs NexusKeypad sont activés dans Claude ; conserver une seule identité."); }
+            var identite = EtatsEnDirect.PluginCompletDeclare(reglages);
+            if (identite is null) { return null; }
+            var installs = LireJson(Path.Combine(Claude, "plugins", "installed_plugins.json"))["plugins"] as JsonObject;
+            var dossier = (installs?[identite] as JsonArray)?.OfType<JsonObject>().Where(x => x["scope"]?.GetValue<String>() == "user")
+                .Select(x => x["installPath"]?.GetValue<String>()).FirstOrDefault(x => !String.IsNullOrEmpty(x));
+            return (identite, dossier);
         }
+
+        private static Boolean CacheClaudeComplet(String dossier) => !String.IsNullOrEmpty(dossier)
+            && FichiersClaudeNexus.All(f => File.Exists(Path.Combine(dossier, f)));
+
+        private static Connexion AttenteClaude(String identite) => new(EtatConnexion.EnCours,
+            $"{identite} est sélectionné ; son installation et son cache par Claude restent à terminer. Les autres identités restent inchangées.")
+            { CodeAttente = "claude_plugin_install_pending" };
 
         public static Connexion LireConfiguration(Int32 agent)
         {
@@ -281,7 +289,14 @@ namespace Loupedeck.TrinitePlugin
                 try
                 {
                     if (!Present(agent)) { return new(EtatConnexion.Absent, "Application absente de ce profil Windows."); }
+                    var selectionClaude = agent == 0 ? PluginClaudeNexus(LireJson(Path.Combine(Claude, "settings.json"))) : null;
+                    if (selectionClaude is { } selection && !CacheClaudeComplet(selection.Dossier)) { return AttenteClaude(selection.Identite); }
                     var recu = LireJson(Recu(agent));
+                    if (selectionClaude is { } configure && recu["active"]?.GetValue<Boolean>() == true
+                        && recu["identity"]?.GetValue<String>() != configure.Identite)
+                    {
+                        return new(EtatConnexion.Reparer, "Le plugin Claude sélectionné est installé ; son identité reste à adopter par le connecteur.");
+                    }
                     if (recu["pending"]?.GetValue<Boolean>() == true) { return new(EtatConnexion.Reparer, "L’installation officielle du connecteur Claude reste à terminer."); }
                     if (recu["active"]?.GetValue<Boolean>() != true) { return new(EtatConnexion.Activer, "Activer NexusKeypad pour cette IA."); }
                     if (recu["version"]?.GetValue<String>() != Version) { return new(EtatConnexion.Reparer, "Le connecteur doit être mis à jour."); }
@@ -742,7 +757,8 @@ namespace Loupedeck.TrinitePlugin
                         _ => Path.Combine(Gemini, "plugins", Nom),
                     };
                     var reglagesClaude = agent == 0 ? LireJson(Path.Combine(Claude, "settings.json")) : null;
-                    var complet = agent == 0 ? PluginClaudePrive(reglagesClaude) : null;
+                    var complet = agent == 0 ? PluginClaudeNexus(reglagesClaude) : null;
+                    if (actif && complet is { } selection && !CacheClaudeComplet(selection.Dossier)) { return AttenteClaude(selection.Identite); }
                     var prive = complet?.Dossier;
                     if (agent == 0 && actif && prive is null) { VerifierCatalogueClaude(); } // before any transaction write
                     if (actif && prive is null)
@@ -767,8 +783,8 @@ namespace Loupedeck.TrinitePlugin
                         identite = complet?.Identite ?? Nom + "@nexuskeypad";
                         if (actif && prive is not null)
                         {
-                            // Preserve the private plugin and its Relay UI; only enable its existing identity.
-                            foreach (var fichier in new[] { ".claude-plugin/plugin.json", "hooks/hooks.json", "skills/nexus-keypad/SKILL.md" })
+                            // Preserve the selected manager-installed plugin; never add another catalog or hooks.
+                            foreach (var fichier in FichiersClaudeNexus)
                             {
                                 var chemin = Path.Combine(prive, fichier);
                                 if (!File.Exists(chemin)) { throw new IOException("Le plugin privé Claude est incomplet."); }
@@ -881,7 +897,7 @@ namespace Loupedeck.TrinitePlugin
             var resultat = args[2] switch { "status" => LireConfiguration(agent), "enable" => Activer(agent), "disable" => Desactiver(agent), _ => null };
             if (resultat is null) { return 2; }
             Console.WriteLine(new JsonObject { ["agent"] = Agents[agent], ["state"] = resultat.Etat.ToString(), ["detail"] = resultat.Detail,
-                ["preparedAt"] = resultat.PrepareLe?.ToString("O", CultureInfo.InvariantCulture) }.ToJsonString());
+                ["preparedAt"] = resultat.PrepareLe?.ToString("O", CultureInfo.InvariantCulture), ["pendingReason"] = resultat.CodeAttente }.ToJsonString());
             return resultat.Etat is EtatConnexion.Erreur or EtatConnexion.Reparer ? 1 : 0;
         }
 

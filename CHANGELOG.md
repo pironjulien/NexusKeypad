@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.8] - 2026-10-30
+
+### Fixed
+- Claude's selected enabled catalog takes precedence over a disabled legacy catalog. Repair no longer reactivates the
+  private connector after a switch to the public NexusSystem catalog or enables duplicate hooks.
+- A selected plugin without its manager installation and complete cache reports pending, without changing settings
+  or issuing a ready receipt. Once Claude has installed it, explicit repair adopts that identity while preserving all
+  other choices; duplicate active identities are refused. The snapshot exposes a structured pending reason without
+  exporting free-form details or claiming that an activity event was observed.
+
 ## [1.8.7] - 2026-10-30
 
 ### Fixed
