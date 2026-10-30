@@ -9,7 +9,7 @@
 # are verified before extraction or execution; its build
 # provenance can be checked with `gh attestation verify <file> --repo pironjulien/NexusKeypad`), copies it into Logi
 # Options+'s plugin folder (%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad), where the Logi Plugin Service
-# loads it, then offers to place the 18 keys on the keypad's general profile (backed up first; Logi Options+ restarts
+# loads it, then offers to place the 18 keys on the keypad's general profile (backed up first; the plugin service restarts
 # for a few seconds). It then sets up the NexusKeypad connector of each AI app found (Claude, Codex, Antigravity: plugin and
 # hooks with the installed helper's real path); an unplugged character on the keypad sets one up again.
 # Run this installer again to update.
@@ -20,18 +20,26 @@
 # Logi Plugin Service data folder; the real service is then never stopped or started). A local package aimed at the real
 # Logi folder is refused (a test that lost its test folder must not install for real) unless -Real is given.
 [CmdletBinding()]
-param([switch]$Remove, [ValidateSet('ask', 'yes', 'no')] [string]$Keys = 'ask', [switch]$Real)
+param([switch]$Remove, [ValidateSet('ask', 'yes', 'no')] [string]$Keys = 'ask', [switch]$Real,
+    [ValidateSet('stop', 'start')] [string]$LogiService)
 
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell started by PowerShell 7 inherits Core module folders before its own standard modules.
+# Prefer this host's modules (Get-FileHash, Unblock-File), while retaining every user and third-party module path.
+if ($PSVersionTable.PSEdition -eq 'Desktop') {
+    $desktopModules = Join-Path $PSHOME 'Modules'
+    $env:PSModulePath = (@($desktopModules) + @($env:PSModulePath -split ';' | Where-Object {
+        $_ -and $_.TrimEnd('\') -ine $desktopModules.TrimEnd('\')
+    })) -join ';'
+}
 $ProgressPreference = 'SilentlyContinue'  # Invoke-WebRequest is many times slower with its progress bar
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 $Plugin = 'NexusKeypad'
 $Pack = $env:NEXUS_PACK -eq '1'
-$Sandbox = [bool]$env:NEXUS_KEYPAD_LOGI
+$Sandbox = -not $LogiService -and [bool]$env:NEXUS_KEYPAD_LOGI
 $Logi = if ($Sandbox) { $env:NEXUS_KEYPAD_LOGI } else { Join-Path $env:LOCALAPPDATA 'Logi\LogiPluginService' }
 $Target = Join-Path $Logi "Plugins\$Plugin"
-$Agent = Join-Path $env:ProgramFiles 'LogiOptionsPlus\logioptionsplus_agent.exe'
 $Results = [ordered]@{}
 # Same SPKI public keys as MiseAJour.Cles. No private key or newly installed runtime is needed.
 $ReleaseKeys = @('MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwSIk2pqKmyLcWfNgwY6uXVzS7qq6kj14BxckZIvSvE2R3tPqi4yITye4c8czlGrdEMYM1PrnIN8o3ba2APvbJQ==')
@@ -111,20 +119,81 @@ function Get-Profile {
     if (Test-Path -LiteralPath $file) { return $file } else { return $null }
 }
 
-function Stop-Logi {
-    if ($Sandbox) { return }
-    Get-Process LogiPluginService, LogiPluginServiceExt, logioptionsplus_agent -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Seconds 2
+function Get-LogiPluginRuntime {
+    $directory = Join-Path $env:ProgramFiles 'Logi\LogiPluginService'
+    $files = @('LogiPluginServiceTool.exe', 'LogiPluginService.exe', 'LogiPluginServiceExt.exe')
+    foreach ($file in $files) {
+        $path = Join-Path $directory $file
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Logi plugin service component is missing: $path. Installation refused." }
+        $signature = Get-AuthenticodeSignature -LiteralPath $path
+        if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch '(^|,\s*)O=Logitech Inc(,|$)') {
+            throw "Logi plugin service component has no valid Logitech signature: $path. Installation refused."
+        }
+    }
+    return [pscustomobject]@{ Directory = $directory; Tool = (Join-Path $directory $files[0]); Service = (Join-Path $directory $files[1]) }
 }
 
-function Start-Logi {
-    if ($Sandbox -or -not (Test-Path -LiteralPath $Agent)) { return }
-    # Always through WMI: started from an AI app, even with CREATE_BREAKAWAY_FROM_JOB the agent stayed tied to that app
-    # (MSIX package) and died with it (30/10). The WMI service creates it outside any job or package of the caller;
-    # no child fallback, which would tie it to the app again.
+function Get-LogiPluginProcesses($Runtime) {
+    $processes = @(Get-CimInstance Win32_Process -Filter "Name='LogiPluginService.exe' OR Name='LogiPluginServiceExt.exe'")
+    foreach ($process in $processes) {
+        $expected = Join-Path $Runtime.Directory $process.Name
+        if ($process.Name -notin 'LogiPluginService.exe', 'LogiPluginServiceExt.exe' -or $process.ExecutablePath -ine $expected) {
+            throw 'A process with a Logi plugin service name has an unexpected identity. Installation refused.'
+        }
+    }
+    return $processes
+}
+
+function Wait-LogiPluginService($Runtime, [bool]$Stopped, [int]$TimeoutSeconds = 30, [int[]]$PreviousProcessIds = @()) {
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $processes = @(Get-LogiPluginProcesses $Runtime)
+        if ($Stopped -and $processes.Count -eq 0) { return }
+        if (-not $Stopped -and @($processes | Where-Object Name -eq 'LogiPluginService.exe').Count -gt 0 -and
+            @($processes | Where-Object { $_.ProcessId -in $PreviousProcessIds }).Count -eq 0) { return }
+        if ([DateTime]::UtcNow -ge $deadline) { throw "Logi plugin service did not $(if ($Stopped) { 'stop' } else { 'start' }) in $TimeoutSeconds seconds. Installation refused." }
+        Start-Sleep -Milliseconds 100
+    } while ($true)
+}
+
+function Stop-Logi([int]$TimeoutSeconds = 30) {
+    if ($Sandbox) { return }
+    $runtime = Get-LogiPluginRuntime
+    $before = @(Get-LogiPluginProcesses $runtime)
+    if ($before.Count -eq 0) { return }
+    # The official control bus stops only the plugin service cooperatively. Never stop the keyboard/mouse agent.
+    $control = Start-Process -FilePath $runtime.Tool -ArgumentList 'stop' -WindowStyle Hidden -PassThru
+    $completed = $false
+    try {
+        $completed = $control.WaitForExit(30000)
+        if (-not $completed) { throw 'The official Logi stop command is still running; its outcome is unknown. Installation refused.' }
+        if ($control.ExitCode -ne 0) { throw 'The official Logi plugin service stop command failed. Installation refused.' }
+        Wait-LogiPluginService $runtime $true $TimeoutSeconds
+        $script:LogiStoppedProcessIds = @($before.ProcessId)
+    } catch {
+        $stopFailure = $_
+        # A completed command can fail after it stopped the service. Restore only a verified fully stopped runtime;
+        # never race an in-flight command or start another service beside a leftover extension process.
+        if ($completed) {
+            try { if (@(Get-LogiPluginProcesses $runtime).Count -eq 0) { Start-Logi } }
+            catch { Write-Warning "Cooperative recovery of the plugin service was refused: $($_.Exception.Message)" }
+        }
+        throw $stopFailure
+    } finally { $control.Dispose() }
+}
+
+function Start-Logi([int]$TimeoutSeconds = 30) {
+    if ($Sandbox) { return }
+    $runtime = Get-LogiPluginRuntime
+    $processes = @(Get-LogiPluginProcesses $runtime)
+    if (@($processes | Where-Object Name -eq 'LogiPluginService.exe').Count -gt 0) { return }
+    if ($processes.Count -gt 0) { throw 'A Logi extension is still running without its service. Refusing a concurrent restart.' }
+    # WMI + headless console: the official tool and its plugin service live outside the calling AI's job/MSIX package.
+    $console = Join-Path $env:SystemRoot 'System32\conhost.exe'
     $wmi = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
-        CommandLine = "`"$Agent`" /minimized"; CurrentDirectory = (Split-Path $Agent) }
-    if ($wmi.ReturnValue -ne 0) { Write-Warning "Logi Options+ could not be restarted (WMI code $($wmi.ReturnValue)); restart it from the Start menu." }
+        CommandLine = "`"$console`" --headless `"$($runtime.Tool)`" start"; CurrentDirectory = $runtime.Directory }
+    if ($wmi.ReturnValue -ne 0) { throw "Logi plugin service could not start independently (WMI code $($wmi.ReturnValue))." }
+    Wait-LogiPluginService $runtime $false $TimeoutSeconds $script:LogiStoppedProcessIds
 }
 
 function Set-Keys([string]$Hook, [switch]$Clear) {
@@ -188,11 +257,14 @@ function Install-NexusKeypad {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory($package, $unpacked)
         if (-not (Test-Path -LiteralPath (Join-Path $unpacked "bin\$($Plugin)Plugin.dll"))) { throw 'Not a NexusKeypad package.' }
-        # Mirror into the plugin folder: the Logi Plugin Service watches it and (re)loads the plugin by itself.
-        New-Item -ItemType Directory -Force -Path $Target | Out-Null
-        & robocopy.exe $unpacked $Target /MIR /NFL /NDL /NJH /NJS /NP /R:5 /W:1 | Out-Null
-        if ($LASTEXITCODE -ge 8) { throw "Copy to $Target failed (robocopy $LASTEXITCODE)." }
-        Get-ChildItem -LiteralPath $Target -Recurse -File | Unblock-File
+        # Stop before copying: a live reload of a partial package can quarantine the plugin. No keyboard/mouse agent stop.
+        Stop-Logi
+        try {
+            New-Item -ItemType Directory -Force -Path $Target | Out-Null
+            & robocopy.exe $unpacked $Target /MIR /NFL /NDL /NJH /NJS /NP /R:5 /W:1 | Out-Null
+            if ($LASTEXITCODE -ge 8) { throw "Copy to $Target failed (robocopy $LASTEXITCODE)." }
+            Get-ChildItem -LiteralPath $Target -Recurse -File | Unblock-File
+        } finally { Start-Logi }
         $Results['Plugin'] = 'installed'
         Say "NexusKeypad is in $Target." Green
     } finally {
@@ -204,7 +276,7 @@ function Install-NexusKeypad {
     if ($Pack) { $place = 'no' }
     if ($place -eq 'ask') {
         Say ''
-        $answer = Read-Host 'Place the 18 keys on the keypad now? Logi Options+ restarts for a few seconds and your current profile is backed up first (y/N)'
+        $answer = Read-Host 'Place the 18 keys on the keypad now? The plugin service restarts briefly and your current profile is backed up first (y/N)'
         if ($answer -match '^(y|yes|o|oui)$') { $place = 'yes' } else { $place = 'no' }
     }
     if ($place -eq 'yes') { $Results['Keys'] = Set-Keys $hook } else { $Results['Keys'] = 'guided' }
@@ -244,6 +316,11 @@ function Remove-NexusKeypad {
     }
     Say 'NexusKeypad removed. Your keypad profile backup, if any, stays next to it (ProfileInfo.before-nexuskeypad.json).' Green
     return 0
+}
+
+if ($LogiService) {
+    if ($LogiService -eq 'stop') { Stop-Logi } else { Start-Logi }
+    return
 }
 
 $code = 1

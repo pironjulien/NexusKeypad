@@ -11,7 +11,8 @@ $errors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($installer, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw "get.ps1 syntax errors: $($errors -join ', ')" }
 # Import only the tested functions; never dot-source the installer's top-level execution.
-foreach ($name in 'Test-ReleaseSignature', 'Get-VerifiedPackageHash', 'Set-Connectors', 'Install-NexusKeypad') {
+foreach ($name in 'Test-ReleaseSignature', 'Get-VerifiedPackageHash', 'Set-Connectors', 'Install-NexusKeypad',
+    'Get-LogiPluginRuntime', 'Get-LogiPluginProcesses', 'Wait-LogiPluginService', 'Stop-Logi', 'Start-Logi') {
     $definition = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) | Where-Object Name -eq $name)
     if ($definition.Count -ne 1) { throw "Expected exactly one function $name." }
     . ([scriptblock]::Create($definition[0].Extent.Text))

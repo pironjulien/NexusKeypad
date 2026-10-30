@@ -2,12 +2,11 @@
 // Le dossier en place part en sauvegarde, le nouveau prend sa place ; un échec remet la sauvegarde. L'état final va dans
 // ~/.nexus/status/keypad.json.
 // Le service Logi garde les DLL du plugin ouvertes et ne le décharge pas avant que son dossier change (27/10 : 20 essais
-// refusés, UnauthorizedAccess). Comme get.ps1 : si le dossier reste tenu, le service et l'agent Logi sont arrêtés le temps
-// de l'échange, puis l'agent est relancé détaché (hors de l'objet tâche de l'appelant), même en cas d'échec.
+// refusés, UnauthorizedAccess). Le get.ps1 du paquet signé arrête le seul service de plugins par son outil officiel,
+// avant tout échange, puis le relance détaché par WMI. L'agent clavier/souris n'est jamais arrêté.
 // Usage : nexuskeypad-hook swap <nouveau> <dossier du plugin> <sauvegarde> <fichier d'état> <version>
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -16,25 +15,21 @@ namespace NexusKeypad.Hook;
 
 public static partial class Echange
 {
-    // Processus à arrêter pour libérer le dossier, et ligne de commande de l'agent à relancer ensuite.
-    public sealed record Logi(string[] Processus, string? Agent);
+    public sealed record Logi(string Script);
 
-    // Le vrai service Logi, seulement pour le vrai dossier des plugins. Ailleurs (tests) : NEXUSKEYPAD_SWAP_PROCESSES
-    // (noms séparés de virgules) et NEXUSKEYPAD_SWAP_AGENT (ligne de commande), sinon rien n'est arrêté.
+    // Real plugins always use the controller from the verified package, copied beside this detached swap executable.
+    // A controller fixture is accepted only for a directory outside the real plugins root (isolated tests).
     public static Logi? LogiPour(string cible)
     {
         var plugins = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Logi", "LogiPluginService", "Plugins");
         var parent = Path.GetDirectoryName(Path.GetFullPath(cible).TrimEnd('\\', '/'));
         if (string.Equals(parent, Path.GetFullPath(plugins), StringComparison.OrdinalIgnoreCase))
         {
-            var agent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "LogiOptionsPlus", "logioptionsplus_agent.exe");
-            return new Logi(["LogiPluginService", "LogiPluginServiceExt", "logioptionsplus_agent"], File.Exists(agent) ? $"\"{agent}\" /minimized" : null);
+            return new Logi(Path.Combine(AppContext.BaseDirectory, "get.ps1"));
         }
 
-        var noms = Environment.GetEnvironmentVariable("NEXUSKEYPAD_SWAP_PROCESSES");
-        return string.IsNullOrWhiteSpace(noms)
-            ? null
-            : new Logi(noms.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), Environment.GetEnvironmentVariable("NEXUSKEYPAD_SWAP_AGENT"));
+        var script = Environment.GetEnvironmentVariable("NEXUSKEYPAD_SWAP_CONTROL_SCRIPT");
+        return String.IsNullOrWhiteSpace(script) ? null : new Logi(Path.GetFullPath(script));
     }
 
     public static int Executer(string nouveau, string cible, string ancien, string etat, string version, Logi? logi, int attenteMs = 1500)
@@ -45,24 +40,21 @@ public static partial class Echange
         var etape = "removing the previous backup";
         try
         {
+            if (logi is not null)
+            {
+                etape = "stopping Logi Plugin Service through its official control tool";
+                Controler(logi, "stop");
+                arrete = true;
+            }
+
+            etape = "removing the previous backup";
             if (Directory.Exists(ancien))
             {
                 Directory.Delete(ancien, true);
             }
 
             etape = "moving the installed plugin aside";
-            if (!Essayer(() => Directory.Move(cible, ancien), 4))
-            {
-                if (logi is not null)
-                {
-                    etape = "stopping Logi Plugin Service";
-                    Arreter(logi);
-                    arrete = true;
-                    etape = "moving the installed plugin aside";
-                }
-
-                Reessayer(() => Directory.Move(cible, ancien));
-            }
+            Reessayer(() => Directory.Move(cible, ancien));
 
             etape = "putting the new version in place";
             try
@@ -95,12 +87,13 @@ public static partial class Echange
         }
         finally
         {
-            if (arrete && logi!.Agent is { } agent)
+            if (arrete)
             {
-                if (!Lancer(agent))
+                try { Controler(logi!, "start"); }
+                catch (Exception)
                 {
                     resultat = 1;
-                    Ecrire(etat, Version(cible), version, "failed", "Logi could not be restarted independently after the plugin update attempt");
+                    Ecrire(etat, Version(cible), version, "failed", "Logi Plugin Service could not be restarted independently after the plugin update attempt");
                 }
             }
         }
@@ -133,47 +126,28 @@ public static partial class Echange
     [GeneratedRegex(@"(?m)^version:\s*(\S+)")]
     private static partial Regex VersionYaml();
 
-    private static void Arreter(Logi logi)
+    private static void Controler(Logi logi, String action)
     {
-        foreach (var nom in logi.Processus)
+        if (!File.Exists(logi.Script)) { throw new FileNotFoundException("The verified service controller is absent.", logi.Script); }
+        var info = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe"))
         {
-            foreach (var p in Process.GetProcessesByName(nom))
-            {
-                try
-                {
-                    p.Kill();
-                    p.WaitForExit(5000);
-                }
-                catch (Exception)
-                {
-                    // déjà parti, ou refusé : l'échange réessaie, et un échec remet l'ancienne version
-                }
-                finally
-                {
-                    p.Dispose();
-                }
-            }
-        }
-
-        Thread.Sleep(1000); // le temps que Windows rende les fichiers des processus arrêtés
-    }
-
-    private static bool Essayer(Action action, int essais)
-    {
-        for (var i = 0; i < essais; i++)
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
+        };
+        foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", logi.Script, "-LogiService", action })
         {
-            try
-            {
-                action();
-                return true;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Thread.Sleep(500);
-            }
+            info.ArgumentList.Add(argument);
         }
+        info.Environment.Remove("NEXUS_KEYPAD_LOGI");
+        info.Environment.Remove("NEXUS_KEYPAD_SOURCE");
 
-        return false;
+        using var client = Process.Start(info) ?? throw new IOException("The service controller did not start.");
+        var sortie = client.StandardOutput.ReadToEndAsync();
+        var erreur = client.StandardError.ReadToEndAsync();
+        // The controller already bounds its command and service waits. An unknown outcome never causes a kill/replay.
+        if (!client.WaitForExit(70000)) { throw new TimeoutException("The service controller did not confirm its result."); }
+        if (client.ExitCode != 0) { throw new IOException("The official service controller refused the action: " + erreur.GetAwaiter().GetResult()); }
+        sortie.GetAwaiter().GetResult();
     }
 
     // Un fichier encore tenu un instant (processus qui se termine) : quelques essais.
@@ -191,45 +165,6 @@ public static partial class Echange
                 Thread.Sleep(500);
             }
         }
-    }
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr CommandLineToArgvW(string ligne, out int nombre);
-
-    [DllImport("kernel32.dll")]
-    private static extern IntPtr LocalFree(IntPtr memoire);
-
-    // Comme relancer_logi.ps1 : toujours par WMI. Lancé depuis une IA, même avec CREATE_BREAKAWAY_FROM_JOB, l'agent
-    // restait lié à l'appli (paquet MSIX) et mourait avec elle (30/10). Le service WMI crée le vrai processus, hors de
-    // tout job et de tout paquet ; PowerShell n'est ici qu'un client temporaire, jamais le parent de Logi.
-    private static bool Lancer(string ligne)
-    {
-        string? dossier;
-        var arguments = CommandLineToArgvW(ligne, out var nombre);
-        if (arguments == IntPtr.Zero || nombre == 0) { return false; }
-        try { dossier = Path.GetDirectoryName(Marshal.PtrToStringUni(Marshal.ReadIntPtr(arguments))); }
-        finally { LocalFree(arguments); }
-        try
-        {
-            // A fixed, readable command (never -EncodedCommand, which antivirus heuristics flag); the values travel in
-            // environment variables, so nothing is ever quoted into the script.
-            const string commande = "$ErrorActionPreference='Stop'; $s=New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ShowWindow=[uint16]0}; "
-                + "$r=Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=$env:NEXUSKEYPAD_LIGNE;"
-                + "CurrentDirectory=$env:NEXUSKEYPAD_DOSSIER;ProcessStartupInformation=$s}; if($r.ReturnValue -ne 0){exit 1}";
-            var info = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
-                "WindowsPowerShell", "v1.0", "powershell.exe")) { UseShellExecute = false, CreateNoWindow = true };
-            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-Command", commande })
-            {
-                info.ArgumentList.Add(argument);
-            }
-
-            info.Environment["NEXUSKEYPAD_LIGNE"] = ligne;
-            info.Environment["NEXUSKEYPAD_DOSSIER"] = dossier ?? "";
-            using var client = Process.Start(info);
-            // Un délai ne déclenche aucun second lancement : le résultat reste inconnu et sera signalé en échec.
-            return client is not null && client.WaitForExit(10000) && client.ExitCode == 0;
-        }
-        catch (Exception) { return false; }
     }
 
     private static void Ecrire(string fichier, string? version, string derniere, string etat, string message)

@@ -21,7 +21,7 @@ namespace Loupedeck.TrinitePlugin
     // Cles ; la clé privée n'est jamais sur GitHub, un dépôt compromis ne peut donc pas pousser de mise à jour), déballé et
     // vérifié dans un dossier de travail hors du dossier des plugins. L'échange des
     // dossiers est fait par nexuskeypad-hook.exe, détaché (« swap ») : le service Logi garde les DLL du plugin ouvertes,
-    // l'échangeur l'arrête donc le temps de l'échange (comme get.ps1) puis relance l'agent Logi détaché ; le plugin ne peut
+    // l'échangeur utilise donc get.ps1 du paquet signé pour arrêter puis relancer le seul service de plugins ; le plugin ne peut
     // pas finir l'échange lui-même. Un échec remet l'ancien dossier. Jamais pendant un appui :
     // le pad doit être au repos. Réglage pour la couper : %LOCALAPPDATA%\NexusKeypad\reglages.json {"miseAJourAuto": false}.
     // État pour l'appli Nexus : ~/.nexus/status/keypad.json {product, version, latest, state, checked_at, message}.
@@ -295,6 +295,7 @@ namespace Loupedeck.TrinitePlugin
                     // L'échange est fait par l'exécutable détaché (le service décharge le plugin dès que son dossier change).
                     var echangeur = Path.Combine(Travail, "nexuskeypad-hook.exe");
                     File.Copy(Path.Combine(pret, "bin", "nexuskeypad-hook.exe"), echangeur, overwrite: true);
+                    File.Copy(Path.Combine(pret, "bin", "get.ps1"), Path.Combine(Travail, "get.ps1"), overwrite: true);
                     Ecrire(version, derniere, "updating", "installing");
                     UserApplication.Start(new ProcessStartInfo(echangeur)
                     {

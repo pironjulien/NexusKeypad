@@ -1,12 +1,11 @@
-using System.Diagnostics;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace NexusKeypad.Tests;
 
 // Update of the complete edition: the executable swaps the plugin's folder, detached from the plugin; a failure puts the
-// old one back. Temporary folders only (never the real plugins folder nor the real Logi service: outside the real folder,
-// only the processes named by NEXUSKEYPAD_SWAP_PROCESSES are stopped). One class per case: the failure paths wait for the
+// old one back. Temporary folders and controller scripts only (never the real plugins folder nor real Logi service).
+// One class per case: the failure paths wait for the
 // swap's own retries, so the cases run in parallel.
 public abstract class EchangeTests : IDisposable
 {
@@ -51,7 +50,7 @@ public abstract class EchangeTests : IDisposable
         }
 
         var etat = Path.Combine(this._d, "status", "keypad.json");
-        var environnement = new Dictionary<String, String?> { ["NEXUSKEYPAD_SWAP_PROCESSES"] = "", ["NEXUSKEYPAD_SWAP_AGENT"] = "" };
+        var environnement = new Dictionary<String, String?> { ["NEXUSKEYPAD_SWAP_CONTROL_SCRIPT"] = "" };
         foreach (var (cle, valeur) in env ?? [])
         {
             environnement[cle] = valeur;
@@ -121,85 +120,59 @@ public sealed class EchangeDossierTenuTests : EchangeTests
 
 public sealed class EchangeServiceArreteTests : EchangeTests
 {
-    [Fact]
-    public void Dossier_tenu_service_arrete_puis_agent_relance()
+    [Theory]
+    [InlineData("success")]
+    [InlineData("stop-failed")]
+    [InlineData("start-failed")]
+    [InlineData("rollback")]
+    [InlineData("missing-controller")]
+    public void Controleur_verifie_avant_permutation_et_relance_apres(String scenario)
     {
-        // The Logi service holds the folder: it is stopped for the swap, then the agent restarted detached. Here a fake service
-        // (a copy of cmd.exe, current folder in the plugin) and a fake agent that leaves a trace.
-        var faux = Path.Combine(this._d, "outils", "fauxlogi.exe");
-        Directory.CreateDirectory(Path.GetDirectoryName(faux)!);
-        File.Copy(Path.Combine(Environment.GetEnvironmentVariable("SystemRoot")!, "System32", "cmd.exe"), faux);
-        var trace = Path.Combine(this._d, "relance.txt");
-        Process? service = null;
-        try
+        // A controller fixture for an isolated plugin folder. It never accesses a process, real service or input device.
+        // Its stop command checks that the old plugin is still in place; its start checks the final/rolled-back version.
+        var script = Path.Combine(this._d, "control.ps1");
+        File.WriteAllText(script, """
+            param([string]$LogiService)
+            $ErrorActionPreference = 'Stop'
+            $target = Join-Path $PSScriptRoot 'Plugins\NexusKeypad\metadata\LoupedeckPackage.yaml'
+            $version = [regex]::Match([IO.File]::ReadAllText($target), '(?m)^version:\s*(\S+)').Groups[1].Value
+            $case = $env:NEXUSKEYPAD_TEST_CONTROL_CASE
+            if ($LogiService -eq 'stop' -and $version -ne '1.3.0') { throw 'The target changed before service stop.' }
+            if ($LogiService -eq 'start' -and $version -ne $(if ($case -eq 'rollback') { '1.3.0' } else { '1.3.1' })) { throw 'The service restarted before the final plugin was in place.' }
+            [IO.File]::AppendAllText((Join-Path $PSScriptRoot 'control.log'), $LogiService + "`n")
+            if (($case -eq 'stop-failed' -and $LogiService -eq 'stop') -or ($case -eq 'start-failed' -and $LogiService -eq 'start')) { exit 1 }
+            """);
+        var controleur = scenario == "missing-controller" ? Path.Combine(this._d, "absent.ps1") : script;
+        var env = new Dictionary<String, String?>
         {
-            IDisposable? Tenir(String cible)
-            {
-                service = Process.Start(new ProcessStartInfo(faux, "/k")
-                {
-                    WorkingDirectory = cible, UseShellExecute = false, CreateNoWindow = true,
-                    RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
-                });
-                Thread.Sleep(500);
-                return null;
-            }
-
-            var env = new Dictionary<String, String?>
-            {
-                ["NEXUSKEYPAD_SWAP_PROCESSES"] = "fauxlogi", ["NEXUSKEYPAD_SWAP_AGENT"] = $"\"{faux}\" /c echo relance>\"{trace}\"",
-            };
-            var (code, cible, _, etat) = this.Echanger(tenir: Tenir, env: env);
+            ["NEXUSKEYPAD_SWAP_CONTROL_SCRIPT"] = controleur, ["NEXUSKEYPAD_TEST_CONTROL_CASE"] = scenario,
+        };
+        var (code, cible, _, etat) = this.Echanger(nouveauPresent: scenario != "rollback", env: env);
+        var trace = Path.Combine(this._d, "control.log");
+        var commandes = File.Exists(trace) ? File.ReadAllLines(trace) : [];
+        if (scenario == "success")
+        {
             Assert.True(code == 0, etat.ToJsonString());
             Assert.Equal("1.3.1", Version(cible));
-            Assert.Equal(("done", "1.3.1"), (S(etat, "state"), S(etat, "version")));
-            Assert.True(service!.HasExited, "faux service arrêté");
-            for (var i = 0; i < 50 && !File.Exists(trace); i++)
-            {
-                Thread.Sleep(100);
-            }
-
-            Assert.True(File.Exists(trace), "faux agent relancé");
+            Assert.Equal(new[] { "stop", "start" }, commandes);
+            Assert.Equal("done", S(etat, "state"));
         }
-        finally
+        else
         {
-            if (service is { HasExited: false })
-            {
-                service.Kill();
-            }
-
-            service?.WaitForExit();
-            service?.Dispose();
-            // The fake agent, restarted detached, writes its trace before ending: while it runs, fauxlogi.exe cannot be
-            // deleted, nor the temporary folder (intermittent failure, 27/10). Waited for, otherwise stopped.
-            AttendreFin(faux);
+            Assert.Equal(1, code);
+            Assert.Equal(scenario == "start-failed" ? "1.3.1" : "1.3.0", Version(cible));
+            Assert.Equal("failed", S(etat, "state"));
+            String[] attendues = scenario == "missing-controller" ? [] : scenario == "stop-failed" ? ["stop"] : ["stop", "start"];
+            Assert.Equal(attendues, commandes);
         }
     }
 
-    // Only the processes started from our own fake executable (exact path), never another fauxlogi.exe.
-    private static void AttendreFin(String chemin, Int32 secondes = 10)
+    [Fact]
+    public void Le_vrai_dossier_utilise_le_controleur_du_paquet()
     {
-        Process[] Presents() => Process.GetProcessesByName(Path.GetFileNameWithoutExtension(chemin)).Where(p =>
-        {
-            try
-            {
-                return String.Equals(p.MainModule?.FileName, chemin, StringComparison.OrdinalIgnoreCase);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }).ToArray();
-
-        var fin = Stopwatch.StartNew();
-        while (Presents().Length > 0 && fin.Elapsed.TotalSeconds < secondes)
-        {
-            Thread.Sleep(100);
-        }
-
-        foreach (var p in Presents())
-        {
-            p.Kill();
-            p.WaitForExit(5000);
-        }
+        var cible = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Logi", "LogiPluginService", "Plugins", "NexusKeypad");
+        var logi = NexusKeypad.Hook.Echange.LogiPour(cible);
+        Assert.NotNull(logi);
+        Assert.Equal(Path.Combine(AppContext.BaseDirectory, "get.ps1"), logi.Script);
     }
 }

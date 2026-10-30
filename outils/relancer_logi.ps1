@@ -1,21 +1,17 @@
-# Relance l'agent Logi Options+ (pad Trinité et raccourcis du clavier Logitech), détaché de l'appli qui lance ce script.
+# Relance uniquement le service de plugins Logi par son outil officiel, sans arrêter l'agent clavier/souris.
 #
-# Pourquoi WMI : lancé depuis une session de Claude, l'agent appartient à l'appli Claude (objet tâche et paquet MSIX)
+# Pourquoi WMI : lancé depuis une session de Claude, un processus enfant appartient à l'appli Claude (objet tâche et paquet MSIX)
 # et meurt avec elle (23/10, puis 30/10 malgré CREATE_BREAKAWAY_FROM_JOB : pad noir au redémarrage de Claude).
-# Win32_Process.Create fait créer le processus par le service WMI, hors de tout job et de tout paquet de l'appelant.
+# get.ps1 fait créer le service de plugins par WMI, hors de tout job et de tout paquet de l'appelant.
 # Le plugin est installé en paquet (Plugins\NexusKeypad) : il se charge quel que soit le lanceur.
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'
-$agent = 'C:\Program Files\LogiOptionsPlus\logioptionsplus_agent.exe'
-
-Get-Process LogiPluginService, LogiPluginServiceExt, logioptionsplus_agent -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Seconds 2
+$installeur = Join-Path (Split-Path $PSScriptRoot) 'get.ps1'
+& $installeur -LogiService stop
 $debut = Get-Date
-$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
-    CommandLine = "`"$agent`" /minimized"; CurrentDirectory = (Split-Path $agent) }
-if ($r.ReturnValue -ne 0) { throw "Relance de Logi par WMI refusée (code $($r.ReturnValue))." }
-Write-Host "Agent Logi relancé par WMI (pid $($r.ProcessId)), indépendant de l'appli lanceuse."
+& $installeur -LogiService start
+Write-Host 'Service de plugins Logi relancé par son outil officiel, détaché par WMI ; agent clavier/souris préservé.'
 
 $journal = Join-Path $env:LOCALAPPDATA 'Logi\LogiPluginService\Logs\plugin_logs\NexusKeypad.log'
 for ($i = 0; $i -lt 30; $i++) {
@@ -25,5 +21,5 @@ for ($i = 0; $i -lt 30; $i++) {
         exit 0
     }
 }
-Write-Warning 'Plugin du pad pas chargé en 60 s (raccourcis du clavier rétablis, pad sur le logo Logi).'
+Write-Warning 'Plugin du pad pas chargé en 60 s ; agent clavier/souris inchangé.'
 exit 1

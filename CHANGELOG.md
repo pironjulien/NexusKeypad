@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.5] - 2026-10-30
+
+### Fixed
+- The installer started in Windows PowerShell 5.1 by PowerShell 7 prefers its own standard modules. `Get-FileHash`
+  and `Unblock-File` no longer fail on inherited Core-only modules. User and third-party module paths are retained.
+  An isolated regression runs the real installer preamble with Core modules first, verifies the checksum and download
+  marker removal, and checks module precedence without installing or touching the pad.
+- Installation, the restart helper and automatic updates share one service controller: Logitech's signed official
+  tool cooperatively stops only the plugin service before files change, and WMI starts it in a headless console.
+  The keyboard/mouse agent is never stopped. Missing components, wrong signatures or process paths, refused commands
+  and unconfirmed stops refuse the copy; there is no process-kill fallback. A completed stop that fails after stopping
+  recovers the verified service while preserving the error; an in-flight command never triggers a concurrent restart.
+- Source installation refreshes the shared connector helper even when its previous receipt still reports ready.
+  The signed update package carries its service controller beside the native updater, so every update uses the same
+  signature, identity and bounded-wait checks.
+
 ## [1.8.4] - 2026-10-30
 
 ### Fixed
