@@ -128,6 +128,21 @@ public sealed class ConnecteursTests
             var recu = JsonNode.Parse(File.ReadAllText(Path.Combine(local, "NexusKeypad", "connecteurs", "etats", "claude.json")))!;
             Vrai(recu["identity"]!.GetValue<String>() == EtatsEnDirect.PluginClaudePublic, "receipt names the public NexusSystem identity");
             Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Pret && Connecteurs.EvenementsActifs("claude"), "configuration read back as ready");
+            var nouveauCache = Path.Combine(Path.GetDirectoryName(installe), "2.3.0");
+            foreach (var fichier in Directory.EnumerateFiles(installe, "*", SearchOption.AllDirectories))
+            {
+                var cible = Path.Combine(nouveauCache, Path.GetRelativePath(installe, fichier));
+                Directory.CreateDirectory(Path.GetDirectoryName(cible));
+                File.Copy(fichier, cible);
+            }
+            installs["plugins"]![EtatsEnDirect.PluginClaudePublic]![0]!["installPath"] = nouveauCache;
+            File.WriteAllText(registre, installs.ToJsonString());
+            Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Reparer, "same identity with a new manager-selected cache never attests the still-present old cache");
+            Vrai(Connecteurs.Activer(0).Etat == EtatConnexion.Pret && File.ReadAllText(reglagesChemin) == migration,
+                "explicit repair adopts the current manager cache without changing catalog choices");
+            var fichiersAdoptes = JsonNode.Parse(File.ReadAllText(recuChemin))!["files"]!.AsObject();
+            Vrai(fichiersAdoptes.ContainsKey(Path.Combine(nouveauCache, "hooks/hooks.json"))
+                && !fichiersAdoptes.ContainsKey(Path.Combine(installe, "hooks/hooks.json")), "receipt attests the actual selected cache only");
             var doublon = migration.Replace("\"nexus-keypad@nexus\":false", "\"nexus-keypad@nexus\":true", StringComparison.Ordinal);
             File.WriteAllText(reglagesChemin, doublon);
             Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Reparer && Connecteurs.Activer(0).Etat == EtatConnexion.Erreur

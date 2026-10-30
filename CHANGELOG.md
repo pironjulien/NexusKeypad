@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   or issuing a ready receipt. Once Claude has installed it, explicit repair adopts that identity while preserving all
   other choices; duplicate active identities are refused. The snapshot exposes a structured pending reason without
   exporting free-form details or claiming that an activity event was observed.
+- Claude receipts attest the cache currently selected by its plugin manager. A versioned cache switch requires
+  explicit adoption even if the previous complete cache remains on disk under the same plugin identity.
 
 ## [1.8.7] - 2026-10-30
 

@@ -293,9 +293,10 @@ namespace Loupedeck.TrinitePlugin
                     if (selectionClaude is { } selection && !CacheClaudeComplet(selection.Dossier)) { return AttenteClaude(selection.Identite); }
                     var recu = LireJson(Recu(agent));
                     if (selectionClaude is { } configure && recu["active"]?.GetValue<Boolean>() == true
-                        && recu["identity"]?.GetValue<String>() != configure.Identite)
+                        && (recu["identity"]?.GetValue<String>() != configure.Identite || recu["files"] is not JsonObject declares
+                            || !FichiersClaudeNexus.All(f => declares.ContainsKey(Path.Combine(configure.Dossier, f)))))
                     {
-                        return new(EtatConnexion.Reparer, "Le plugin Claude sélectionné est installé ; son identité reste à adopter par le connecteur.");
+                        return new(EtatConnexion.Reparer, "Le plugin Claude sélectionné est installé ; son identité et son cache actuels restent à adopter par le connecteur.");
                     }
                     if (recu["pending"]?.GetValue<Boolean>() == true) { return new(EtatConnexion.Reparer, "L’installation officielle du connecteur Claude reste à terminer."); }
                     if (recu["active"]?.GetValue<Boolean>() != true) { return new(EtatConnexion.Activer, "Activer NexusKeypad pour cette IA."); }
