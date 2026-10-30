@@ -16,11 +16,11 @@ $env:PYTHONDONTWRITEBYTECODE = '1'
 
 # Plugin nexus-keypad (privé, catalogue nexus de NexusClaude) : son module de quota est la copie à l'identique du mod
 # public claude-quota\nexuskeypad-quota (un seul code pour le quota, deux paquets).
-$quotaPrive = Join-Path $PSScriptRoot 'nexus-keypad\hooks\quota.ts'
+$quotaPrive = Join-Path $PSScriptRoot '..\NexusClaude\plugins\nexus-keypad\hooks\quota.ts'
 if (Test-Path $quotaPrive) {
     $quotaPublic = Join-Path $PSScriptRoot 'claude-quota\nexuskeypad-quota\hooks\register.ts'
     if (([IO.File]::ReadAllText($quotaPrive) -replace "`r`n", "`n") -cne ([IO.File]::ReadAllText($quotaPublic) -replace "`r`n", "`n")) {
-        throw 'nexus-keypad\hooks\quota.ts diffère de claude-quota\nexuskeypad-quota\hooks\register.ts : recopier.'
+        throw 'NexusClaude\plugins\nexus-keypad\hooks\quota.ts diffère de claude-quota\nexuskeypad-quota\hooks\register.ts : recopier.'
     }
 }
 
