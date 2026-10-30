@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-30
+
 ### Changed
 - Shared log in `%USERPROFILE%\.nexus\journal\keypad` instead of AppData, like every Nexus product: an MSIX app
   (Claude Desktop) redirects its AppData writes into a private copy other tools cannot see.
