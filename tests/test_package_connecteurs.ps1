@@ -114,8 +114,18 @@ Console.WriteLine("{\"outcome\":\"ok\"}");
             Assert ($path.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) 'Receipt unexpectedly points outside the isolated root.'
             Assert ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ceq $property.Value) "Package file hash differs for $agent."
         }
+        $runtimeFile = Join-Path $local 'NexusKeypad\connecteurs\etats\runtime.json'
+        $runtimeBefore = [IO.File]::ReadAllText($runtimeFile)
+        $runtime = $runtimeBefore | ConvertFrom-Json
+        Assert ($receipt.sharedRuntime -and $runtime.version -eq $version) "Shared runtime receipt differs for $agent."
+        foreach ($property in $runtime.files.PSObject.Properties) {
+            $path = [IO.Path]::GetFullPath($property.Name)
+            Assert ($path.StartsWith((Join-Path $local 'NexusKeypad\hook\'), [StringComparison]::OrdinalIgnoreCase)) 'Shared receipt points outside the installed helper.'
+            Assert ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ceq $property.Value) "Shared runtime hash differs for $agent."
+        }
         Assert ((InvokeConnector $agent 'enable').state -eq 'Pret') "Idempotent setup failed for $agent."
         Assert ([IO.File]::ReadAllText($receiptFile) -ceq $receiptBefore) "Idempotent setup changed receipt/evidence for $agent."
+        Assert ([IO.File]::ReadAllText($runtimeFile) -ceq $runtimeBefore) "Idempotent setup changed the shared runtime receipt for $agent."
         Assert ((InvokeConnector $agent 'disable').state -eq 'Activer') "Disable failed for $agent."
         Assert ((InvokeConnector $agent 'status').state -eq 'Activer') "Host disablement is ignored for $agent."
         Assert ((InvokeConnector $agent 'enable').state -eq 'Pret') "Re-enable failed for $agent."

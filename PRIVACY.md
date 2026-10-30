@@ -50,7 +50,8 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
   hooks and activation setting. The shared native helper is copied to
   `%LOCALAPPDATA%\NexusKeypad\hook\nexuskeypad-hook.exe`, with bundled connector templates and Claude's usage module
   beside it. Activation receipts in `%LOCALAPPDATA%\NexusKeypad\connecteurs\etats\<agent>.json` record the plugin
-  identity, activation, setup time and local file paths/hashes used to verify that installation.
+  identity, activation, setup time and local file paths/hashes used to verify that AI's installed plugin. A single
+  `runtime.json` receipt in the same folder verifies the shared helper, templates and usage module.
 - **Claude connector**: its local marketplace and plugin are under
   `%LOCALAPPDATA%\NexusKeypad\connecteurs\claude`; the official plugin manager bundled with Claude Desktop registers
   and installs `nexus-keypad@nexuskeypad`, with its declaration and activation in `~/.claude/settings.json`.

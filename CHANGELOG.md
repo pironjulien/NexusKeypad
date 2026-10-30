@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-10-30
+
+### Fixed
+- Repairing or updating one AI connector no longer marks the other two as needing repair. The shared native helper,
+  bundled templates and quota module have one runtime receipt; each AI keeps its own plugin receipt and setup time.
+  Existing receipts migrate without rewriting another connector's activation. Missing or changed shared files still
+  invalidate every affected connector, while damage to an individual plugin remains visible after a shared repair.
+
 ## [1.8.2] - 2026-10-30
 
 ### Fixed

@@ -279,6 +279,49 @@ public sealed class ConnecteursTests
             Vrai(repare.PrepareLe > anciennePreparation, "repair never reuses prior setup evidence " + agent);
         }
 
+        var recuCommun = Path.Combine(local, "NexusKeypad", "connecteurs", "etats", "runtime.json");
+        var partageAvant = JsonNode.Parse(File.ReadAllText(recuCommun))["files"].AsObject();
+        // Existing installs have the runtime hashes embedded in each connector's receipt. Migration must leave the
+        // other two receipts byte-for-byte intact while taking over their shared hashes.
+        for (var agent = 0; agent < 3; agent++)
+        {
+            var ancien = JsonNode.Parse(File.ReadAllText(Recu(agent))).AsObject();
+            ancien.Remove("sharedRuntime");
+            foreach (var fichier in partageAvant) { ancien["files"][fichier.Key] = fichier.Value.DeepClone(); }
+            File.WriteAllText(Recu(agent), ancien.ToJsonString() + "\n");
+        }
+
+        File.Delete(recuCommun);
+        Vrai(Enumerable.Range(0, 3).All(a => Connecteurs.LireConfiguration(a).Etat == EtatConnexion.Pret), "legacy receipts still verify their complete installation before migration");
+
+        // One helper serves all three connectors. Updating it through any connector must not invalidate the other
+        // two receipts; their own installed plugin files and setup evidence stay independent.
+        for (var agent = 0; agent < 3; agent++)
+        {
+            var autres = Enumerable.Range(0, 3).Where(a => a != agent).ToDictionary(a => a, a => File.ReadAllBytes(Recu(a)));
+            File.WriteAllText(executable, "updated shared helper fixture " + agent);
+            Vrai(Connecteurs.Activer(agent).Etat == EtatConnexion.Pret, "update shared helper through connector " + agent);
+            foreach (var autre in autres)
+            {
+                Vrai(Connecteurs.LireConfiguration(autre.Key).Etat == EtatConnexion.Pret, "shared helper update preserves other connector " + autre.Key);
+                Vrai(File.ReadAllBytes(Recu(autre.Key)).AsSpan().SequenceEqual(autre.Value), "shared update never rewrites another connector receipt " + autre.Key);
+            }
+        }
+
+        var communInstalle = Path.Combine(local, "NexusKeypad", "hook", "nexuskeypad-hook.exe");
+        File.AppendAllText(communInstalle, "damaged runtime");
+        Vrai(Enumerable.Range(0, 3).All(a => Connecteurs.LireConfiguration(a).Etat == EtatConnexion.Reparer), "shared helper tampering invalidates every connector");
+        var guideCodexInstalle = Path.Combine(maison, ".codex", "plugins", "nexus-keypad", "skills", "nexus-keypad", "SKILL.md");
+        File.AppendAllText(guideCodexInstalle, "damaged connector");
+        Vrai(Connecteurs.Activer(2).Etat == EtatConnexion.Pret && Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Pret,
+            "repairing one connector restores the shared runtime for the others");
+        Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer, "shared repair never hides damage in another connector's own plugin");
+        Vrai(Connecteurs.Activer(1).Etat == EtatConnexion.Pret, "damaged own plugin repaired separately");
+        var runtimeAvant = File.ReadAllBytes(recuCommun);
+        File.Delete(recuCommun);
+        Vrai(Enumerable.Range(0, 3).All(a => Connecteurs.LireConfiguration(a).Etat == EtatConnexion.Reparer), "new receipts require the shared runtime attestation");
+        File.WriteAllBytes(recuCommun, runtimeAvant);
+
         // A changed package must start a fresh observation interval even while the previous installed copy is valid.
         var guidePaquet = Path.Combine(paquet, "connecteurs", "codex", "skills", "nexus-keypad", "SKILL.md");
         var guideOriginal = File.ReadAllBytes(guidePaquet);

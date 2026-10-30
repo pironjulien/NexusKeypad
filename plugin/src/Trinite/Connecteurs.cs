@@ -53,6 +53,7 @@ namespace Loupedeck.TrinitePlugin
         private static String Claude => _maison is null && Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") is { Length: > 0 } d
             ? d : Path.Combine(Maison, ".claude");
         private static String Recu(Int32 agent) => Path.Combine(Racine, "etats", Agents[agent] + ".json");
+        private static String RecuCommun => Path.Combine(Racine, "etats", "runtime.json");
 
         public static void Initialiser(String exePaquet) => _exePaquet = Path.GetFullPath(exePaquet);
 
@@ -85,6 +86,19 @@ namespace Loupedeck.TrinitePlugin
         private static String Json(JsonObject objet) => objet.ToJsonString() + "\n";
         private static String Empreinte(Byte[] contenu) => Convert.ToHexString(SHA256.HashData(contenu));
         private static Byte[] Utf8(String contenu) => new UTF8Encoding(false).GetBytes(contenu);
+
+        private static Boolean FichierCommun(String chemin)
+        {
+            var complet = Path.GetFullPath(chemin);
+            var dossier = Path.GetDirectoryName(Executable);
+            return MemeChemin(complet, Executable)
+                || complet.StartsWith(Path.Combine(dossier, "connecteurs") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || MemeChemin(complet, Path.Combine(dossier, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"));
+        }
+
+        private static Boolean FichiersConformes(JsonObject fichiers, Boolean communs = false) => fichiers.All(fichier =>
+            Autorise(fichier.Key) && (!communs || FichierCommun(fichier.Key)) && File.Exists(fichier.Key)
+                && Empreinte(File.ReadAllBytes(fichier.Key)) == fichier.Value?.GetValue<String>());
 
         private static Boolean Present(Int32 agent) => Directory.Exists(agent switch { 0 => Claude, 1 => Codex, _ => Gemini });
 
@@ -272,13 +286,33 @@ namespace Loupedeck.TrinitePlugin
                     if (recu["active"]?.GetValue<Boolean>() != true) { return new(EtatConnexion.Activer, "Activer NexusKeypad pour cette IA."); }
                     if (recu["version"]?.GetValue<String>() != Version) { return new(EtatConnexion.Reparer, "Le connecteur doit être mis à jour."); }
                     if (recu["files"] is not JsonObject fichiers || fichiers.Count < 2) { return new(EtatConnexion.Reparer, "Installation incomplète."); }
-                    foreach (var fichier in fichiers)
+                    var runtimeCommun = File.Exists(RecuCommun);
+                    if (runtimeCommun)
                     {
-                        if (!Autorise(fichier.Key) || !File.Exists(fichier.Key)
-                            || Empreinte(File.ReadAllBytes(fichier.Key)) != fichier.Value?.GetValue<String>())
+                        var runtime = LireJson(RecuCommun);
+                        if (runtime["version"]?.GetValue<String>() != Version || runtime["files"] is not JsonObject partages
+                            || !partages.ContainsKey(Executable) || !FichiersConformes(partages, communs: true))
                         {
-                            return new(EtatConnexion.Reparer, "Un fichier du connecteur manque ou a changé.");
+                            return new(EtatConnexion.Reparer, "Un fichier du programme commun manque ou a changé.");
                         }
+                    }
+
+                    if (recu["sharedRuntime"]?.GetValue<Boolean>() == true && !runtimeCommun)
+                    {
+                        return new(EtatConnexion.Reparer, "Le programme commun ne peut pas être vérifié.");
+                    }
+
+                    // Legacy receipts include the same shared files three times. A verified runtime receipt owns
+                    // those hashes now; each connector keeps attesting its own installed plugin without rewriting it.
+                    var propres = new JsonObject();
+                    foreach (var fichier in fichiers.Where(f => !runtimeCommun || !FichierCommun(f.Key)))
+                    {
+                        propres[fichier.Key] = fichier.Value?.DeepClone();
+                    }
+
+                    if (propres.Count < 2 || !FichiersConformes(propres))
+                    {
+                        return new(EtatConnexion.Reparer, "Un fichier du connecteur manque ou a changé.");
                     }
 
                     var actif = agent switch
@@ -678,7 +712,14 @@ namespace Loupedeck.TrinitePlugin
 
                     if (actif)
                     {
-                        Fichier(Executable, File.ReadAllBytes(_exePaquet));
+                        var communs = new JsonObject();
+                        void Commun(String chemin, Byte[] contenu)
+                        {
+                            transaction.Poser(chemin, contenu);
+                            communs[chemin] = Empreinte(contenu);
+                        }
+
+                        Commun(Executable, File.ReadAllBytes(_exePaquet));
                         // The installed diagnostic command can repair/enable itself later without a source checkout or
                         // a running Logitech process. The same small packages travel next to its stable executable.
                         if (!Directory.Exists(Source)) { throw new DirectoryNotFoundException("Les connecteurs manquent dans le paquet NexusKeypad."); }
@@ -688,10 +729,11 @@ namespace Loupedeck.TrinitePlugin
                         }
                         foreach (var fichier in Directory.EnumerateFiles(Source, "*", SearchOption.AllDirectories))
                         {
-                            Fichier(Path.Combine(Path.GetDirectoryName(Executable), "connecteurs", Path.GetRelativePath(Source, fichier)), File.ReadAllBytes(fichier));
+                            Commun(Path.Combine(Path.GetDirectoryName(Executable), "connecteurs", Path.GetRelativePath(Source, fichier)), File.ReadAllBytes(fichier));
                         }
                         var quotaSource = Path.Combine(Path.GetDirectoryName(_exePaquet), "claude-quota", "nexuskeypad-quota", "hooks", "register.ts");
-                        Fichier(Path.Combine(Path.GetDirectoryName(Executable), "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"), File.ReadAllBytes(quotaSource));
+                        Commun(Path.Combine(Path.GetDirectoryName(Executable), "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"), File.ReadAllBytes(quotaSource));
+                        transaction.PoserJson(RecuCommun, new JsonObject { ["version"] = Version, ["files"] = communs });
                     }
                     var cible = agent switch
                     {
@@ -797,7 +839,7 @@ namespace Loupedeck.TrinitePlugin
                     var prepareLe = identique ? precedente.PrepareLe!.Value : DateTime.UtcNow;
                     var recuFinal = new JsonObject { ["version"] = Version, ["active"] = actif,
                         ["identity"] = identite, ["preparedAt"] = prepareLe.ToString("O", CultureInfo.InvariantCulture), ["files"] = fichiers,
-                        ["hookOwner"] = proprietaireHooks };
+                        ["hookOwner"] = proprietaireHooks, ["sharedRuntime"] = actif };
                     if (agent == 0 && actif && prive is null && !identique)
                     {
                         // Stage our files first; Claude alone owns its marketplace/installed-plugin registries.
