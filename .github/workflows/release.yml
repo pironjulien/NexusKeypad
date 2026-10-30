@@ -41,7 +41,7 @@ jobs:
           foreach ($e in 'Marketplace', 'Poste', 'Complete', 'Nexus') { ./outils/paquet_marketplace.ps1 -Edition $e }
           New-Item -ItemType Directory dist | Out-Null
           $suffixe = $version -replace '\.', '_'
-          $fichiers = @(Get-ChildItem "$env:LOCALAPPDATA\NexusKeypad\marketplace" -File -Filter "*_$suffixe.lplug4")
+          $fichiers = @(Get-ChildItem "$HOME\.nexus\build\nexuskeypad\marketplace" -File -Filter "*_$suffixe.lplug4")
           if ($fichiers.Count -ne 4) { throw "Expected 4 packages at version $version, got $($fichiers.Count)." }
           $paquetComplet = @($fichiers | Where-Object { $_.Name -eq "NexusKeypad_$suffixe.lplug4" })
           if ($paquetComplet.Count -ne 1) { throw 'Complete NexusKeypad package is absent.' }
