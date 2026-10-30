@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-10-30
+
+### Fixed
+- The pad pipe test registers its server before starting the client and awaits asynchronous I/O with cancellation.
+  On a busy CI runner, delayed server startup could miss the client's absence window and wait forever; this blocked
+  release builds without a failed assertion. The client protocol and every test assertion remain unchanged.
+
 ## [1.8.3] - 2026-10-30
 
 ### Fixed
