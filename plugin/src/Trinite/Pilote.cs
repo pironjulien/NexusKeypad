@@ -6,7 +6,7 @@ namespace Loupedeck.TrinitePlugin
     using System.Threading;
     using System.Threading.Tasks;
 
-    // Pilotage local du pad pour les essais (outils/pad.py) : un tube nommé réservé à l'utilisateur de la session, une
+    // Pilotage local du pad pour les essais (outils/pad.ps1) : un tube nommé réservé à l'utilisateur de la session, une
     // commande par connexion, une ligne de réponse.
     //   capture       → image PNG des 9 touches telles qu'envoyées au pad ; répond son chemin
     //   appui <1-18>  → appui simulé sur la touche à cette place du pad (même chemin qu'un vrai appui) ; répond son issue

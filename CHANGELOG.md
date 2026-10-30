@@ -5,6 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-10-30
+
+### Changed
+- Tests follow the C# standard: four xUnit v3 projects (`tests/Logique`, `tests/Connecteurs`, `tests/Isole`,
+  `tests/Hook`) run by `dotnet test` on Microsoft.Testing.Platform, selected by a root `global.json`. They replace the
+  `verifier` program, the ten `dotnet run` test programs and the Python `unittest` suite (147 tests, 9 of them
+  explicit checks on the real PC that run only on request).
+- The native hook's tests run the published Native AOT `nexuskeypad-hook.exe`, which the test build publishes itself.
+- `test.ps1` is a short entry point: the five plugin editions, the `get.ps1` checks, `dotnet test`, `node --test`.
+  The CI runs it unchanged; builds and test results stay in `~\.nexus\build\nexuskeypad\test`.
+- `outils/pad.ps1` replaces `outils/pad.py`: the same one-line pipe client (waits while busy, plugin absent after 1 s,
+  10 s at most, a command never replayed) and the same `--reel` guard before any real press or reading.
+
+### Removed
+- Python from the repository: `outils/pad.py`, `outils/placer_touches.py` (`nexuskeypad-hook.exe keys` does the
+  same, as in `get.ps1`), `outils/verifier_parite.py` (`pad.ps1 snapshot` and `nexuskeypad-hook.exe connecteur <agent>
+  status` give the same read-only data), the opt-in `tests/lanceurs/lifetime.py` and the Python tests. Building or
+  testing from source no longer needs Python.
+
 ## [1.8.1] - 2026-10-30
 
 ### Changed

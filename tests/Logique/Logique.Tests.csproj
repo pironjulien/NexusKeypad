@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The pad's logic, outside the pad: states, order, quotas, Codex journal, image cache, update, live states,
+       snapshot, Antigravity navigation and quota panel. Compiles the plugin's own sources (plugin\src\Trinite). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- WinForms only for the opt-in real clipboard test (saves and restores the user's clipboard). -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+    <Compile Include="..\..\plugin\src\Trinite\*.cs" Link="Plugin\%(Filename)%(Extension)" />
+    <Compile Include="..\..\plugin\src\Helpers\PluginLog.cs" Link="Plugin\PluginLog.cs" />
+    <PackageReference Include="FsCheck" Version="3.4.0" />
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
+    <!-- The key previews (planches) are drawn by apercu, built with these tests and run by them. -->
+    <ProjectReference Include="..\..\apercu\apercu.csproj" ReferenceOutputAssembly="false" />
+    <AssemblyMetadata Include="NexusKeypad.Apercu" Value="$(USERPROFILE)\.nexus\build\nexuskeypad\apercu\bin\$(Configuration)\net10.0\apercu.exe" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(LogiService)PluginApi.dll')">
+    <Reference Include="PluginApi" HintPath="$(LogiService)PluginApi.dll" />
+    <Reference Include="SkiaSharp" HintPath="$(LogiService)SkiaSharp.dll" />
+  </ItemGroup>
+
+  <!-- Without the Logi service (CI): the API published by Logitech and its dependencies (SkiaSharp 2.88.8). -->
+  <ItemGroup Condition="!Exists('$(LogiService)PluginApi.dll')">
+    <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" />
+  </ItemGroup>
+
+</Project>

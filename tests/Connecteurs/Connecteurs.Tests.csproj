@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The AI connectors (Claude, Codex, Antigravity) in isolated profiles: setup, repair, migration, rollback. Their own
+       assembly: the scenario redirects the connectors' folders for the whole process. -->
+  <PropertyGroup>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\plugin\src\Trinite\Connecteurs.cs" Link="Plugin\Connecteurs.cs" />
+    <Compile Include="..\..\plugin\src\Trinite\EtatsEnDirect.cs" Link="Plugin\EtatsEnDirect.cs" />
+    <Compile Include="..\..\hook\PluginLog.cs" Link="Plugin\PluginLog.cs" />
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
+  </ItemGroup>
+
+</Project>

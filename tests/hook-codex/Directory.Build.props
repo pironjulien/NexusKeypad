@@ -1,5 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <BaseIntermediateOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\test\hook-codex\obj\</BaseIntermediateOutputPath>
-  </PropertyGroup>
-</Project>

@@ -1,0 +1,25 @@
+<Project>
+  <!-- Test projects (xUnit v3, run by `dotnet test` from the repository root): every build and test output goes to
+       ~\.nexus\build\nexuskeypad\test, never into OneDrive. test.ps1 passes the same NexusBuild to the plugin builds. -->
+  <PropertyGroup>
+    <NexusBuild Condition="'$(NexusBuild)' == ''">$(USERPROFILE)\.nexus\build\nexuskeypad\test\</NexusBuild>
+    <BaseIntermediateOutputPath>$(NexusBuild)$(MSBuildProjectName)\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(NexusBuild)$(MSBuildProjectName)\bin\</BaseOutputPath>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>NexusKeypad.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Test code only: no style analyzers (those of the LogiPluginApi package in CI). -->
+    <RunAnalyzers>false</RunAnalyzers>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <LogiService>C:\Program Files\Logi\LogiPluginService\</LogiService>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <Using Include="Xunit" />
+    <AssemblyMetadata Include="NexusKeypad.Repository" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))" />
+    <AssemblyMetadata Include="NexusKeypad.Build" Value="$(NexusBuild)" />
+  </ItemGroup>
+</Project>

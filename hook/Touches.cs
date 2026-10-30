@@ -1,5 +1,5 @@
-// Place les 18 touches du plugin sur le profil général du MX Keypad (Loupedeck70, @_defaultwin), ou les retire : même
-// travail que outils/placer_touches.py, pour get.ps1 (sans Python). Page 1 : « Touche 1 » à « Touche 9 » ; page 2 :
+// Place les 18 touches du plugin sur le profil général du MX Keypad (Loupedeck70, @_defaultwin), ou les retire : pour
+// get.ps1 (sans Python). Page 1 : « Touche 1 » à « Touche 9 » ; page 2 :
 // « Touche 10 » à « Touche 18 » (créée sur le gabarit de la page 1 si le profil n'en a qu'une). Les deux boutons du bas
 // passent d'une page à l'autre. Le service Logi doit être arrêté (sinon il réécrit le profil) ; la sauvegarde est faite
 // par get.ps1.

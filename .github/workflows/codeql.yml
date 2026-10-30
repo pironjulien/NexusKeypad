@@ -44,7 +44,7 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-      - name: Build the plugin (with its native hook), the preview and the rule checker
+      - name: Build the plugin (with its native hook), the preview and the tests
         if: matrix.build-mode == 'manual'
         shell: pwsh
         env:
@@ -54,7 +54,7 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           dotnet build apercu/apercu.csproj -c Debug -nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          dotnet build verifier/verifier.csproj -c Debug -nologo
+          dotnet build NexusKeypad.Tests.slnx -c Debug -nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0
         with:

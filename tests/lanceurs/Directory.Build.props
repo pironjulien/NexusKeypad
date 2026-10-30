@@ -1,6 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <BaseIntermediateOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\test-lanceurs\obj\</BaseIntermediateOutputPath>
-    <BaseOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\test-lanceurs\bin\</BaseOutputPath>
-  </PropertyGroup>
-</Project>

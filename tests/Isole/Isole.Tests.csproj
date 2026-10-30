@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Launchers and UI Automation proofs, compiled alone with test doubles (Doubles.cs) instead of the rest of the plugin:
+       no Logi API loaded, and any attempt to launch an application fails the test. -->
+  <PropertyGroup>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\plugin\src\Trinite\Lanceurs.cs" Link="Plugin\Lanceurs.cs" />
+    <Compile Include="..\..\plugin\src\Trinite\UserApplication.cs" Link="Plugin\UserApplication.cs" />
+    <Compile Include="..\..\plugin\src\Trinite\Uia.cs" Link="Plugin\Uia.cs" />
+  </ItemGroup>
+
+</Project>

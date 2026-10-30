@@ -1,6 +1,0 @@
-<Project>
-    <!-- Compilation hors de OneDrive, à part de l'aperçu (un dossier obj commun mélangerait les deux projets). -->
-    <PropertyGroup>
-        <BaseIntermediateOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\verifier\obj\</BaseIntermediateOutputPath>
-    </PropertyGroup>
-</Project>

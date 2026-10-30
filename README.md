@@ -147,7 +147,7 @@ flowchart LR
 
 - Windows 11, a **Logitech MX Creative Console keypad** (MX Keypad) and **Logi Options+** with Logi Plugin Service 6.4
   or later.
-- From source only: [.NET 10 SDK](https://dotnet.microsoft.com/download) and Python 3.11+ (setup scripts). The
+- From source only: [.NET 10 SDK](https://dotnet.microsoft.com/download). The
   complete edition (one command, below) and the Marketplace editions need neither.
 - Any of: **Claude Desktop** (Claude Code), **Codex** desktop app, **Antigravity**. A missing app just sleeps on its key.
   Claude's Code tab must have completed its first setup: the connector uses the official plugin manager bundled
@@ -276,11 +276,15 @@ dotnet build -c Debug plugin\src -p:Edition=Nexus -p:Reel=true   # builds outsid
 
 Press the unplugged character on each AI key to install its connector. No separate hook-installation command is needed.
 
-Then place the 18 keys on the keypad's default profile, with the Logi service stopped (the script backs up
-`ProfileInfo.json`; `--retour` restores it), and restart the Logi Options+ agent:
+Then place the 18 keys on the keypad's default profile with the plugin's own helper (the same one get.ps1 uses), with
+the Logi service stopped, after backing up `ProfileInfo.json` (copy the backup back to restore it), and restart the Logi
+Options+ agent:
 
 ```powershell
-python -I outils\placer_touches.py --reel
+$app = "$env:LOCALAPPDATA\Logi\LogiPluginService\Applications\Loupedeck70\@_defaultwin"
+$profil = "$app\Profiles\$((Get-Content "$app\ApplicationInfo.json" -Raw | ConvertFrom-Json).defaultProfileName)\ProfileInfo.json"
+Copy-Item $profil (Join-Path (Split-Path $profil) 'ProfileInfo.before-nexuskeypad.json')
+& "$env:LOCALAPPDATA\Logi\LogiPluginService\Plugins\NexusKeypad\bin\nexuskeypad-hook.exe" keys $profil NexusKeypad
 pwsh -File outils\relancer_logi.ps1
 ```
 
@@ -334,13 +338,16 @@ pwsh -File test.ps1
 ```
 
 Requires Node.js for the isolated JavaScript UI tests (no npm dependencies). The installed keypad does not need Node.js.
-Builds the plugin aside (no install, no reload), draws every key in every situation (`apercu`), checks the logic rules
-(`verifier`) and the hook rules (`tests`), without touching the installed plugin. Without the Logi service (CI), the
-build uses the [LogiPluginApi](https://www.nuget.org/packages/LogiPluginApi) package.
+Builds the plugin's editions aside (no install, no reload), then runs `dotnet test` from the repository root (xUnit v3 on
+Microsoft.Testing.Platform, selected by `global.json`): the logic rules and every key drawn in every situation
+(`tests/Logique`, with `apercu`), the connectors (`tests/Connecteurs`), the launchers (`tests/Isole`) and the native hook
+(`tests/Hook`), without touching the installed plugin. The CI runs the same `test.ps1`. Without the Logi service (CI), the
+build uses the [LogiPluginApi](https://www.nuget.org/packages/LogiPluginApi) package. Checks on the real PC (clipboard,
+live apps) are explicit tests, run only on request: `dotnet test --project tests/Logique -- --explicit only`.
 
 - `dotnet run --project apercu -- <folder> [photo.jpg]` draws PNG boards of all keys with the real rendering code.
-- `python -I outils\pad.py capture|snapshot|appui <1-18>|etat` talks to the running plugin through a local pipe reserved to
-  the current user: the 9 keys as sent to the keypad, a simulated press, the last state read.
+- `pwsh -File outils\pad.ps1 capture|snapshot|etat|--reel appui <1-18>` talks to the running plugin through a local pipe
+  reserved to the current user: the 9 keys as sent to the keypad, the cached state, a simulated press (`--reel` only).
 
 ## License
 

@@ -11,17 +11,18 @@ updates:
     groups:
       actions:
         patterns: ["*"]
-  # No project or solution at the root: scan each folder that declares NuGet dependencies, including the native
-  # helper and isolated test projects. Shared LogiPluginApi and Tomlyn updates are grouped in one PR.
+  # Scan each folder that declares NuGet dependencies, including the native helper and the test projects (xunit.v3 in
+  # tests/Directory.Build.props). Shared LogiPluginApi and Tomlyn updates are grouped in one PR.
   - package-ecosystem: nuget
     directories:
       - /plugin/src
       - /apercu
-      - /verifier
       - /hook
-      - /tests/connecteurs
-      - /tests/hook-son
-      - /tests/claude-quota
+      - /tests
+      - /tests/Connecteurs
+      - /tests/Hook
+      - /tests/Isole
+      - /tests/Logique
     schedule:
       interval: weekly
     cooldown:
