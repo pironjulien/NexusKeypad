@@ -100,6 +100,65 @@ public sealed class ConnecteursTests
         }
     }
 
+    [Fact]
+    public void Plugin_Codex_des_catalogues_Nexus_jamais_en_double()
+    {
+        // A nexus-keypad plugin enabled from the Nexus catalogs (nexus, nexus-plugins) cannot carry hooks with this PC's
+        // executable path: the connector declares its own, with the real path, and turns the other copies off.
+        var racine = Directory.CreateTempSubdirectory("nexuskeypad-connecteurs-codex-").FullName;
+        try
+        {
+            var maison = Path.Combine(racine, "user");
+            var local = Path.Combine(racine, "local");
+            var paquet = Path.Combine(racine, "package");
+            var executable = Path.Combine(paquet, "nexuskeypad-hook.exe");
+            foreach (var fichier in Directory.EnumerateFiles(Path.Combine(Depot, "connecteurs"), "*", SearchOption.AllDirectories))
+            {
+                var cible = Path.Combine(paquet, "connecteurs", Path.GetRelativePath(Path.Combine(Depot, "connecteurs"), fichier));
+                Directory.CreateDirectory(Path.GetDirectoryName(cible));
+                File.Copy(fichier, cible);
+            }
+
+            var quota = Path.Combine(paquet, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts");
+            Directory.CreateDirectory(Path.GetDirectoryName(quota));
+            File.Copy(Path.Combine(Depot, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"), quota);
+            File.WriteAllText(executable, "isolated fixture, never executed");
+            Connecteurs.DossiersEssai(maison, local, executable);
+            var config = Path.Combine(maison, ".codex", "config.toml");
+            Directory.CreateDirectory(Path.GetDirectoryName(config));
+            File.WriteAllText(config, "model = 'keep'\n[plugins.\"nexus-keypad@nexus-plugins\"]\nenabled = true\n[plugins.\"nexus-keypad@nexus\"]\nenabled = true\n[plugins.\"other@nexus\"]\nenabled = true\n");
+
+            var active = Connecteurs.Activer(1);
+            Vrai(active.Etat == EtatConnexion.Pret, "Codex connector declared next to the Nexus catalog copies: " + active.Detail);
+            String Texte() => File.ReadAllText(config);
+            Vrai(Connecteurs.EvenementsActifs("codex") && Actif(Texte(), "nexus-keypad@personal"), "the connector's own plugin is enabled");
+            Vrai(!Actif(Texte(), EtatsEnDirect.PluginClaudePublic) && !Actif(Texte(), EtatsEnDirect.PluginClaude), "both Nexus catalog copies turned off");
+            Vrai(Texte().Contains("model = 'keep'") && Actif(Texte(), "other@nexus"), "third-party settings kept");
+            var hooks = JsonNode.Parse(File.ReadAllText(Path.Combine(maison, ".codex", "plugins", "nexus-keypad", "hooks", "hooks.json")))!["hooks"]!.AsObject();
+            Vrai(hooks.Count == 10 && hooks.All(e => e.Value![0]!["hooks"]![0]!["command"]!.GetValue<String>() is var c
+                && !c.Contains("__NEXUS_KEYPAD_HOOK__") && c.EndsWith(" codex " + e.Key, StringComparison.Ordinal)), "hooks declared with the installed executable's real path");
+
+            // A copy re-enabled later is reported, then turned off again by the next activation; never doubled.
+            File.WriteAllText(config, Connecteurs.ActiverToml(Texte(), EtatsEnDirect.PluginClaudePublic, true));
+            Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer, "a re-enabled Nexus catalog copy is reported as doubled hooks");
+            Vrai(Connecteurs.Activer(1).Etat == EtatConnexion.Pret && !Actif(Texte(), EtatsEnDirect.PluginClaudePublic), "repair turns the copy off again");
+            Vrai(Connecteurs.Activer(1).Etat == EtatConnexion.Pret
+                && Directory.EnumerateFiles(Path.Combine(maison, ".codex", "plugins"), "hooks.json", SearchOption.AllDirectories)
+                    .Count(f => !f.Contains(Path.DirectorySeparatorChar + "cache" + Path.DirectorySeparatorChar)) == 1,
+                "enabling twice keeps a single declared hooks file");
+        }
+        finally
+        {
+            Directory.Delete(racine, recursive: true);
+        }
+
+        // True when the profile enables this plugin (read as TOML).
+        static Boolean Actif(String texte, String identite) =>
+            Tomlyn.TomlSerializer.Deserialize<Tomlyn.Model.TomlTable>(texte) is { } profil && profil.TryGetValue("plugins", out var p)
+            && p is Tomlyn.Model.TomlTable plugins && plugins.TryGetValue(identite, out var t) && t is Tomlyn.Model.TomlTable table
+            && table.TryGetValue("enabled", out var v) && v is true;
+    }
+
     // One scenario: the connectors' folders are redirected for the whole process, and each step builds on the previous one.
     [Fact]
     public void Installation_reparation_migration_et_retour_arriere()

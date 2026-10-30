@@ -11,7 +11,7 @@ $errors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($installer, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw "get.ps1 syntax errors: $($errors -join ', ')" }
 # Import only the tested functions; never dot-source the installer's top-level execution.
-foreach ($name in 'Test-ReleaseSignature', 'Get-VerifiedPackageHash', 'Install-NexusKeypad') {
+foreach ($name in 'Test-ReleaseSignature', 'Get-VerifiedPackageHash', 'Set-Connectors', 'Install-NexusKeypad') {
     $definition = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) | Where-Object Name -eq $name)
     if ($definition.Count -ne 1) { throw "Expected exactly one function $name." }
     . ([scriptblock]::Create($definition[0].Extent.Text))
@@ -135,7 +135,7 @@ try {
     $Results = [ordered]@{}
     Assert ((Install-NexusKeypad) -eq 0) 'Valid signed package should install in the fake Logi folder.'
     Assert (Test-Path -LiteralPath (Join-Path $Target 'bin\NexusKeypadPlugin.dll')) 'Signed fixture should be copied only after verification.'
-    Assert ($Results['Plugin'] -eq 'installed' -and $Results['Keys'] -eq 'guided') 'Signed fixture installation should not place keys or run a helper.'
+    Assert ($Results['Plugin'] -eq 'installed' -and $Results['Keys'] -eq 'guided' -and $Results['AI connections'] -eq 'left (test folder)') 'Signed fixture installation should not place keys or run a helper.'
 } finally {
     [Environment]::SetEnvironmentVariable('NEXUS_KEYPAD_SOURCE', $oldSource, 'Process')
     $key.Dispose()

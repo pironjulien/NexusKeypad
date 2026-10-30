@@ -202,6 +202,64 @@ public sealed class ExecutableTests : IDisposable
         Assert.Equal("done", Json(File.ReadAllText(Path.Combine(this.Trinite("claude"), "defaut.json")))["state"]!.GetValue<String>());
     }
 
+    [Fact]
+    public void Connecteur_Codex_declare_ses_hooks_avec_le_vrai_chemin_sans_doublon()
+    {
+        // The shipped executable, next to its package's connectors as in the plugin folder, sets up Codex in a throwaway
+        // profile that already enables nexus-keypad from both Nexus catalogs: one plugin keeps the hooks, the others go off.
+        var paquet = Path.Combine(this._d, "Plugins", "NexusKeypad", "bin");
+        Directory.CreateDirectory(paquet);
+        var exe = Path.Combine(paquet, "nexuskeypad-hook.exe");
+        File.Copy(Entree.Hook, exe);
+        foreach (var fichier in Directory.EnumerateFiles(Path.Combine(Entree.Depot, "connecteurs"), "*", SearchOption.AllDirectories))
+        {
+            var cible = Path.Combine(paquet, "connecteurs", Path.GetRelativePath(Path.Combine(Entree.Depot, "connecteurs"), fichier));
+            Directory.CreateDirectory(Path.GetDirectoryName(cible)!);
+            File.Copy(fichier, cible);
+        }
+
+        var quota = Path.Combine(paquet, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts");
+        Directory.CreateDirectory(Path.GetDirectoryName(quota)!);
+        File.Copy(Path.Combine(Entree.Depot, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"), quota);
+        var config = Path.Combine(this._d, ".codex", "config.toml");
+        Directory.CreateDirectory(Path.GetDirectoryName(config)!);
+        File.WriteAllText(config, "[plugins.\"nexus-keypad@nexus-plugins\"]\nenabled = true\n[plugins.\"nexus-keypad@nexus\"]\nenabled = true\n");
+        var profil = new Dictionary<String, String?> { ["USERPROFILE"] = this._d, ["LOCALAPPDATA"] = Path.Combine(this._d, "local"), ["CLAUDE_CONFIG_DIR"] = null };
+        Sortie Connecteur(String action)
+        {
+            var info = new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (var a in new[] { "connecteur", "codex", action }) { info.ArgumentList.Add(a); }
+            foreach (var (cle, valeur) in profil) { if (valeur is null) { info.Environment.Remove(cle); } else { info.Environment[cle] = valeur; } }
+            using var p = Process.Start(info)!;
+            var o = p.StandardOutput.ReadToEndAsync();
+            var e = p.StandardError.ReadToEndAsync();
+            Assert.True(p.WaitForExit(30000));
+            return new(p.ExitCode, o.Result, e.Result);
+        }
+
+        for (var fois = 0; fois < 2; fois++)
+        {
+            var active = Connecteur("enable");
+            Assert.True(active.Code == 0 && Json(active.Stdout)["state"]!.GetValue<String>() == "Pret", active.Stdout + active.Stderr);
+        }
+
+        var texte = File.ReadAllText(config);
+        Assert.Contains("[plugins.\"nexus-keypad@nexus-plugins\"]\nenabled = false", texte.Replace("\r\n", "\n"));
+        Assert.Contains("[plugins.\"nexus-keypad@nexus\"]\nenabled = false", texte.Replace("\r\n", "\n"));
+        var hooks = Json(File.ReadAllText(Path.Combine(this._d, ".codex", "plugins", "nexus-keypad", "hooks", "hooks.json")))["hooks"]!.AsObject();
+        Assert.Equal(10, hooks.Count);
+        foreach (var (evenement, groupes) in hooks)
+        {
+            Assert.Single(groupes!.AsArray());
+            var commande = groupes![0]!["hooks"]![0]!["command"]!.GetValue<String>();
+            var programme = commande[..commande.LastIndexOf(" codex ", StringComparison.Ordinal)].Trim('"');
+            Assert.True(File.Exists(programme), $"{evenement}: {commande}");
+            Assert.EndsWith(" codex " + evenement, commande);
+        }
+
+        Assert.Equal("Pret", Json(Connecteur("status").Stdout)["state"]!.GetValue<String>());
+    }
+
     // --- Passive Codex contract: outputs never decide, incomplete input creates no state, disabling stops observation.
 
     private Sortie Codex(String evenement, String charge)

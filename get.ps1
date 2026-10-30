@@ -9,7 +9,8 @@
 # provenance can be checked with `gh attestation verify <file> --repo pironjulien/NexusKeypad`), copies it into Logi
 # Options+'s plugin folder (%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad), where the Logi Plugin Service
 # loads it, then offers to place the 18 keys on the keypad's general profile (backed up first; Logi Options+ restarts
-# for a few seconds). Press each AI's unplugged character to activate its NexusKeypad connector.
+# for a few seconds). It then sets up the NexusKeypad connector of each AI app found (Claude, Codex, Antigravity: plugin and
+# hooks with the installed helper's real path); an unplugged character on the keypad sets one up again.
 # Run this installer again to update.
 #   -Keys yes|no   place the keys without asking (yes) or leave them to drag in Logi Options+ (no)
 # NEXUS_PACK=1 (the Nexus pack, get-nexus.ps1): no question, no wait, no window, keys left to place by hand; exit code
@@ -144,6 +145,19 @@ function Set-Keys([string]$Hook, [switch]$Clear) {
     if ($Clear) { return 'removed' } else { return 'placed' }
 }
 
+function Set-Connectors([string]$Hook) {
+    # Declares the NexusKeypad plugin and its hooks in each AI app found (Claude, Codex, Antigravity), with the real path of
+    # the installed nexuskeypad-hook.exe: Codex hooks cannot come from a catalog, they need this path. The helper keeps
+    # third-party settings, turns off a nexus-keypad copy from the Nexus catalogs instead of doubling its hooks, and
+    # reports an absent app as Absent. A failure only leaves that key unplugged.
+    if ($Sandbox) { return 'left (test folder)' }  # the real AI profiles are not the test's
+    $states = foreach ($agent in 'claude', 'codex', 'antigravity') {
+        $state = try { ((& $Hook connecteur $agent enable 2>$null) | ConvertFrom-Json).state } catch { $null }
+        "$agent=$(if ($state) { $state } else { 'failed' })"
+    }
+    return $states -join ', '
+}
+
 function Install-NexusKeypad {
     if (-not $Sandbox -and -not (Test-Path -LiteralPath (Join-Path $env:ProgramFiles 'Logi\LogiPluginService'))) {
         Say 'Logi Options+ is not installed: get it from https://www.logitech.com/software/logi-options-plus.html, then run this again.' Red
@@ -194,11 +208,12 @@ function Install-NexusKeypad {
     }
     if ($place -eq 'yes') { $Results['Keys'] = Set-Keys $hook } else { $Results['Keys'] = 'guided' }
     $Results['Live states'] = 'asked by the plugin'
+    $Results['AI connections'] = Set-Connectors $hook
     Say ''
     if ($Results['Keys'] -ne 'placed') {
         Say 'Keys: in Logi Options+, open the MX Keypad, Customize keys, and drag Key 1 to Key 9 of the "AI agents" group onto page 1, then Key 10 to Key 18 onto page 2.'
     }
-    Say 'AI connections: press each unplugged character to set up its NexusKeypad connector. A restart arrow means the app connection needs a restart; no shortcut editing is needed.'
+    Say "AI connections: $($Results['AI connections']). Press an unplugged character to set up its connector again. A restart arrow means the app connection needs a restart; no shortcut editing is needed."
     return 0
 }
 

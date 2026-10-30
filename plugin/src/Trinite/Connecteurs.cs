@@ -124,6 +124,15 @@ namespace Loupedeck.TrinitePlugin
             return valeur as TomlTable ?? throw new InvalidDataException("Une section TOML a un type inattendu.");
         }
 
+        // nexus-keypad plugins of the Nexus catalogs (private nexus, NexusSystem's nexus-plugins) enabled next to the
+        // connector's own identity: their hooks would double the connector's.
+        private static String[] CodexDoublons(String texte, String identite)
+        {
+            var plugins = Table(LireToml(texte), "plugins", false);
+            return plugins is null ? [] : EtatsEnDirect.IdentitesNexus.Where(p => p != identite)
+                .Where(p => Table(plugins, p, false) is { } t && t.TryGetValue("enabled", out var v) && v is true).ToArray();
+        }
+
         private static Boolean CodexActif(String identite)
         {
             var chemin = Path.Combine(Codex, "config.toml");
@@ -239,7 +248,7 @@ namespace Loupedeck.TrinitePlugin
         private static (String Identite, String Dossier)? PluginClaudePrive(JsonObject reglages)
         {
             var installs = LireJson(Path.Combine(Claude, "plugins", "installed_plugins.json"))["plugins"] as JsonObject;
-            foreach (var identite in EtatsEnDirect.PluginsClaude)
+            foreach (var identite in EtatsEnDirect.IdentitesNexus)
             {
                 if ((reglages["enabledPlugins"] as JsonObject)?[identite] is null) { continue; }
                 var dossier = (installs?[identite] as JsonArray)?.OfType<JsonObject>().Select(x => x["installPath"]?.GetValue<String>())
@@ -293,6 +302,11 @@ namespace Loupedeck.TrinitePlugin
 
                     if (agent == 1)
                     {
+                        if (CodexDoublons(File.ReadAllText(Path.Combine(Codex, "config.toml")), recu["identity"]!.GetValue<String>()).Length > 0)
+                        {
+                            return new(EtatConnexion.Reparer, "Un autre plugin nexus-keypad est actif dans Codex : ses hooks doubleraient ceux du connecteur.");
+                        }
+
                         var catalogue = LireCatalogueCodex();
                         if (((JsonArray)catalogue["plugins"]).OfType<JsonObject>().Count(x => x["name"]?.GetValue<String>() == Nom
                             && x["source"]?["source"]?.GetValue<String>() == "local"
@@ -742,8 +756,15 @@ namespace Loupedeck.TrinitePlugin
                             ["policy"] = new JsonObject { ["installation"] = "AVAILABLE", ["authentication"] = "ON_INSTALL" }, ["category"] = "Productivity" });
                         transaction.PoserJson(CatalogueCodex, catalogue);
                         var configuration = Path.Combine(Codex, "config.toml");
-                        var texte = File.Exists(configuration) ? File.ReadAllText(configuration) : "";
-                        transaction.Poser(configuration, Utf8(ActiverToml(texte, identite, actif)));
+                        var texte = ActiverToml(File.Exists(configuration) ? File.ReadAllText(configuration) : "", identite, actif);
+                        if (actif)
+                        {
+                            // A nexus-keypad plugin from the Nexus catalogs cannot carry hooks with this PC's executable path:
+                            // only this connector keeps them, so another enabled copy is turned off instead of doubling them.
+                            foreach (var doublon in CodexDoublons(texte, identite)) { texte = ActiverToml(texte, doublon, false); }
+                        }
+
+                        transaction.Poser(configuration, Utf8(texte));
                         if (actif)
                         {
                             // Codex resolves the installed cache, not only the marketplace source directory.

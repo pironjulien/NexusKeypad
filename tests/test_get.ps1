@@ -40,7 +40,7 @@ try {
     $env:NEXUS_PACK = '1'
     $sortie = Lancer @()
     Remove-Item Env:NEXUS_PACK
-    if ($sortie[-1] -ne 'NEXUS_PACK_RESULT Plugin=installed; Keys=guided; Live states=asked by the plugin') { throw "pack : $($sortie[-1])" }
+    if ($sortie[-1] -ne 'NEXUS_PACK_RESULT Plugin=installed; Keys=guided; Live states=asked by the plugin; AI connections=left (test folder)') { throw "pack : $($sortie[-1])" }
     if (-not (Test-Path (Join-Path $logi 'Plugins\NexusKeypad\bin\NexusKeypadPlugin.dll'))) { throw 'plugin absent du dossier des plugins' }
     if ((Actions).Count) { throw 'pack : des touches ont été posées sans question' }
 

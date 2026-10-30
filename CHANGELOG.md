@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The complete Claude plugin installed from NexusSystem's public catalog (`nexus-keypad@nexus-plugins`) is recognised
   like the private one (`nexus-keypad@nexus`): enabled in place as the connector, without the pad's own hooks, quota mod
   or public identity set a second time.
+- Codex: a `nexus-keypad` plugin enabled from the Nexus catalogs (`@nexus`, `@nexus-plugins`) cannot carry hooks with this
+  PC's helper path; the connector keeps the only hooks (real path of `nexuskeypad-hook.exe`) and turns those copies off
+  instead of doubling them. A copy enabled again is reported as needing repair.
+
+### Added
+- `get.ps1` sets up the connector of each AI app found (Claude, Codex, Antigravity: plugin and hooks with the installed
+  helper's real path) right after installing, as the source installer does; a failure only leaves that key unplugged.
 
 ### Security
 - The CI scans the whole history for secrets (gitleaks) and audits the workflows (zizmor) on every push and pull

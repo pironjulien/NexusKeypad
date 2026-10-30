@@ -224,11 +224,12 @@ namespace Loupedeck.TrinitePlugin
         // direct. Null : absent, le pad pose ses hooks lui-même.
         public const String PluginClaude = "nexus-keypad@nexus";
         public const String PluginClaudePublic = "nexus-keypad@nexus-plugins";
-        public static readonly String[] PluginsClaude = [PluginClaude, PluginClaudePublic];
+        // Les mêmes identités nomment le plugin nexus-keypad de Codex dans les catalogues Nexus (Connecteurs.CodexDoublons).
+        public static readonly String[] IdentitesNexus = [PluginClaude, PluginClaudePublic];
 
         // Identité du plugin complet déclarée dans les réglages (la privée d'abord), sinon null.
         public static String PluginCompletDeclare(JsonObject reglages) =>
-            PluginsClaude.FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean _));
+            IdentitesNexus.FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean _));
 
         public static Boolean? PluginComplet(JsonObject reglages) =>
             PluginCompletDeclare(reglages) is { } p && reglages["enabledPlugins"]![p] is JsonValue v && v.TryGetValue(out Boolean actif) ? actif : null;
