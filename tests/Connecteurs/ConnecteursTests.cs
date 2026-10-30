@@ -105,6 +105,15 @@ public sealed class ConnecteursTests
             installs["plugins"]![EtatsEnDirect.PluginClaudePublic] = new JsonArray(new JsonObject { ["scope"] = "user", ["installPath"] = installe + "-pending" });
             File.WriteAllText(registre, installs.ToJsonString());
             Vrai(Connecteurs.Activer(0).Etat == EtatConnexion.EnCours, "manager entry without a completed cache still waits");
+            Vrai(Connecteurs.Desactiver(0).Etat == EtatConnexion.Activer, "a pending selected plugin remains explicitly disableable without its cache");
+            var desactive = JsonNode.Parse(File.ReadAllText(reglagesChemin))!;
+            Vrai(!desactive["enabledPlugins"]![EtatsEnDirect.PluginClaudePublic]!.GetValue<Boolean>()
+                && !desactive["enabledPlugins"]![EtatsEnDirect.PluginClaude]!.GetValue<Boolean>(), "pending disable keeps the old private identity disabled");
+            Vrai(Connecteurs.Activer(0).Etat == EtatConnexion.EnCours
+                && !JsonNode.Parse(File.ReadAllText(reglagesChemin))!["enabledPlugins"]![EtatsEnDirect.PluginClaude]!.GetValue<Boolean>(),
+                "a declared public catalog keeps ownership after disable; enable never falls back to disabled private cache");
+            File.WriteAllText(reglagesChemin, migration);
+            File.WriteAllBytes(recuChemin, recuAvant);
             installs["plugins"]![EtatsEnDirect.PluginClaudePublic]![0]!["installPath"] = installe;
             File.WriteAllText(registre, installs.ToJsonString());
             var hooksPublics = Path.Combine(installe, "hooks", "hooks.json");

@@ -17,6 +17,9 @@ public sealed class EtatsEnDirectTests
         Vrai(EtatsEnDirect.PluginCompletDeclare(reglages) == EtatsEnDirect.PluginClaudePublic
             && EtatsEnDirect.PluginComplet(reglages) == true && EtatsEnDirect.ClaudeAvecPad(reglages),
             "The selected public identity owns activity; a disabled private declaration must not override it.");
+        reglages["enabledPlugins"]![EtatsEnDirect.PluginClaudePublic] = false;
+        Vrai(EtatsEnDirect.PluginCompletDeclare(reglages) == EtatsEnDirect.PluginClaudePublic && EtatsEnDirect.PluginComplet(reglages) == false,
+            "A declared public catalog remains the intended owner when both identities are disabled.");
     }
 
     [Fact]

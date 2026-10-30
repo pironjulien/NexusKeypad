@@ -289,10 +289,12 @@ namespace Loupedeck.TrinitePlugin
                 try
                 {
                     if (!Present(agent)) { return new(EtatConnexion.Absent, "Application absente de ce profil Windows."); }
-                    var selectionClaude = agent == 0 ? PluginClaudeNexus(LireJson(Path.Combine(Claude, "settings.json"))) : null;
-                    if (selectionClaude is { } selection && !CacheClaudeComplet(selection.Dossier)) { return AttenteClaude(selection.Identite); }
+                    var reglagesClaude = agent == 0 ? LireJson(Path.Combine(Claude, "settings.json")) : null;
+                    var selectionClaude = agent == 0 ? PluginClaudeNexus(reglagesClaude) : null;
+                    var pluginClaudeActif = agent == 0 && EtatsEnDirect.PluginComplet(reglagesClaude) == true;
+                    if (pluginClaudeActif && selectionClaude is { } selection && !CacheClaudeComplet(selection.Dossier)) { return AttenteClaude(selection.Identite); }
                     var recu = LireJson(Recu(agent));
-                    if (selectionClaude is { } configure && recu["active"]?.GetValue<Boolean>() == true
+                    if (pluginClaudeActif && selectionClaude is { } configure && recu["active"]?.GetValue<Boolean>() == true
                         && (recu["identity"]?.GetValue<String>() != configure.Identite || recu["files"] is not JsonObject declares
                             || !FichiersClaudeNexus.All(f => declares.ContainsKey(Path.Combine(configure.Dossier, f)))))
                     {

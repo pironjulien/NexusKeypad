@@ -231,7 +231,7 @@ namespace Loupedeck.TrinitePlugin
         // With no enabled identity, an explicit enable still uses the already declared catalog instead of adding one.
         public static String PluginCompletDeclare(JsonObject reglages) =>
             IdentitesNexus.FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean actif) && actif)
-                ?? IdentitesNexus.FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean _));
+                ?? IdentitesNexus.Reverse().FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean _));
 
         public static Boolean? PluginComplet(JsonObject reglages) =>
             PluginCompletDeclare(reglages) is { } p && reglages["enabledPlugins"]![p] is JsonValue v && v.TryGetValue(out Boolean actif) ? actif : null;
