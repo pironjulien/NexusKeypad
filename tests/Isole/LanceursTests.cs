@@ -63,6 +63,10 @@ public sealed class LanceursTests
     {
         Vrai(Lanceurs.EtatPage(2, 9227, "[ ]", false).Etat == EtatLancement.Masquee, "port connu sans fenêtre ni cible : rouvrir sans relance");
         Vrai(Lanceurs.EtatPage(2, 9227, "[ ]", true).Etat != EtatLancement.Masquee, "fenêtre visible sans cible : jamais prête ni simplement masquée");
+        Vrai(Lanceurs.EtatPage(2, 9227, Page("data:text/html;charset=utf-8,<svg class=\"logo\"></svg>", "ws://127.0.0.1:9227/devtools/page/1"), false).Etat == EtatLancement.Masquee,
+            "Antigravity en arrière-plan ne garde que son écran de démarrage : rouvrir sans relance");
+        Vrai(Lanceurs.EtatPage(2, 9227, Page("data:text/html;charset=utf-8,<svg class=\"logo\"></svg>", "ws://127.0.0.1:9227/devtools/page/1"), true).Etat == EtatLancement.Relancer,
+            "écran de démarrage dans une fenêtre visible : l'appli n'a pas chargé, relance demandée");
         Vrai(Lanceurs.EtatPage(2, 9227, "{}", false).Etat != EtatLancement.Masquee, "réponse non liste : jamais prise pour une fenêtre fermée");
         Vrai(Lanceurs.EtatPage(2, 9227, "broken", false).Etat == EtatLancement.Erreur, "liste illisible : erreur de lecture sans faux diagnostic de relance");
         Vrai(Lanceurs.EtatPage(2, 9227, Page("https://example.com", "ws://127.0.0.1:9227/devtools/page/1"), false).Etat == EtatLancement.Relancer,
