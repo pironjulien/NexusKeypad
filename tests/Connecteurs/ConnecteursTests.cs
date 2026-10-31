@@ -184,8 +184,8 @@ public sealed class ConnecteursTests
     [Fact]
     public void Plugin_Codex_des_catalogues_Nexus_jamais_en_double()
     {
-        // A nexus-keypad plugin enabled from the Nexus catalogs (nexus, nexus-plugins) cannot carry hooks with this PC's
-        // executable path: the connector declares its own, with the real path, and turns the other copies off.
+        // NexusSystem's catalog copy (nexus-keypad@nexus-plugins), once Codex installed it, is the connector, as for
+        // Claude; without that catalog the connector installs a personal copy. One identity only ever carries the hooks.
         var racine = Directory.CreateTempSubdirectory("nexuskeypad-connecteurs-codex-").FullName;
         try
         {
@@ -207,26 +207,56 @@ public sealed class ConnecteursTests
             Connecteurs.DossiersEssai(maison, local, executable);
             var config = Path.Combine(maison, ".codex", "config.toml");
             Directory.CreateDirectory(Path.GetDirectoryName(config));
-            File.WriteAllText(config, "model = 'keep'\n[plugins.\"nexus-keypad@nexus-plugins\"]\nenabled = true\n[plugins.\"nexus-keypad@nexus\"]\nenabled = true\n[plugins.\"other@nexus\"]\nenabled = true\n");
-
-            var active = Connecteurs.Activer(1);
-            Vrai(active.Etat == EtatConnexion.Pret, "Codex connector declared next to the Nexus catalog copies: " + active.Detail);
             String Texte() => File.ReadAllText(config);
-            Vrai(Connecteurs.EvenementsActifs("codex") && Actif(Texte(), "nexus-keypad@personal"), "the connector's own plugin is enabled");
-            Vrai(!Actif(Texte(), EtatsEnDirect.PluginClaudePublic) && !Actif(Texte(), EtatsEnDirect.PluginClaude), "both Nexus catalog copies turned off");
+
+            // Without NexusSystem's catalog, the connector installs its own personal copy (the same files).
+            File.WriteAllText(config, "model = 'keep'\n[plugins.\"nexus-keypad@nexus\"]\nenabled = true\n[plugins.\"other@nexus\"]\nenabled = true\n");
+            Vrai(Connecteurs.Activer(1).Etat == EtatConnexion.Pret, "personal Codex connector without the NexusSystem catalog");
+            Vrai(Actif(Texte(), "nexus-keypad@personal") && !Actif(Texte(), EtatsEnDirect.PluginClaude), "personal copy enabled, private copy turned off");
+            var catalogue = Path.Combine(maison, ".agents", "plugins", "marketplace.json");
+            Vrai(File.ReadAllText(catalogue).Contains("./.codex/plugins/nexus-keypad"), "personal catalog entry");
+
+            // NexusSystem's catalog declared, Codex not done installing it: wait, change nothing.
+            File.WriteAllText(config, Connecteurs.ActiverToml(Texte(), EtatsEnDirect.PluginClaudePublic, false));
+            var avant = Texte();
+            var attente = Connecteurs.Activer(1);
+            Vrai(attente.Etat == EtatConnexion.EnCours && attente.CodeAttente == "codex_plugin_install_pending" && Texte() == avant,
+                "declared catalog copy not installed yet: pending, profile unchanged");
+
+            // Installed by Codex: that copy is adopted as the connector; the personal one leaves.
+            var installe = Path.Combine(maison, ".codex", "plugins", "cache", "nexus-plugins", "nexus-keypad", Connecteurs.Version);
+            foreach (var fichier in new[] { ".codex-plugin/plugin.json", "skills/nexus-keypad/SKILL.md" })
+            {
+                var cible = Path.Combine(installe, fichier);
+                Directory.CreateDirectory(Path.GetDirectoryName(cible));
+                File.Copy(Path.Combine(Depot, "connecteurs", fichier), cible);
+            }
+            var active = Connecteurs.Activer(1);
+            Vrai(active.Etat == EtatConnexion.Pret, "NexusSystem catalog copy adopted: " + active.Detail);
+            Vrai(Connecteurs.EvenementsActifs("codex") && Actif(Texte(), EtatsEnDirect.PluginClaudePublic), "catalog identity enabled");
+            Vrai(!Actif(Texte(), "nexus-keypad@personal") && !Actif(Texte(), EtatsEnDirect.PluginClaude), "every other copy turned off");
             Vrai(Texte().Contains("model = 'keep'") && Actif(Texte(), "other@nexus"), "third-party settings kept");
-            var hooks = JsonNode.Parse(File.ReadAllText(Path.Combine(maison, ".codex", "plugins", "nexus-keypad", "hooks", "hooks.json")))!["hooks"]!.AsObject();
-            Vrai(hooks.Count == 10 && hooks.All(e => e.Value![0]!["hooks"]![0]!["command"]!.GetValue<String>() is var c
-                && !c.Contains("__NEXUS_KEYPAD_HOOK__") && c.EndsWith(" codex " + e.Key, StringComparison.Ordinal)), "hooks declared with the installed executable's real path");
+            Vrai(!File.ReadAllText(catalogue).Contains("nexus-keypad"), "personal catalog entry removed");
+            var recu = JsonNode.Parse(File.ReadAllText(Path.Combine(local, "NexusKeypad", "connecteurs", "etats", "codex.json")))!;
+            Vrai(recu["identity"]!.GetValue<String>() == EtatsEnDirect.PluginClaudePublic
+                && recu["files"]!.AsObject().ContainsKey(Path.Combine(installe, ".codex-plugin/plugin.json")), "receipt attests Codex's installed copy");
 
             // A copy re-enabled later is reported, then turned off again by the next activation; never doubled.
-            File.WriteAllText(config, Connecteurs.ActiverToml(Texte(), EtatsEnDirect.PluginClaudePublic, true));
-            Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer, "a re-enabled Nexus catalog copy is reported as doubled hooks");
-            Vrai(Connecteurs.Activer(1).Etat == EtatConnexion.Pret && !Actif(Texte(), EtatsEnDirect.PluginClaudePublic), "repair turns the copy off again");
-            Vrai(Connecteurs.Activer(1).Etat == EtatConnexion.Pret
-                && Directory.EnumerateFiles(Path.Combine(maison, ".codex", "plugins"), "hooks.json", SearchOption.AllDirectories)
-                    .Count(f => !f.Contains(Path.DirectorySeparatorChar + "cache" + Path.DirectorySeparatorChar)) == 1,
-                "enabling twice keeps a single declared hooks file");
+            File.WriteAllText(config, Connecteurs.ActiverToml(Texte(), "nexus-keypad@personal", true));
+            Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer, "a re-enabled personal copy is reported as doubled hooks");
+            Vrai(Connecteurs.Activer(1).Etat == EtatConnexion.Pret && !Actif(Texte(), "nexus-keypad@personal"), "repair turns the copy off again");
+
+            // Codex installs a newer version: the connector adopts the new folder on its next activation.
+            var nouveau = Path.Combine(Path.GetDirectoryName(installe)!, "99.0.0");
+            foreach (var fichier in Directory.EnumerateFiles(installe, "*", SearchOption.AllDirectories))
+            {
+                var cible = Path.Combine(nouveau, Path.GetRelativePath(installe, fichier));
+                Directory.CreateDirectory(Path.GetDirectoryName(cible));
+                File.Copy(fichier, cible);
+            }
+            Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer && Connecteurs.Activer(1).Etat == EtatConnexion.Pret,
+                "a newer installed copy is adopted");
+            Vrai(Connecteurs.Desactiver(1).Etat == EtatConnexion.Activer && !Actif(Texte(), EtatsEnDirect.PluginClaudePublic), "disabling turns the catalog copy off");
         }
         finally
         {
@@ -417,14 +447,17 @@ public sealed class ConnecteursTests
         Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer && Connecteurs.Activer(1).Etat == EtatConnexion.Pret,
             "malformed receipt can be repaired without inheriting any old setup evidence");
 
-        // Codex hooks are rendered in both the marketplace source and the installed cache, without trusting them.
+        // Codex hooks travel inline in the manifest, the same in the marketplace source and the installed cache: the
+        // program is reached by %LOCALAPPDATA%, so nothing is rendered per PC, and nothing is trusted on the user's behalf.
         var codexPlugin = Path.Combine(maison, ".codex", "plugins", "nexus-keypad");
         var codexCache = Path.Combine(maison, ".codex", "plugins", "cache", "personal", "nexus-keypad", Connecteurs.Version);
-        var codexHooksText = File.ReadAllText(Path.Combine(codexPlugin, "hooks", "hooks.json"));
-        var codexHooks = JsonNode.Parse(codexHooksText)["hooks"].AsObject();
+        var codexManifestText = File.ReadAllText(Path.Combine(codexPlugin, ".codex-plugin", "plugin.json"));
+        var codexHooks = JsonNode.Parse(codexManifestText)["hooks"]["hooks"].AsObject();
         Vrai(codexHooks.Count == 10, "Codex declared lifecycle hooks");
-        Vrai(!codexHooksText.Contains("__NEXUS_KEYPAD_HOOK__") && !codexHooksText.Contains("OneDrive") && !codexHooksText.Contains("python"), "Codex portable native hooks");
-        Vrai(codexHooksText == File.ReadAllText(Path.Combine(codexCache, "hooks", "hooks.json")), "Codex cache hooks rendered too");
+        Vrai(!codexManifestText.Contains("__NEXUS_KEYPAD_HOOK__") && !codexManifestText.Contains("OneDrive") && !codexManifestText.Contains("python"), "Codex portable native hooks");
+        Vrai(JsonNode.DeepEquals(JsonNode.Parse(codexManifestText)["hooks"]["hooks"], Connecteurs.HooksCodex(Connecteurs.ProgrammeCodex)["hooks"]), "Codex hooks reach the stable program");
+        Vrai(!File.Exists(Path.Combine(codexPlugin, "hooks", "hooks.json")), "Codex has no separate hooks file");
+        Vrai(codexManifestText == File.ReadAllText(Path.Combine(codexCache, ".codex-plugin", "plugin.json")), "Codex cache manifest identical");
         Vrai(!File.Exists(Path.Combine(maison, ".codex", "hooks.json")), "Codex no global hook duplication");
         Vrai(!Directory.EnumerateFiles(Path.Combine(maison, ".codex"), "*trust*", SearchOption.AllDirectories).Any(), "Codex installer never creates hook trust");
         foreach (var evenement in codexHooks)

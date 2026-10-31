@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.13] - 2026-10-31
+
+### Changed
+- `connecteurs/` is now also NexusSystem's catalog plugin for Claude Code and Codex (pinned at the release tag, the
+  product's version): Claude's hooks and modules in `hooks/`, Codex's hooks inline in its manifest, both reaching
+  `%LOCALAPPDATA%\NexusKeypad\hook\nexuskeypad-hook.exe`, so nothing is rendered per PC for them.
+- Codex: an installed `nexus-keypad@nexus-plugins` is adopted as the connector, as for Claude; the personal copy and
+  its catalog entry are retired. Without NexusSystem's catalog, the connector still installs the same files locally.
+- The connector version is the product's version.
+- The Claude connector now carries the Nexus Relay line under the prompt and the end of background agents
+  (`SubagentStop`), like NexusSystem's catalog copy.
+
+### Fixed
+- `get.ps1`: an update with the keys already on the keypad no longer asks to place them nor explains how.
+
 ## [1.8.12] - 2026-10-31
 
 ### Changed

@@ -1,6 +1,7 @@
 {
+  "description": "NexusKeypad: live states of Claude and end-of-task note through the native helper installed by NexusKeypad; modules: exact usage and the Nexus Relay line under the prompt.",
   "modules": [
-    "./register.ts"
+    "./register.tsx"
   ],
   "hooks": {
     "UserPromptSubmit": [

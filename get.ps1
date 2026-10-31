@@ -188,10 +188,10 @@ function Set-Keys([string]$Hook, [switch]$Clear) {
 }
 
 function Set-Connectors([string]$Hook, [switch]$Update) {
-    # Declares the NexusKeypad plugin and its hooks in each AI app found (Claude, Codex, Antigravity), with the real path of
-    # the installed nexuskeypad-hook.exe: Codex hooks cannot come from a catalog, they need this path. The helper keeps
-    # third-party settings, turns off a nexus-keypad copy from the Nexus catalogs instead of doubling its hooks, and
-    # reports an absent app as Absent. A failure only leaves that key unplugged.
+    # Connects each AI app found (Claude, Codex, Antigravity) to the installed nexuskeypad-hook.exe: the NexusKeypad plugin
+    # of NexusSystem's catalog when that app has it installed, else the same plugin installed locally. The helper keeps
+    # third-party settings, never leaves two nexus-keypad copies enabled, and reports an absent app as Absent. A failure
+    # only leaves that key unplugged.
     # On an update, only the connections already enabled are refreshed (a new package carries a new connector, which
     # leaves the old one to repair); a connection the user turned off or never set up stays as it is.
     if ($Sandbox) { return 'left (test folder)' }  # the real AI profiles are not the test's
@@ -273,16 +273,20 @@ function Install-NexusKeypad {
     $hook = Join-Path $Target 'bin\nexuskeypad-hook.exe'
     $place = $Keys
     if ($Pack) { $place = 'no' }
+    # Keys already on the general profile (an update): nothing to ask nor to explain.
+    $profile_ = Get-Profile
+    $placed = $profile_ -and (Select-String -LiteralPath $profile_ -SimpleMatch "`$$($Plugin)___" -Quiet)
+    if ($placed -and $place -ne 'yes') { $place = 'already placed' }
     if ($place -eq 'ask') {
         Say ''
         $answer = Read-Host 'Place the 18 keys on the keypad now? The plugin service restarts briefly and your current profile is backed up first (y/N)'
         if ($answer -match '^(y|yes|o|oui)$') { $place = 'yes' } else { $place = 'no' }
     }
-    if ($place -eq 'yes') { $Results['Keys'] = Set-Keys $hook } else { $Results['Keys'] = 'guided' }
+    $Results['Keys'] = switch ($place) { 'yes' { Set-Keys $hook } 'already placed' { 'already placed' } default { 'guided' } }
     $Results['Live states'] = 'asked by the plugin'
     $Results['AI connections'] = Set-Connectors $hook -Update:$previous
     Say ''
-    if ($Results['Keys'] -ne 'placed') {
+    if ($Results['Keys'] -notin 'placed', 'already placed') {
         Say 'Keys: in Logi Options+, open the MX Keypad, Customize keys, and drag Key 1 to Key 9 of the "AI agents" group onto page 1, then Key 10 to Key 18 onto page 2.'
     }
     Say "AI connections: $($Results['AI connections']). Press an unplugged character to set up its connector again. A restart arrow means the app connection needs a restart; no shortcut editing is needed."

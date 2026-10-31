@@ -1,10 +1,147 @@
 {
   "name": "nexus-keypad",
-  "version": "1.2.5",
-  "description": "NexusKeypad: configure, diagnose and disable the connection between Codex and your Logitech keypad.",
+  "version": "1.8.13",
+  "description": "NexusKeypad in Claude and Codex: live states for the Logitech keypad (hooks), Claude's exact usage (5-hour and weekly) and, under Claude's prompt, whether Codex and Antigravity are reachable through Nexus Relay. No alert, no network. Needs NexusKeypad, installed by NexusSystem (or NexusKeypad's get.ps1).",
+  "author": {
+    "name": "Julien Piron",
+    "url": "https://github.com/pironjulien"
+  },
+  "homepage": "https://julienpiron.fr/nexuskeypad/",
+  "repository": "https://github.com/pironjulien/NexusKeypad",
+  "license": "MIT",
+  "keywords": [
+    "logitech",
+    "keypad",
+    "hooks",
+    "usage",
+    "claude",
+    "codex"
+  ],
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
-  "author": { "name": "Julien Piron" },
+  "hooks": {
+    "hooks": {
+      "SessionStart": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex SessionStart",
+              "async": false,
+              "timeout": 10
+            }
+          ]
+        }
+      ],
+      "UserPromptSubmit": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex UserPromptSubmit",
+              "async": false,
+              "timeout": 10
+            }
+          ]
+        }
+      ],
+      "PreToolUse": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex PreToolUse",
+              "async": false,
+              "timeout": 10
+            }
+          ]
+        }
+      ],
+      "PermissionRequest": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex PermissionRequest",
+              "async": false,
+              "timeout": 10
+            }
+          ]
+        }
+      ],
+      "PostToolUse": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex PostToolUse",
+              "async": false,
+              "timeout": 10
+            }
+          ]
+        }
+      ],
+      "SubagentStart": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex SubagentStart",
+              "async": false,
+              "timeout": 10
+            }
+          ]
+        }
+      ],
+      "SubagentStop": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex SubagentStop",
+              "async": false,
+              "timeout": 10
+            }
+          ]
+        }
+      ],
+      "Stop": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex Stop",
+              "async": false,
+              "timeout": 10
+            }
+          ]
+        }
+      ],
+      "Interrupt": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex Interrupt",
+              "async": false,
+              "timeout": 3
+            }
+          ]
+        }
+      ],
+      "SessionEnd": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex SessionEnd",
+              "async": false,
+              "timeout": 3
+            }
+          ]
+        }
+      ]
+    }
+  },
   "interface": {
     "displayName": "NexusKeypad",
     "shortDescription": "Connect this AI to your keypad",

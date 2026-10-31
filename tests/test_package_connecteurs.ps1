@@ -149,9 +149,9 @@ Console.WriteLine("{\"outcome\":\"ok\"}");
     Assert ($codexConfig.Contains("model = 'keep'") -and $codexConfig.Contains("notify = ['one', 'two']") -and $codexConfig.Contains('third-party@personal')) 'Codex unrelated settings changed.'
     Assert (-not (Test-Path -LiteralPath (Join-Path $user '.codex\hooks.json'))) 'Unexpected global Codex hooks.'
     Assert (-not ($codexConfig -match 'trusted_hash|trusted_content_hash|bypass.hook.trust')) 'A native trust approval was fabricated.'
-    $codexHooks = [IO.File]::ReadAllText((Join-Path $codexPlugin 'hooks\hooks.json'))
-    Assert (-not $codexHooks.Contains('__NEXUS_KEYPAD_HOOK__')) 'Codex hook template was not rendered.'
-    Assert ((($codexHooks | ConvertFrom-Json).hooks.PSObject.Properties | Measure-Object).Count -eq 10) 'Codex lifecycle events are incomplete.'
+    $codexManifest = [IO.File]::ReadAllText((Join-Path $codexPlugin '.codex-plugin\plugin.json'))
+    Assert (-not $codexManifest.Contains('__NEXUS_KEYPAD_HOOK__') -and $codexManifest.Contains('%LOCALAPPDATA%')) 'Codex hooks do not reach the stable program.'
+    Assert ((($codexManifest | ConvertFrom-Json).hooks.hooks.PSObject.Properties | Measure-Object).Count -eq 10) 'Codex lifecycle events are incomplete.'
     Assert (-not ([IO.File]::ReadAllText((Join-Path $agyPlugin 'hooks.json')).Contains('__NEXUS_KEYPAD_HOOK__'))) 'Antigravity hook template was not rendered.'
     Assert (Test-Path -LiteralPath (Join-Path $user ".codex\plugins\cache\personal\nexus-keypad\$version\skills\nexus-keypad\SKILL.md")) 'Codex installed cache is missing.'
     Write-Host "Native package connectors: $checks isolated checks passed, connector version $version. No UI or host process was used."

@@ -25,7 +25,8 @@ conversation. Never claim a microphone, usage view or conversation-opening actio
 Per app:
 - Claude: a pre-existing complete `nexus-keypad@nexus` (private) or `nexus-keypad@nexus-plugins` (NexusSystem
   catalog) plugin is preserved and used as the connector instead of adding another one.
-- Codex: the bundled lifecycle hooks run only after the user reviews and trusts them in Codex; never create trust
+- Codex: a `nexus-keypad@nexus-plugins` plugin (NexusSystem catalog) is likewise preserved and used as the
+  connector. The bundled lifecycle hooks run only after the user reviews and trusts them in Codex; never create trust
   entries or bypass that review. Until then, and in any case, Codex's session logs remain the source for history,
   names, quotas, asynchronous questions and conversation details; child events, concurrent tools and late callbacks
   must not mark a busy parent conversation finished. The completion sound stays Codex's own.
