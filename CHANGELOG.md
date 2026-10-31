@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.9] - 2026-10-31
+
+### Changed
+- One connector folder (`connecteurs/`) now serves Claude Code, Codex and Antigravity: one shared guide
+  (`skills/nexus-keypad/SKILL.md`), one logo, plus each host's own manifest and hooks (`.claude-plugin` +
+  `claude/`, `.codex-plugin` + `codex/`, root `plugin.json` + `hooks.json`). The former per-host copies
+  (`connecteurs/claude`, `connecteurs/codex`, `connecteurs/antigravity`) are gone. Installed layouts are unchanged
+  except the shared guide and Claude's logo, now at `assets/logo.png`. Connector version 1.2.4.
+
 ## [1.8.8] - 2026-10-30
 
 ### Fixed

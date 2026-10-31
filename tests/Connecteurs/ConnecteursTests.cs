@@ -13,6 +13,19 @@ public sealed class ConnecteursTests
         .Single(a => a.Key == "NexusKeypad.Repository").Value;
 
     [Fact]
+    public void Un_seul_dossier_connecteur_pour_les_trois_IA()
+    {
+        // One folder, one guide: each host's manifest carries the connector version, and no per-host copy remains.
+        var dossier = Path.Combine(Depot, "connecteurs");
+        foreach (var manifeste in new[] { ".claude-plugin/plugin.json", ".codex-plugin/plugin.json", "plugin.json" })
+        {
+            Assert.Equal(Connecteurs.Version, JsonNode.Parse(File.ReadAllText(Path.Combine(dossier, manifeste)))!["version"]!.GetValue<String>());
+        }
+        Assert.Single(Directory.GetFiles(dossier, "SKILL.md", SearchOption.AllDirectories));
+        Assert.False(Directory.Exists(Path.Combine(dossier, "antigravity")), "Ancienne copie Antigravity restante.");
+    }
+
+    [Fact]
     public void Tableaux_et_plugins_tiers_du_profil_conserves()
     {
         // Real profiles contain TOML arrays (TomlArray does not necessarily implement the non-generic IList).
@@ -72,7 +85,7 @@ public sealed class ConnecteursTests
             Directory.CreateDirectory(Path.Combine(installe, "skills", "nexus-keypad"));
             File.WriteAllText(Path.Combine(installe, ".claude-plugin", "plugin.json"), "{\"name\":\"nexus-keypad\",\"version\":\"2.2.0\"}");
             File.WriteAllText(Path.Combine(installe, "hooks", "hooks.json"), "{\"hooks\":{}}");
-            File.Copy(Path.Combine(Depot, "connecteurs", "claude", "skills", "nexus-keypad", "SKILL.md"), Path.Combine(installe, "skills", "nexus-keypad", "SKILL.md"));
+            File.Copy(Path.Combine(Depot, "connecteurs", "skills", "nexus-keypad", "SKILL.md"), Path.Combine(installe, "skills", "nexus-keypad", "SKILL.md"));
             var reglagesChemin = Path.Combine(maison, ".claude", "settings.json");
             File.WriteAllText(reglagesChemin, "{\"enabledPlugins\":{\"nexus-keypad@nexus-plugins\":false,\"third-party@other\":true}}");
             File.WriteAllText(Path.Combine(maison, ".claude", "plugins", "installed_plugins.json"), new JsonObject { ["version"] = 2, ["plugins"] = new JsonObject {
@@ -391,7 +404,7 @@ public sealed class ConnecteursTests
         File.WriteAllBytes(recuCommun, runtimeAvant);
 
         // A changed package must start a fresh observation interval even while the previous installed copy is valid.
-        var guidePaquet = Path.Combine(paquet, "connecteurs", "codex", "skills", "nexus-keypad", "SKILL.md");
+        var guidePaquet = Path.Combine(paquet, "connecteurs", "skills", "nexus-keypad", "SKILL.md");
         var guideOriginal = File.ReadAllBytes(guidePaquet);
         var avantMiseAJour = VieillirPreparation(1);
         File.AppendAllText(guidePaquet, "\nchanged package fixture\n");
@@ -509,7 +522,7 @@ public sealed class ConnecteursTests
         File.WriteAllText(Path.Combine(privateRoot, ".claude-plugin", "plugin.json"), "{\"name\":\"nexus-keypad\",\"version\":\"2.1.0\"}");
         File.WriteAllText(Path.Combine(privateRoot, "hooks", "hooks.json"), "{\"hooks\":{}}");
         Directory.CreateDirectory(Path.Combine(privateRoot, "skills", "nexus-keypad"));
-        File.Copy(Path.Combine(source, "connecteurs", "claude", "skills", "nexus-keypad", "SKILL.md"), Path.Combine(privateRoot, "skills", "nexus-keypad", "SKILL.md"));
+        File.Copy(Path.Combine(source, "connecteurs", "skills", "nexus-keypad", "SKILL.md"), Path.Combine(privateRoot, "skills", "nexus-keypad", "SKILL.md"));
         var privateSettingsPath = Path.Combine(maison, ".claude", "settings.json");
         File.WriteAllText(privateSettingsPath, "{\"other\":true,\"enabledPlugins\":{\"nexus-keypad@nexus\":false,\"third-party@other\":true}}");
         var installed = new JsonObject { ["version"] = 2, ["plugins"] = new JsonObject { ["nexus-keypad@nexus"] = new JsonArray(new JsonObject { ["scope"] = "user", ["installPath"] = privateRoot }) } };

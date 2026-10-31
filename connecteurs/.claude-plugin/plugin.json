@@ -1,7 +1,7 @@
 {
   "name": "nexus-keypad",
-  "version": "1.2.3",
-  "icon": "./logo.png",
+  "version": "1.2.4",
+  "icon": "./assets/logo.png",
   "description": "NexusKeypad: live activity, exact usage and setup diagnostics for your Logitech keypad.",
   "author": { "name": "Julien Piron" },
   "types": "./types/index.d.ts"

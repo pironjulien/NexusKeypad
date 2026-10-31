@@ -57,7 +57,7 @@ try {
     [IO.Compression.ZipFile]::ExtractToDirectory($package, $extracted)
     Assert (Test-Path -LiteralPath (Join-Path $extracted 'bin\nexuskeypad-hook.exe')) 'Native helper is absent from the package.'
     Assert (Test-Path -LiteralPath (Join-Path $extracted 'bin\NexusKeypadPlugin.dll')) 'Complete NexusKeypad assembly is absent from the package.'
-    $version = (Get-Content (Join-Path $extracted 'bin\connecteurs\codex\.codex-plugin\plugin.json') -Raw | ConvertFrom-Json).version
+    $version = (Get-Content (Join-Path $extracted 'bin\connecteurs\.codex-plugin\plugin.json') -Raw | ConvertFrom-Json).version
     foreach ($agent in 'claude', 'codex', 'antigravity') {
         Assert ((InvokeConnector $agent 'status').state -eq 'Absent') "Fresh profile should report absent $agent before first host setup."
     }

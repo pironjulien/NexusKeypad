@@ -35,7 +35,7 @@ namespace Loupedeck.TrinitePlugin
     public static class Connecteurs
     {
         public const String Nom = "nexus-keypad";
-        public const String Version = "1.2.3";
+        public const String Version = "1.2.4";
         private const String ProgrammeHook = "__NEXUS_KEYPAD_HOOK__";
         private static readonly String[] Agents = ["claude", "codex", "antigravity"];
         private static readonly Object Verrou = new();
@@ -256,6 +256,50 @@ namespace Loupedeck.TrinitePlugin
             }
 
             return Equals(a, b);
+        }
+
+        // One connector folder serves the three hosts (Source): shared guide and logo, plus each host's own manifest
+        // and hooks. Installed layouts stay those each host expects (hooks/hooks.json for Claude and Codex, root
+        // hooks.json and logo.png for Antigravity); Codex and Antigravity hooks get this PC's program path.
+        private static readonly (String Agent, String Source, String Cible)[] PlanConnecteur =
+        [
+            ("claude", ".claude-plugin/plugin.json", ".claude-plugin/plugin.json"),
+            ("claude", "claude/hooks.json", "hooks/hooks.json"),
+            ("claude", "claude/register.ts", "hooks/register.ts"),
+            ("claude", "types/index.d.ts", "types/index.d.ts"),
+            ("claude", "assets/logo.png", "assets/logo.png"),
+            ("codex", ".codex-plugin/plugin.json", ".codex-plugin/plugin.json"),
+            ("codex", "codex/hooks.json", "hooks/hooks.json"),
+            ("codex", "assets/logo.png", "assets/logo.png"),
+            ("codex", "assets/composer-icon.png", "assets/composer-icon.png"),
+            ("antigravity", "plugin.json", "plugin.json"),
+            ("antigravity", "hooks.json", "hooks.json"),
+            ("antigravity", "assets/logo.png", "logo.png"),
+        ];
+
+        /// <summary>Files of the agent's connector, at their installed relative paths (guide included).</summary>
+        private static List<(String Relatif, Byte[] Contenu)> FichiersConnecteur(Int32 agent)
+        {
+            if (!Directory.Exists(Source)) { throw new DirectoryNotFoundException("Le connecteur manque dans le paquet NexusKeypad."); }
+            var plan = PlanConnecteur.Where(x => x.Agent == Agents[agent]).Select(x => (x.Source, x.Cible)).ToList();
+            var guides = Path.Combine(Source, "skills");
+            if (Directory.Exists(guides))
+            {
+                plan.AddRange(Directory.EnumerateFiles(guides, "*", SearchOption.AllDirectories)
+                    .Select(f => Path.GetRelativePath(Source, f).Replace('\\', '/')).Select(r => (r, r)));
+            }
+            var fichiers = new List<(String, Byte[])>();
+            foreach (var (source, cible) in plan)
+            {
+                var chemin = Path.Combine(Source, source.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(chemin)) { throw new FileNotFoundException("Le connecteur manque dans le paquet NexusKeypad.", chemin); }
+                if ((File.GetAttributes(chemin) & FileAttributes.ReparsePoint) != 0) { throw new IOException("Le paquet contient un lien."); }
+                var contenu = File.ReadAllBytes(chemin);
+                if (agent == 2 && cible == "hooks.json") { contenu = RendreHooksAgy(contenu); }
+                if (agent == 1 && cible == "hooks/hooks.json") { contenu = RendreHooksCodex(contenu); }
+                fichiers.Add((cible.Replace('/', Path.DirectorySeparatorChar), contenu));
+            }
+            return fichiers;
         }
 
         private static readonly String[] FichiersClaudeNexus = [".claude-plugin/plugin.json", "hooks/hooks.json", "skills/nexus-keypad/SKILL.md"];
@@ -766,15 +810,8 @@ namespace Loupedeck.TrinitePlugin
                     if (agent == 0 && actif && prive is null) { VerifierCatalogueClaude(); } // before any transaction write
                     if (actif && prive is null)
                     {
-                        var paquet = Path.Combine(Source, Agents[agent]);
-                        if (!Directory.Exists(paquet)) { throw new DirectoryNotFoundException("Le connecteur manque dans le paquet NexusKeypad."); }
-                        foreach (var entree in Directory.EnumerateFiles(paquet, "*", SearchOption.AllDirectories))
+                        foreach (var (relatif, contenu) in FichiersConnecteur(agent))
                         {
-                            if ((File.GetAttributes(entree) & FileAttributes.ReparsePoint) != 0) { throw new IOException("Le paquet contient un lien."); }
-                            var relatif = Path.GetRelativePath(paquet, entree);
-                            var contenu = File.ReadAllBytes(entree);
-                            if (agent == 2 && relatif == "hooks.json") { contenu = RendreHooksAgy(contenu); }
-                            if (agent == 1 && relatif == Path.Combine("hooks", "hooks.json")) { contenu = RendreHooksCodex(contenu); }
                             Fichier(Path.Combine(cible, relatif), contenu);
                         }
                     }
@@ -830,11 +867,8 @@ namespace Loupedeck.TrinitePlugin
                         {
                             // Codex resolves the installed cache, not only the marketplace source directory.
                             var cache = Path.Combine(Codex, "plugins", "cache", catalogue["name"]!.GetValue<String>(), Nom, Version);
-                            foreach (var entree in Directory.EnumerateFiles(Path.Combine(Source, "codex"), "*", SearchOption.AllDirectories))
+                            foreach (var (relatif, contenu) in FichiersConnecteur(1))
                             {
-                                var relatif = Path.GetRelativePath(Path.Combine(Source, "codex"), entree);
-                                var contenu = File.ReadAllBytes(entree);
-                                if (relatif == Path.Combine("hooks", "hooks.json")) { contenu = RendreHooksCodex(contenu); }
                                 Fichier(Path.Combine(cache, relatif), contenu);
                             }
                         }

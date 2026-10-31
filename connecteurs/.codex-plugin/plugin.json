@@ -1,6 +1,6 @@
 {
   "name": "nexus-keypad",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "NexusKeypad: configure, diagnose and disable the connection between Codex and your Logitech keypad.",
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json",

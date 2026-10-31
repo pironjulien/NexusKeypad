@@ -1,6 +1,8 @@
 # NexusKeypad connectors
 
-Three small host packages, one shared native program and one Logitech runtime. No new MCP server is introduced.
+One connector folder for the three hosts, one shared native program and one Logitech runtime. No new MCP server is introduced.
+
+Shared: `skills/nexus-keypad/SKILL.md` (one guide) and `assets/`. Per host: Claude `.claude-plugin/` + `claude/` (hooks, usage module) + `types/`; Codex `.codex-plugin/` + `codex/hooks.json`; Antigravity root `plugin.json` + `hooks.json`. Installation maps each host's files to the layout that host expects (`Connecteurs.PlanConnecteur`).
 
 - Claude: lifecycle hooks, the shared native completion note and the existing public usage module.
 - Codex: setup/diagnostic skill, activation and native lifecycle hooks; the existing log reader remains available for history, quotas, conversation details and fallback.
