@@ -160,6 +160,7 @@ public sealed class ConnecteursTests
             installs["plugins"]![EtatsEnDirect.PluginClaudePublic]![0]!["installPath"] = nouveauCache;
             File.WriteAllText(registre, installs.ToJsonString());
             Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Reparer, "same identity with a new manager-selected cache never attests the still-present old cache");
+            Vrai(Connecteurs.CopieCatalogueMiseAJour(0), "a catalog copy updated by Claude's manager is re-attested without a question");
             Vrai(Connecteurs.Activer(0).Etat == EtatConnexion.Pret && File.ReadAllText(reglagesChemin) == migration,
                 "explicit repair adopts the current manager cache without changing catalog choices");
             var fichiersAdoptes = JsonNode.Parse(File.ReadAllText(recuChemin))!["files"]!.AsObject();
@@ -167,7 +168,8 @@ public sealed class ConnecteursTests
                 && !fichiersAdoptes.ContainsKey(Path.Combine(installe, "hooks/hooks.json")), "receipt attests the actual selected cache only");
             var doublon = migration.Replace("\"nexus-keypad@nexus\":false", "\"nexus-keypad@nexus\":true", StringComparison.Ordinal);
             File.WriteAllText(reglagesChemin, doublon);
-            Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Reparer && Connecteurs.Activer(0).Etat == EtatConnexion.Erreur
+            Vrai(Connecteurs.LireConfiguration(0).Etat == EtatConnexion.Reparer && !Connecteurs.CopieCatalogueMiseAJour(0)
+                && Connecteurs.Activer(0).Etat == EtatConnexion.Erreur
                 && File.ReadAllText(reglagesChemin) == doublon, "ambiguous duplicate activation is refused without changing user choices");
             File.WriteAllText(reglagesChemin, migration);
             Vrai(Connecteurs.Desactiver(0).Etat == EtatConnexion.Activer
@@ -243,7 +245,8 @@ public sealed class ConnecteursTests
 
             // A copy re-enabled later is reported, then turned off again by the next activation; never doubled.
             File.WriteAllText(config, Connecteurs.ActiverToml(Texte(), "nexus-keypad@personal", true));
-            Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer, "a re-enabled personal copy is reported as doubled hooks");
+            Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer && !Connecteurs.CopieCatalogueMiseAJour(1),
+                "a re-enabled personal copy is reported as doubled hooks, and keeps its question");
             Vrai(Connecteurs.Activer(1).Etat == EtatConnexion.Pret && !Actif(Texte(), "nexus-keypad@personal"), "repair turns the copy off again");
 
             // Codex installs a newer version: the connector adopts the new folder on its next activation.
@@ -254,8 +257,8 @@ public sealed class ConnecteursTests
                 Directory.CreateDirectory(Path.GetDirectoryName(cible));
                 File.Copy(fichier, cible);
             }
-            Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer && Connecteurs.Activer(1).Etat == EtatConnexion.Pret,
-                "a newer installed copy is adopted");
+            Vrai(Connecteurs.LireConfiguration(1).Etat == EtatConnexion.Reparer && Connecteurs.CopieCatalogueMiseAJour(1)
+                && Connecteurs.Activer(1).Etat == EtatConnexion.Pret, "a newer installed copy is adopted without a question");
             Vrai(Connecteurs.Desactiver(1).Etat == EtatConnexion.Activer && !Actif(Texte(), EtatsEnDirect.PluginClaudePublic), "disabling turns the catalog copy off");
         }
         finally

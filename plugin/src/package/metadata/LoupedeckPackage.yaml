@@ -20,7 +20,7 @@ description: Claude, Codex and Antigravity as animated pixel-art status keys, wi
 pluginFileName: TrinitePadPlugin.dll
 
 # Plugin version.
-version: 1.8.13
+version: 1.8.14
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: Julien Piron

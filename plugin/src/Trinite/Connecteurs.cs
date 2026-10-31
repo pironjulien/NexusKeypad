@@ -36,7 +36,7 @@ namespace Loupedeck.TrinitePlugin
     {
         public const String Nom = "nexus-keypad";
         // The product's version: the connector folder is also NexusSystem's catalog plugin, pinned at the release tag.
-        public const String Version = "1.8.13";
+        public const String Version = "1.8.14";
         private const String ProgrammeHook = "__NEXUS_KEYPAD_HOOK__";
         private static readonly String[] Agents = ["claude", "codex", "antigravity"];
         private static readonly Object Verrou = new();
@@ -446,6 +446,42 @@ namespace Loupedeck.TrinitePlugin
                     return new(EtatConnexion.Reparer, "La configuration ne peut pas être vérifiée (" + ex.GetType().Name + ").");
                 }
             }
+        }
+
+        // A Nexus catalog copy that its app's own manager updated (a new installed folder, the same identity still
+        // enabled) is the user's same choice: the connector may re-attest it without asking again. False for anything
+        // else to repair, which keeps its question.
+        public static Boolean CopieCatalogueMiseAJour(Int32 agent)
+        {
+            AgentValide(agent);
+            try
+            {
+                var recu = LireJson(Recu(agent));
+                var identite = recu["identity"]?.GetValue<String>();
+                if (recu["active"]?.GetValue<Boolean>() != true || recu["version"]?.GetValue<String>() != Version
+                    || !EtatsEnDirect.IdentitesNexus.Contains(identite) || recu["files"] is not JsonObject fichiers) { return false; }
+                (String Identite, String Dossier)? selection;
+                String[] attendus;
+                Boolean actif;
+                if (agent == 0)
+                {
+                    var reglages = LireJson(Path.Combine(Claude, "settings.json"));
+                    selection = PluginClaudeNexus(reglages);
+                    attendus = FichiersClaudeNexus;
+                    actif = (reglages["enabledPlugins"] as JsonObject)?[identite]?.GetValue<Boolean>() == true
+                        && selection is { } s && CacheClaudeComplet(s.Dossier);
+                }
+                else if (agent == 1)
+                {
+                    selection = PluginCodexNexus(File.ReadAllText(Path.Combine(Codex, "config.toml")));
+                    attendus = FichiersCodexNexus;
+                    actif = CodexActif(identite) && selection is { Dossier: not null };
+                }
+                else { return false; }
+                return actif && selection!.Value.Identite == identite
+                    && !attendus.All(f => fichiers.ContainsKey(Path.Combine(selection.Value.Dossier, f)));
+            }
+            catch (Exception) { return false; }
         }
 
         // These are receipts written by Claude's own plugin manager, never constructed by NexusKeypad.
