@@ -264,7 +264,8 @@ in PC Dashboard (no website is set by default). Package it yourself with
 ### Packages from a GitHub release
 
 Each [release](https://github.com/pironjulien/NexusKeypad/releases) carries the three packages (`.lplug4`), built by
-GitHub Actions from the tagged source, with `SHA256SUMS.txt` and a build provenance attestation
+GitHub Actions from `main` (first published as a development pre-release `vX.Y.Z-dev.N`, then promoted unchanged to the
+stable `vX.Y.Z`), with `SHA256SUMS.txt`, its offline signature and a build provenance attestation
 (`gh attestation verify <file> --repo pironjulien/NexusKeypad`). Logi Options+ does not install a package opened
 from a file (double-clicking it does nothing): install from the Marketplace when you can. Developers can install a
 package with the official Logi Plugin Tool (`dotnet tool install -g LogiPluginTool`, then

@@ -11,7 +11,7 @@ $errors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($installer, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw "get.ps1 syntax errors: $($errors -join ', ')" }
 # Import only the tested functions; never dot-source the installer's top-level execution.
-foreach ($name in 'Test-ReleaseSignature', 'Get-VerifiedPackageHash', 'Set-Connectors', 'Install-NexusKeypad',
+foreach ($name in 'Test-ReleaseSignature', 'Get-VerifiedPackageHash', 'Get-LatestTag', 'Set-Connectors', 'Install-NexusKeypad',
     'Get-LogiPluginRuntime', 'Get-LogiPluginProcesses', 'Wait-LogiPluginService', 'Stop-Logi', 'Start-Logi') {
     $definition = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) | Where-Object Name -eq $name)
     if ($definition.Count -ne 1) { throw "Expected exactly one function $name." }
@@ -41,6 +41,7 @@ $root = [IO.Path]::GetFullPath($root)
 $allowed = [IO.Path]::GetFullPath((Join-Path $HOME '.nexus\build\nexuskeypad\test\installer-signature')) + '\'
 if (-not $root.StartsWith($allowed, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid isolated test path.' }
 $oldSource = [Environment]::GetEnvironmentVariable('NEXUS_KEYPAD_SOURCE', 'Process')
+$oldReleaseTag = [Environment]::GetEnvironmentVariable('NEXUS_RELEASE_TAG', 'Process')
 function PublicKey([Security.Cryptography.ECDsaCng]$Value) {
     $blob = $Value.Key.Export([Security.Cryptography.CngKeyBlobFormat]::EccPublicBlob)
     $prefix = [byte[]]('30-59-30-13-06-07-2A-86-48-CE-3D-02-01-06-08-2A-86-48-CE-3D-03-01-07-03-42-00-04'.Split('-') | ForEach-Object { [Convert]::ToByte($_, 16) })
@@ -77,6 +78,18 @@ try {
     Assert ((Get-VerifiedPackageHash $withBom (Signature $withBom) $packageName) -ceq $hash) 'Signed UTF-8 BOM must be verified before decoding.'
     Assert (-not (Test-ReleaseSignature $manifest $signature @('invalid key'))) 'Malformed trust root must not allow installation.'
 
+    # NEXUS_RELEASE_TAG (NexusSystem's development channel) selects a stable or development tag, without the network;
+    # anything else is refused.
+    foreach ($tag in 'v1.2.3', 'v1.2.3-dev.45') {
+        [Environment]::SetEnvironmentVariable('NEXUS_RELEASE_TAG', $tag, 'Process')
+        Assert ((Get-LatestTag) -ceq $tag) "NEXUS_RELEASE_TAG $tag should be used as is."
+    }
+    foreach ($tag in 'latest', 'v1.2', 'v1.2.3-beta.1', 'v1.2.3-dev.4/../x') {
+        [Environment]::SetEnvironmentVariable('NEXUS_RELEASE_TAG', $tag, 'Process')
+        Assert (Refuses { Get-LatestTag } 'not a release tag') "NEXUS_RELEASE_TAG $tag must be refused."
+    }
+    [Environment]::SetEnvironmentVariable('NEXUS_RELEASE_TAG', $null, 'Process')
+
     # A valid ZIP is deliberately used in negative download tests. A missing signature must fail before it is
     # extracted or copied, even when the package and checksum have both been replaced consistently.
     New-Item -ItemType Directory -Force (Join-Path $root 'fixture\bin') | Out-Null
@@ -96,7 +109,8 @@ try {
     $script:downloadCase = ''
     $script:downloads = @()
     function Say([string]$Text, [string]$Color = 'Gray') { }
-    function Get-LatestTag { return 'v9.8.7' }
+    $script:latestTag = 'v9.8.7'
+    function Get-LatestTag { return $script:latestTag }
     function Invoke-WebRequest([string]$Uri, [switch]$UseBasicParsing, [string]$OutFile) {
         $script:downloads += $Uri
         if ($Uri.EndsWith('/' + $packageName)) {
@@ -137,8 +151,18 @@ try {
     Assert ((Install-NexusKeypad) -eq 0) 'Valid signed package should install in the fake Logi folder.'
     Assert (Test-Path -LiteralPath (Join-Path $Target 'bin\NexusKeypadPlugin.dll')) 'Signed fixture should be copied only after verification.'
     Assert ($Results['Plugin'] -eq 'installed' -and $Results['Keys'] -eq 'guided' -and $Results['AI connections'] -eq 'left (test folder)') 'Signed fixture installation should not place keys or run a helper.'
+    # A development build vX.Y.Z-dev.N: same signed checks, the X.Y.Z package from that pre-release.
+    $script:latestTag = 'v9.8.7-dev.5'
+    $script:downloads = @()
+    $Logi = Join-Path $root 'valid-dev'
+    $Target = Join-Path $Logi 'Plugins\NexusKeypad'
+    $Results = [ordered]@{}
+    Assert ((Install-NexusKeypad) -eq 0) 'Valid signed development package should install in the fake Logi folder.'
+    Assert ($script:downloads[0] -like "*/releases/download/v9.8.7-dev.5/$packageName") 'Development tag should download the X.Y.Z package from its pre-release.'
+    Assert (@($script:downloads | Where-Object { $_ -like '*/releases/download/v9.8.7-dev.5/SHA256SUMS.txt*' }).Count -eq 2) 'Development tag should verify its own signed manifest.'
 } finally {
     [Environment]::SetEnvironmentVariable('NEXUS_KEYPAD_SOURCE', $oldSource, 'Process')
+    [Environment]::SetEnvironmentVariable('NEXUS_RELEASE_TAG', $oldReleaseTag, 'Process')
     $key.Dispose()
     $other.Dispose()
     if ((Test-Path -LiteralPath $root) -and $root.StartsWith($allowed, [StringComparison]::OrdinalIgnoreCase)) {

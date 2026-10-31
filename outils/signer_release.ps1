@@ -1,17 +1,22 @@
-# Signe une release GitHub de NexusKeypad, hors ligne, après son workflow Release (qui la crée en brouillon), puis la publie :
-# la mise à jour automatique de l'édition complète refuse toute release sans SHA256SUMS.txt.sig valide (MiseAJour.Sommes).
+# Signe une release GitHub de NexusKeypad, hors ligne : la mise à jour automatique de l'édition complète et get.ps1
+# refusent toute release sans SHA256SUMS.txt.sig valide (MiseAJour.Sommes).
+# Deux canaux (workflow Release) : chaque push sur main publie la pré-version de développement vX.Y.Z-dev.N, puis
+# « Run workflow » la promeut telle quelle en vX.Y.Z (mêmes fichiers, pièces jointes comprises). Signer la pré-version
+# AVANT de la promouvoir : la signature la suit dans la release stable, qui n'est jamais publiée sans elle. Une release
+# stable déjà promue sans signature se signe de la même façon (-Tag vX.Y.Z).
 #
 # Avant de signer : chaque fichier de la release est contrôlé contre SHA256SUMS.txt et contre son attestation de
-# provenance (gh attestation verify : construit par le workflow Release de pironjulien/NexusKeypad). Puis SHA256SUMS.txt
+# provenance (gh attestation verify : attestée par product-dev-release de pironjulien/NexusSystem, appelé par le
+# workflow Release de pironjulien/NexusKeypad sur main, au commit de l'étiquette). Puis SHA256SUMS.txt
 # est signé (ECDSA P-256, SHA-256, IEEE P1363 en base64) par la clé privée de NexusSecure (-Cle : une autre, pour un
 # changement de clé). La signature doit passer avec les clés du plugin de cette release (Cles de MiseAJour.cs) ET avec
 # celles de la release publiée avant, que les plugins en place utilisent pour la contrôler : un changement de clé ne coupe
 # jamais leurs mises à jour. Puis elle est envoyée, téléchargée de nouveau et revérifiée.
 # La clé privée ne quitte jamais le poste (jamais de secret de CI) : un dépôt compromis ne peut pas signer.
-#   pwsh -NoProfile -File outils\signer_release.ps1 -Tag v1.6.3
+#   pwsh -NoProfile -File outils\signer_release.ps1 -Tag v1.9.0-dev.12
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)] [ValidatePattern('^v\d+\.\d+\.\d+$')] [string]$Tag,
+    [Parameter(Mandatory)] [ValidatePattern('^v\d+\.\d+\.\d+(-dev\.\d+)?$')] [string]$Tag,
     [string]$Cle = (Join-Path $env:OneDrive 'Documents\NexusSecure\projects\nexuskeypad\release-signing-p256.pem')
 )
 $ErrorActionPreference = 'Stop'
@@ -71,11 +76,11 @@ try {
     $noms = @($listes.Nom | Sort-Object -Unique)
     if ($noms.Count -ne $listes.Count) { throw 'SHA256SUMS.txt nomme un fichier plusieurs fois.' }
     if (Compare-Object $noms @($fichiers.Name | Sort-Object) -CaseSensitive) { throw 'SHA256SUMS.txt ne nomme pas exactement les fichiers de la release.' }
-    # Provenance liée à CETTE release : construite par le workflow Release depuis l'étiquette $Tag, à son commit (un ancien
-    # ensemble authentique du même workflow passait aussi).
+    # Provenance liée à CETTE release : attestée par le workflow partagé de développement, lancé par un push sur main de
+    # ce dépôt, au commit de l'étiquette $Tag (un ancien ensemble authentique du même workflow passait aussi).
     $commit = gh api "repos/$depot/commits/$Tag" -q .sha
     if ($LASTEXITCODE -or $commit -notmatch '^[0-9a-f]{40}$') { throw "Commit de $Tag introuvable." }
-    $source = @('--repo', $depot, '--signer-workflow', "$depot/.github/workflows/release.yml", '--source-ref', "refs/tags/$Tag", '--source-digest', $commit)
+    $source = @('--repo', $depot, '--signer-workflow', 'pironjulien/NexusSystem/.github/workflows/product-dev-release.yml', '--source-ref', 'refs/heads/main', '--source-digest', $commit)
     foreach ($l in @($listes) + [pscustomobject]@{ Empreinte = $null; Nom = 'SHA256SUMS.txt' }) {
         $fichier = Join-Path $travail $l.Nom
         if ($l.Empreinte -and (Get-FileHash -LiteralPath $fichier -Algorithm SHA256).Hash.ToLowerInvariant() -ne $l.Empreinte) { throw "Empreinte différente : $($l.Nom)" }
@@ -107,7 +112,8 @@ try {
     if ($LASTEXITCODE -or -not (Test-Signature ([IO.File]::ReadAllBytes((Join-Path $relue 'SHA256SUMS.txt'))) (Get-Content -Raw (Join-Path $relue 'SHA256SUMS.txt.sig')) $nouvelles)) {
         throw 'Signature publiée invalide.'
     }
-    # Le workflow Release crée la release en brouillon : publiée seulement maintenant, signée.
+    # Ancien workflow Release (brouillons) : un brouillon n'est publié que signé. Une pré-version de développement n'en est
+    # jamais un et reste une pré-version (releases/latest ne la désigne jamais).
     if ((gh release view $Tag -R $depot --json isDraft -q .isDraft) -eq 'true') {
         gh release edit $Tag -R $depot --draft=false --latest | Out-Null
         if ($LASTEXITCODE) { throw 'Publication du brouillon refusée.' }

@@ -181,11 +181,13 @@ namespace Loupedeck.TrinitePlugin
 
 #if !(MARKETPLACE || POSTE || COMPLETE)
         // Dernière version publiée : la redirection de releases/latest (…/releases/tag/vX.Y.Z), sans l'API GitHub.
+        // GitHub n'y met jamais une pré-version ; une étiquette autre qu'un vX.Y.Z stable (vX.Y.Z-dev.N du canal de
+        // développement) est de toute façon refusée.
         public static async Task<String> Derniere()
         {
             using var reponse = await Http.GetAsync(Depot + "/releases/latest");
             var lieu = reponse.Headers.Location?.ToString() ?? "";
-            var m = Regex.Match(lieu, @"/releases/tag/v([0-9][^/?#]*)$");
+            var m = Regex.Match(lieu, @"/releases/tag/v([0-9]+\.[0-9]+\.[0-9]+)$");
             return m.Success ? m.Groups[1].Value : throw new InvalidDataException($"redirection inattendue : {lieu}");
         }
 

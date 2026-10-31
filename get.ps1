@@ -93,6 +93,12 @@ function Get-VerifiedPackageHash([byte[]]$Manifest, [string]$Signature, [string]
 }
 
 function Get-LatestTag {
+    # NEXUS_RELEASE_TAG (set by NexusSystem for its development channel): that release instead, a stable vX.Y.Z or a
+    # development vX.Y.Z-dev.N build, checked against its own signed SHA256SUMS.txt like any other.
+    if ($env:NEXUS_RELEASE_TAG) {
+        if ($env:NEXUS_RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+(-dev\.\d+)?$') { throw "NEXUS_RELEASE_TAG is not a release tag: $env:NEXUS_RELEASE_TAG" }
+        return $env:NEXUS_RELEASE_TAG
+    }
     # The latest release's tag from the redirect of github.com/<repo>/releases/latest (to .../releases/tag/vX.Y.Z): no
     # GitHub API, whose anonymous limit (60 requests an hour per IP) breaks on shared IPs (CI runners, offices). The API
     # stays as a fallback.
@@ -243,7 +249,8 @@ function Install-NexusKeypad {
             Say "Installing NexusKeypad from $package..."
         } else {
             $tag = Get-LatestTag
-            $name = '{0}_{1}.lplug4' -f $Plugin, ($tag.TrimStart('v') -replace '\.', '_')
+            # A development build vX.Y.Z-dev.N carries the X.Y.Z package (NexusKeypad_X_Y_Z.lplug4).
+            $name = '{0}_{1}.lplug4' -f $Plugin, (($tag.TrimStart('v') -replace '-dev\.\d+$', '') -replace '\.', '_')
             $base = "https://github.com/pironjulien/NexusKeypad/releases/download/$tag"
             Say "Downloading NexusKeypad $tag..."
             $package = Join-Path $work $name

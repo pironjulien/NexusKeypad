@@ -1,25 +1,42 @@
-# Release: on a vX.Y.Z tag, builds the three Logi Marketplace editions and the complete NexusKeypad edition installed by
-# get.ps1 (.lplug4, checked by the official Logi Plugin Tool), attests their build provenance (verify with `gh attestation verify <file> --repo pironjulien/NexusKeypad`),
-# and publishes them with SHA256SUMS.txt and that provenance (NexusKeypad-X.Y.Z.intoto.jsonl, the Sigstore bundle, for
-# `gh attestation verify <file> --bundle`) as the "NexusKeypad X.Y.Z" GitHub release, as a draft: the maintainer signs
-# SHA256SUMS.txt offline (outils/signer_release.ps1, key never on GitHub), then publishes it. The complete edition's
-# automatic update refuses a release without a valid SHA256SUMS.txt.sig.
-# Actions pinned by commit SHA; Dependabot (github-actions) keeps them up to date.
+# Release, in two channels, with the shared Nexus release workflows of NexusSystem.
+# - Development: every push to main checks one version everywhere, runs test.ps1 and builds the three Logi Marketplace
+#   editions and the complete NexusKeypad edition installed by get.ps1 (.lplug4, checked by the official Logi Plugin
+#   Tool), plus get.ps1 and SHA256SUMS.txt. product-dev-release attests them (verify with `gh attestation verify <file>
+#   --repo pironjulien/NexusKeypad`; the Sigstore bundle is attached as NexusKeypad-X.Y.Z.intoto.jsonl) and publishes
+#   the pre-release vX.Y.Z-dev.N (NexusSystem's development channel).
+# - Offline signature: the maintainer signs that pre-release's SHA256SUMS.txt (outils/signer_release.ps1 -Tag
+#   vX.Y.Z-dev.N, key never on GitHub). get.ps1 and the complete edition's automatic update refuse a release without a
+#   valid SHA256SUMS.txt.sig.
+# - Stable: "Run workflow" (promote: a vX.Y.Z-dev.N, or empty for the newest) runs product-promote: the SAME files,
+#   signature included, become the release vX.Y.Z with the CHANGELOG section. get.ps1 and the automatic update install
+#   from releases/latest, never a pre-release. NexusKeypad is not in the MCP registry.
+# Actions and shared workflows pinned by commit SHA; Dependabot (github-actions) keeps them up to date.
 name: Release
 
 on:
   push:
-    tags: ["v*.*.*"]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      promote:
+        description: Development build to publish as stable (vX.Y.Z-dev.N, signed; empty = the newest)
+        required: false
+        default: ''
 
 permissions: {}
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  release:
+  build:
+    if: github.event_name == 'push'
     runs-on: windows-latest
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -27,17 +44,32 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
         with:
           dotnet-version: 10.0.x
+      - name: One version everywhere
+        id: version
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content plugin/src/TrinitePadPlugin.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "plugin/src/TrinitePadPlugin.csproj: no X.Y.Z version ($version)." }
+          $found = [ordered]@{}
+          foreach ($package in 'package', 'package-poste', 'package-complete', 'package-nexus') {
+            $yaml = "plugin/src/$package/metadata/LoupedeckPackage.yaml"
+            $found[$yaml] = (Get-Content $yaml | Select-String '^version:\s*(\S+)').Matches[0].Groups[1].Value
+          }
+          $wrong = @($found.GetEnumerator() | Where-Object { $_.Value -ne $version } | ForEach-Object { "$($_.Key)=$($_.Value)" })
+          if ($wrong) { throw "Version $version expected: $($wrong -join ', ')" }
+          if (-not (Select-String -Path CHANGELOG.md -SimpleMatch "## [$version]" -Quiet)) { throw "CHANGELOG.md has no [$version] section." }
+          "version=$version" >> $env:GITHUB_OUTPUT
       - name: Tests (test.ps1)
         shell: pwsh
         run: ./test.ps1
       - name: Packages
         shell: pwsh
         env:
-          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           dotnet tool install -g LogiPluginTool --version 6.4.2.3599
           $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
-          $version = $env:TAG.TrimStart('v')
+          $version = $env:VERSION
           foreach ($e in 'Marketplace', 'Poste', 'Complete', 'Nexus') { ./outils/paquet_marketplace.ps1 -Edition $e }
           New-Item -ItemType Directory dist | Out-Null
           $suffixe = $version -replace '\.', '_'
@@ -52,27 +84,59 @@ jobs:
           Copy-Item get.ps1 dist  # the installer too, for running it from a file (checked and attested like the packages)
           Get-ChildItem dist -File | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |
             Set-Content dist/SHA256SUMS.txt -Encoding utf8NoBOM
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
-        id: provenance
+          Get-Content dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
-          subject-path: dist/*
-      - name: Provenance bundle
-        shell: pwsh
-        env:
-          BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
-          TAG: ${{ github.ref_name }}
-        run: Copy-Item $env:BUNDLE "dist/NexusKeypad-$($env:TAG.TrimStart('v')).intoto.jsonl"
-      - name: GitHub release
-        shell: pwsh
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 3
+
+  dev:
+    needs: build
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: pironjulien/NexusSystem/.github/workflows/product-dev-release.yml@a409925bafd1184acc207dd90ca4a43ba987d0e3  # v1.6.39
+    with:
+      product: NexusKeypad
+      version: ${{ needs.build.outputs.version }}
+
+  signed:
+    # The development build to promote (the newest when none is given) must carry the offline signature
+    # (SHA256SUMS.txt.sig, outils/signer_release.ps1): a stable release without it would be refused by every installer.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.dev.outputs.tag }}
+    steps:
+      - name: Signed development build
+        id: dev
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          PROMOTE: ${{ inputs.promote }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          $version = $env:TAG.TrimStart('v')
-          $lignes = Get-Content CHANGELOG.md
-          $debut = [Array]::FindIndex($lignes, [Predicate[string]] { param($l) $l -like "## ``[$version``]*" })
-          if ($debut -lt 0) { throw "CHANGELOG.md has no [$version] section." }
-          $fin = [Array]::FindIndex($lignes, $debut + 1, [Predicate[string]] { param($l) $l -like '## *' })
-          if ($fin -lt 0) { $fin = $lignes.Count }
-          $lignes[($debut + 1)..($fin - 1)] | Set-Content notes.md -Encoding utf8NoBOM
-          gh release create $env:TAG (Get-ChildItem dist -File).FullName --title "NexusKeypad $version" --notes-file notes.md --verify-tag --draft
+          set -euo pipefail
+          dev="$PROMOTE"
+          if [[ -z "$dev" ]]; then
+            dev=$(gh release list --repo "$REPOSITORY" --limit 100 --json tagName,isPrerelease,createdAt \
+              --jq '[.[] | select(.isPrerelease and (.tagName | test("-dev\\.[0-9]+$")))] | sort_by(.createdAt) | last | .tagName')
+          fi
+          [[ "$dev" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9]+$ ]] || { echo "Not a development build: $dev"; exit 1; }
+          assets=$(gh release view "$dev" --repo "$REPOSITORY" --json assets --jq '.assets[].name')
+          grep -qx 'SHA256SUMS.txt.sig' <<<"$assets" || { echo "$dev is not signed: run outils/signer_release.ps1 -Tag $dev first."; exit 1; }
+          echo "tag=$dev" >> "$GITHUB_OUTPUT"
+
+  promote:
+    needs: signed
+    permissions:
+      contents: write
+      id-token: write
+    uses: pironjulien/NexusSystem/.github/workflows/product-promote.yml@a409925bafd1184acc207dd90ca4a43ba987d0e3  # v1.6.39
+    with:
+      product: NexusKeypad
+      promote: ${{ needs.signed.outputs.tag }}

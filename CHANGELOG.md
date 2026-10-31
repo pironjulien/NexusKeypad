@@ -5,6 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.10] - 2026-10-31
+
+### Added
+- `get.ps1` honours `NEXUS_RELEASE_TAG` (a stable `vX.Y.Z` or development `vX.Y.Z-dev.N` tag, set by NexusSystem's
+  development channel), with the same signature and checksum checks.
+
+### Changed
+- Releases use two channels, with NexusSystem's shared release workflows: every push to `main` checks one version
+  everywhere, runs `test.ps1`, builds the four `.lplug4` packages, `get.ps1` and `SHA256SUMS.txt`, and publishes the
+  attested development pre-release `vX.Y.Z-dev.N`; "Run workflow" promotes a signed development build unchanged to
+  the stable `vX.Y.Z`. The tag-triggered draft release is gone.
+- `outils/signer_release.ps1` signs a development pre-release before promotion (its signature follows it into the
+  stable release) and checks the provenance attested by the shared development workflow. Promotion refuses an
+  unsigned build.
+
+### Security
+- The automatic update only accepts a stable `vX.Y.Z` tag from `releases/latest`, never a pre-release.
+
 ## [1.8.9] - 2026-10-31
 
 ### Changed
