@@ -274,6 +274,30 @@ public sealed class QuotaTests
     }
 
     [Fact]
+    public void Quota_Claude_publie_par_toute_session_du_compte_et_de_l_organisation()
+    {
+        // Recent sessions of the connected account (cliSessionId → organisation folder); another account's sessions are
+        // never in this map.
+        var orgParCli = new Dictionary<String, String> { ["cli-shown"] = "org-a", ["cli-other"] = "org-a", ["cli-elsewhere"] = "org-b" };
+        var org = Observateur.OrganisationQuotaClaude(orgParCli, "org-a");
+        Vrai(org == "org-a", "The displayed conversation sets the organisation.");
+        Vrai(Observateur.PublicationQuotaClaudeAcceptee("cli-shown", orgParCli, org), "The displayed session's publication is accepted.");
+        Vrai(Observateur.PublicationQuotaClaudeAcceptee("cli-other", orgParCli, org),
+            "Another session of the same organisation publishes the same account quota: accepted after a conversation switch.");
+        Vrai(!Observateur.PublicationQuotaClaudeAcceptee("cli-elsewhere", orgParCli, org), "Another organisation of the account has its own quota.");
+        Vrai(!Observateur.PublicationQuotaClaudeAcceptee("cli-other-account", orgParCli, org), "Another account's session is refused.");
+        Vrai(!Observateur.PublicationQuotaClaudeAcceptee(null, orgParCli, org), "A publication without session is refused.");
+
+        Vrai(Observateur.OrganisationQuotaClaude(orgParCli, null) is null, "No displayed conversation and two organisations: none guessed.");
+        Vrai(!Observateur.PublicationQuotaClaudeAcceptee("cli-other", orgParCli, null), "Without an organisation nothing is accepted.");
+        var uneOrg = new Dictionary<String, String> { ["cli-1"] = "org-a", ["cli-2"] = "org-a" };
+        var seule = Observateur.OrganisationQuotaClaude(uneOrg, null);
+        Vrai(seule == "org-a" && Observateur.PublicationQuotaClaudeAcceptee("cli-2", uneOrg, seule),
+            "No displayed conversation and a single organisation among recent sessions: accepted.");
+        Vrai(Observateur.OrganisationQuotaClaude(new Dictionary<String, String>(), null) is null, "No recent session: no organisation.");
+    }
+
+    [Fact]
     public void Quota_Claude_par_compte_et_perimetre()
     {
         var maintenant = MaintenantClaude;

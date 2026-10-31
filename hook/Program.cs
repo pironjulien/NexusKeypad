@@ -3,7 +3,8 @@
 // Usage : nexuskeypad-hook <agent> <evenement>   (le JSON du hook arrive sur stdin)
 // Règles tenues cas par cas par tests/Hook (ExecutableTests) (relevées sur etat.py, la version Python d'origine) : écrit
 // %USERPROFILE%\.nexus\trinite\<agent>\<session>.json = {"state", "at", "event"} sous un verrou par session, sans jamais
-// remplacer un état noté par un événement parti après lui ; rend « {} » sur stdout (« {"decision": "allow"} » au
+// remplacer un état noté par un événement parti après lui (la liste des sous-agents Claude en arrière-plan, « agents »,
+// suit pourtant chaque événement) ; rend « {} » sur stdout (« {"decision": "allow"} » au
 // PreToolUse d'Antigravity, qui refuse l'outil sans décision) ; ne lève jamais.
 using System.Text;
 using System.Text.Json;
@@ -333,6 +334,104 @@ public static class Program
     private static double Nombre(JsonNode? n) =>
         n is JsonValue v && v.TryGetValue<double>(out var d) ? d : 0;
 
+    // Sous-agents Claude lancés en arrière-plan (outil Agent, « Task » de son ancien nom, run_in_background ou lancement
+    // asynchrone dans sa réponse) : Claude peut finir son tour pendant qu'ils travaillent. Tenus par session dans
+    // « agents » (id → départ), recopiés à chaque écriture. Le PreToolUse ne connaît que l'appel (« tool:<tool_use_id> »),
+    // remplacé au PostToolUse par l'agentId que SubagentStop rend ensuite (agent_id). Un agent jamais vu finir s'efface
+    // après 2 h, l'âge où le pad ne croit plus un « run ».
+    private static readonly HashSet<string> OutilsAgent = ["Agent", "Task"];
+
+    private const double DureeAgent = 2 * 3600;
+
+    private static string IdAgent(string id) => id.StartsWith("agent-", StringComparison.Ordinal) ? id["agent-".Length..] : id;
+
+    // Textes d'une réponse d'outil (objet, tableau de blocs ou texte), mis bout à bout.
+    private static void Textes(JsonNode? n, StringBuilder sortie)
+    {
+        switch (n)
+        {
+            case JsonObject o:
+                foreach (var (_, v) in o)
+                {
+                    Textes(v, sortie);
+                }
+
+                break;
+            case JsonArray a:
+                foreach (var v in a)
+                {
+                    Textes(v, sortie);
+                }
+
+                break;
+            case JsonValue v when v.TryGetValue<string>(out var s):
+                sortie.Append(s).Append('\n');
+                break;
+        }
+    }
+
+    // Réponse de l'outil Agent : lancement en arrière-plan ? et son agentId. Forme relevée dans les journaux de Claude
+    // Code : {"isAsync": true, "status": "async_launched", "agentId": "…"} ; en texte : « Async agent launched
+    // successfully. … agentId: … ».
+    private static (bool Lance, string? Id) Lancement(JsonNode? reponse)
+    {
+        var o = Objet(reponse);
+        var lance = Texte(o["status"]) == "async_launched" || (o["isAsync"] is JsonValue a && a.TryGetValue<bool>(out var b) && b);
+        var id = Texte(o["agentId"]);
+        var texte = new StringBuilder();
+        Textes(reponse, texte);
+        var t = texte.ToString();
+        lance = lance || t.Contains("Async agent launched", StringComparison.OrdinalIgnoreCase);
+        if (id.Length == 0 && t.IndexOf("agentId:", StringComparison.Ordinal) is var i and >= 0)
+        {
+            id = new string(t[(i + "agentId:".Length)..].TrimStart().TakeWhile(c => char.IsLetterOrDigit(c) || c is '-' or '_').ToArray());
+        }
+
+        return (lance, id.Length > 0 ? IdAgent(id) : null);
+    }
+
+    // Changement de la liste des sous-agents en arrière-plan qu'apporte un événement Claude : clés retirées, clé ajoutée.
+    public static (string[] Retires, string? Ajoute) AgentsArrierePlan(string evenement, JsonObject charge)
+    {
+        if (evenement == "SubagentStop")
+        {
+            var id = Texte(charge["agent_id"]);
+            if (id.Length == 0)
+            {
+                id = Path.GetFileNameWithoutExtension(Texte(charge["agent_transcript_path"]));
+                id = id.StartsWith("agent-", StringComparison.Ordinal) ? id : "";
+            }
+
+            return (id.Length > 0 ? [IdAgent(id)] : [], null);
+        }
+
+        if (evenement is not ("PreToolUse" or "PostToolUse" or "PostToolUseFailure") || !OutilsAgent.Contains(Outil(charge)))
+        {
+            return ([], null);
+        }
+
+        var appel = Texte(charge["tool_use_id"]);
+        string[] cleAppel = appel.Length > 0 ? ["tool:" + appel] : [];
+        var demande = Objet(charge["tool_input"])["run_in_background"] is JsonValue v && v.TryGetValue<bool>(out var fond) && fond;
+        switch (evenement)
+        {
+            case "PreToolUse":
+                return ([], demande && cleAppel.Length > 0 ? cleAppel[0] : null);
+            case "PostToolUseFailure":
+                return (cleAppel, null);
+            default:
+            {
+                var (lance, id) = Lancement(charge["tool_response"]);
+                if (!lance && !demande)
+                {
+                    return (cleAppel, null); // sous-agent au premier plan : il a fini avec son outil
+                }
+
+                return id is null ? ([], cleAppel.Length > 0 ? cleAppel[0] : null) : (cleAppel, id);
+            }
+        }
+    }
+
     // Écrit l'état sous son verrou ; ignore un événement parti avant celui déjà noté. Renvoie true uniquement
     // lorsqu'un nouveau Stop terminal Claude/AGY justifie sa note. La lecture/écriture seule ne joue aucun son.
     public static bool Noter(string agent, string evenement, JsonObject charge, double debut, string? racine = null)
@@ -391,19 +490,98 @@ public static class Program
                 precedent = [];
             }
 
-            if (Nombre(precedent["at"]) > debut)
+            // Sous-agents en arrière-plan : la liste suit chaque événement, même parti avant l'état noté (elle ne fait
+            // qu'ajouter ou retirer des agents) ; l'état, lui, n'est jamais remplacé par un événement plus ancien.
+            var anciens = Objet(precedent["agents"]);
+            var agents = new JsonObject();
+            foreach (var (cle, quand) in anciens)
             {
-                return false; // un événement parti après celui-ci a déjà écrit
+                if (debut - Nombre(quand) < DureeAgent)
+                {
+                    agents[cle] = Nombre(quand);
+                }
             }
 
-            var etat = evenement == "SessionEnd" ? "end" : EtatPour(evenement, charge, precedent);
-            if (etat is null)
+            var (retires, ajoute) = agent == "claude" ? AgentsArrierePlan(evenement, charge) : ([], null);
+            foreach (var cle in retires)
             {
-                return false;
+                agents.Remove(cle);
+            }
+
+            if (ajoute is not null && !agents.ContainsKey(ajoute))
+            {
+                agents[ajoute] = debut;
+            }
+
+            if (evenement == "SessionEnd")
+            {
+                agents.Clear();
+            }
+
+            var attendait = Vrai(precedent["awaiting"]);
+            var listeChangee = !JsonNode.DeepEquals(agents, anciens);
+            string? etat;
+            var attend = attendait;
+            JsonObject contenu;
+            if (Nombre(precedent["at"]) > debut)
+            {
+                if (!listeChangee || precedent["state"] is null)
+                {
+                    return false; // un événement parti après celui-ci a déjà écrit
+                }
+
+                etat = null;
+                contenu = new JsonObject { ["state"] = precedent["state"]!.DeepClone(), ["at"] = precedent["at"]!.DeepClone(), ["event"] = precedent["event"]?.DeepClone() };
+                if (attendait && agents.Count == 0)
+                {
+                    // Seule exception : l'état plus récent n'était « run » que pour ces agents (le tour de Claude est fini,
+                    // un nouveau tour aurait effacé « awaiting ») ; sans eux, la fin attendue est atteinte.
+                    contenu["state"] = "done";
+                    contenu["event"] = evenement;
+                    attend = false;
+                }
+            }
+            else
+            {
+                etat = evenement == "SessionEnd" ? "end" : EtatPour(evenement, charge, precedent);
+                if (evenement is "Stop" or "StopFailure" or "UserPromptSubmit" or "SessionEnd")
+                {
+                    attend = false; // le tour (re)part ou se termine : la fin attendue est décidée ici
+                }
+
+                if (agent == "claude" && evenement == "Stop" && etat == "done" && agents.Count > 0)
+                {
+                    etat = "run"; // fin de tour, mais des sous-agents en arrière-plan travaillent encore pour Claude
+                    attend = true;
+                }
+                else if (evenement == "SubagentStop" && attendait && agents.Count == 0)
+                {
+                    // Le dernier a fini : Claude reprend aussitôt pour lire son rapport ; la fin de ce tour-là sonnera.
+                    etat = "done";
+                    attend = false;
+                }
+
+                if (etat is null && (!listeChangee && attend == attendait || precedent["state"] is null))
+                {
+                    return false;
+                }
+
+                contenu = etat is null
+                    ? new JsonObject { ["state"] = precedent["state"]!.DeepClone(), ["at"] = precedent["at"]?.DeepClone(), ["event"] = precedent["event"]?.DeepClone() }
+                    : new JsonObject { ["state"] = etat, ["at"] = debut, ["event"] = evenement };
+            }
+
+            if (agents.Count > 0)
+            {
+                contenu["agents"] = agents;
+            }
+
+            if (attend)
+            {
+                contenu["awaiting"] = true;
             }
 
             var temporaire = Path.Combine(dossier, $"{session}.{Environment.ProcessId}.tmp");
-            var contenu = new JsonObject { ["state"] = etat, ["at"] = debut, ["event"] = evenement };
             File.WriteAllText(temporaire, contenu.ToJsonString(), new UTF8Encoding(false));
             File.Move(temporaire, fichier, overwrite: true);
             // Le son suit la même activation et le même verrou que l'état, une seule fois par fin de tour.

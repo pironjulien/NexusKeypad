@@ -107,6 +107,102 @@ public sealed class SonTests : IDisposable
         Verifier(!this.Noter("Stop", Claude("claude-child"), "claude"), "Un doublon de session enfant reste silencieux.");
     }
 
+    private String EtatClaude(String id = "claude-main") =>
+        JsonNode.Parse(File.ReadAllText(Path.Combine(this._racine, "claude", id + ".json")))!["state"]!.GetValue<String>();
+
+    private static JsonObject Agent(String evenement, String appel, Boolean arrierePlan, String? agentId = null, String outil = "Agent")
+    {
+        var charge = Claude();
+        charge["tool_name"] = outil;
+        charge["tool_use_id"] = appel;
+        charge["tool_input"] = new JsonObject { ["description"] = "x", ["prompt"] = "y", ["run_in_background"] = arrierePlan };
+        if (evenement == "PostToolUse")
+        {
+            // Shape recorded in Claude Code transcripts (toolUseResult of a background Agent call).
+            charge["tool_response"] = arrierePlan
+                ? new JsonObject { ["isAsync"] = true, ["status"] = "async_launched", ["agentId"] = agentId }
+                : new JsonObject { ["status"] = "completed", ["agentId"] = agentId, ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = "report" }) };
+        }
+
+        return charge;
+    }
+
+    private static JsonObject FinAgent(String agentId)
+    {
+        var charge = Claude();
+        charge["agent_id"] = agentId;
+        charge["agent_type"] = "general-purpose";
+        return charge;
+    }
+
+    [Fact]
+    public void Sous_agents_en_arriere_plan_de_Claude()
+    {
+        this.Noter("UserPromptSubmit", Claude(), "claude");
+        this.Noter("PreToolUse", Agent("PreToolUse", "toolu_1", true), "claude");
+        this.Noter("PostToolUse", Agent("PostToolUse", "toolu_1", true, "a111"), "claude");
+        Verifier(!this.Noter("Stop", Claude(), "claude"), "A turn ending while a background agent works plays no note.");
+        Verifier(this.EtatClaude() == "run", "Stop with one running background agent keeps the pad working.");
+        this.Noter("PreToolUse", new JsonObject { ["session_id"] = "claude-main", ["tool_name"] = "Bash", ["agent_id"] = "a111" }, "claude");
+        Verifier(this.EtatClaude() == "run", "The background agent's own tools keep the pad working.");
+        Verifier(!this.Noter("SubagentStop", FinAgent("a111"), "claude"), "The last agent's end plays no note: Claude resumes to read its report.");
+        Verifier(this.EtatClaude() == "done", "SubagentStop of the last background agent ends the turn.");
+        this.Noter("PostToolUse", new JsonObject { ["session_id"] = "claude-main", ["tool_name"] = "Read" }, "claude");
+        Verifier(this.Noter("Stop", Claude(), "claude"), "The turn that reads the report ends with the note.");
+        Verifier(this.EtatClaude() == "done", "Then the pad shows the end.");
+
+        // Two agents (one launched under the old tool name Task, its id given only in text): the pad works until both end.
+        this.Noter("UserPromptSubmit", Claude(), "claude");
+        this.Noter("PreToolUse", Agent("PreToolUse", "toolu_2", true), "claude");
+        this.Noter("PostToolUse", Agent("PostToolUse", "toolu_2", true, "a222"), "claude");
+        var texte = Agent("PreToolUse", "toolu_3", false, outil: "Task");
+        texte["tool_response"] = new JsonArray(new JsonObject
+        {
+            ["type"] = "text", ["text"] = "Async agent launched successfully.\nagentId: a333 (internal ID)",
+        });
+        this.Noter("PostToolUse", texte, "claude");
+        Verifier(!this.Noter("Stop", Claude(), "claude") && this.EtatClaude() == "run", "Two background agents: working.");
+        this.Noter("SubagentStop", FinAgent("a222"), "claude");
+        Verifier(this.EtatClaude() == "run", "One agent still works: still working.");
+        this.Noter("SubagentStop", FinAgent("agent-a333"), "claude");
+        Verifier(this.EtatClaude() == "done", "The last of them ends the wait.");
+
+        // A foreground Agent call does not count: its Stop is a normal end with its note.
+        this.Noter("UserPromptSubmit", Claude(), "claude");
+        this.Noter("PreToolUse", Agent("PreToolUse", "toolu_4", false), "claude");
+        this.Noter("PostToolUse", Agent("PostToolUse", "toolu_4", false, "a444"), "claude");
+        this.Noter("SubagentStop", FinAgent("a444"), "claude");
+        Verifier(this.Noter("Stop", Claude(), "claude"), "A foreground agent's turn ends with its note.");
+        Verifier(this.EtatClaude() == "done", "A foreground agent does not keep the pad working.");
+        Verifier(!this.Noter("SubagentStop", FinAgent("a999"), "claude") && this.EtatClaude() == "done",
+            "An unknown agent's end changes nothing.");
+
+        // A question at the end of the turn stays a question, even with background agents running.
+        this.Noter("UserPromptSubmit", Claude(), "claude");
+        this.Noter("PostToolUse", Agent("PostToolUse", "toolu_5", true, "a555"), "claude");
+        var question = Claude();
+        question["tool_name"] = "AskUserQuestion";
+        this.Noter("PreToolUse", question, "claude");
+        Verifier(this.Noter("Stop", Claude(), "claude") && this.EtatClaude() == "wait", "A question still asks for the user, with its note.");
+        Verifier(!this.Noter("SubagentStop", FinAgent("a555"), "claude") && this.EtatClaude() == "wait", "The question outlives the agent.");
+
+        // A hook started before the Stop but written after it (background hooks) still records the agent's end.
+        this.Noter("UserPromptSubmit", Claude(), "claude");
+        this.Noter("PostToolUse", Agent("PostToolUse", "toolu_6", true, "a666"), "claude");
+        var avant = ++this._date;
+        this.Noter("Stop", Claude(), "claude");
+        Verifier(!HookProgram.Noter("claude", "SubagentStop", FinAgent("a666"), avant, this._racine) && this.EtatClaude() == "done",
+            "A late SubagentStop of the last agent still ends the wait.");
+
+        // Only Claude tracks agents: Antigravity keeps its fullyIdle rule.
+        var agy = Charge("agy-agents");
+        agy["toolCall"] = new JsonObject { ["name"] = "Agent" };
+        agy["tool_input"] = new JsonObject { ["run_in_background"] = true };
+        agy["tool_use_id"] = "x";
+        this.Noter("PreToolUse", agy);
+        Verifier(this.Noter("Stop", Charge("agy-agents")), "Antigravity's Stop is unchanged.");
+    }
+
     [Fact]
     public void La_note_appartient_au_plugin_active()
     {

@@ -19,7 +19,7 @@ namespace Loupedeck.TrinitePlugin
     public static class EtatsEnDirect
     {
         public static readonly String[] EvenementsClaude =
-            ["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "Stop", "StopFailure", "SessionEnd"];
+            ["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "SubagentStop", "Stop", "StopFailure", "SessionEnd"];
 
         public static readonly String[] EvenementsAntigravity = ["PreInvocation", "PreToolUse", "PostToolUse", "Stop"];
 

@@ -19,7 +19,6 @@ namespace Loupedeck.TrinitePlugin
         private IEnumerable<Conversation> Claude()
         {
             this._sessionClaudeAffiche = null;
-            this._cliClaudeAffiche = null;
             var racine = Directory.Exists(Path.Combine(Local, "Claude-Data"))
                 ? Directory.EnumerateDirectories(Path.Combine(Local, "Claude-Data")).Select(d => Path.Combine(d, "claude-code-sessions")).FirstOrDefault(Directory.Exists)
                 : null;
@@ -43,6 +42,7 @@ namespace Loupedeck.TrinitePlugin
                 this._compteClaude = (ecritConfig, nouveauCompte);
             }
 
+            this._dossierClaude = Path.GetDirectoryName(racine);
             if (this._compteClaude.Compte is String compte && Directory.Exists(Path.Combine(racine, compte)))
             {
                 racine = Path.Combine(racine, compte);
@@ -50,7 +50,10 @@ namespace Loupedeck.TrinitePlugin
 
             this._sessionClaudeAffiche = Uia.SessionClaudeAffichee();
             var maintenantUtc = DateTime.UtcNow;
-            var clis = new HashSet<String>(); // remplacé d'un bloc à la fin : jamais lu à moitié rempli
+            // remplacés d'un bloc à la fin : jamais lus à moitié remplis. Organisation = dossier de la fiche sous le compte
+            // (claude-code-sessions\<compte>\<org>\local_*.json ; « <compte>\<org> » quand le compte est inconnu).
+            var orgParCli = new Dictionary<String, String>(StringComparer.Ordinal);
+            String orgAffichee = null;
             var brutes = new List<(Conversation Conv, String Cwd)>();
             foreach (var fichier in Directory.EnumerateFiles(racine, "local_*.json", SearchOption.AllDirectories))
             {
@@ -77,10 +80,11 @@ namespace Loupedeck.TrinitePlugin
                 var activite = Instant(Champ(meta, "lastActivityAt")) ?? ecrit;
                 var regard = Instant(Champ(meta, "lastFocusedAt")) ?? DateTime.MinValue;
                 var cli = Champ(meta, "cliSessionId");
+                var org = Path.GetRelativePath(racine, Path.GetDirectoryName(fichier));
+                if (id == this._sessionClaudeAffiche) { orgAffichee = org; }
                 if (cli is not null)
                 {
-                    clis.Add(cli);
-                    if (id == this._sessionClaudeAffiche) { this._cliClaudeAffiche = cli; }
+                    orgParCli[cli] = org;
                 }
 
                 var hook = cli is not null ? Hook("claude", cli) : null;
@@ -92,7 +96,8 @@ namespace Loupedeck.TrinitePlugin
                 brutes.Add((conv, cwd));
             }
 
-            this._clisClaude = clis;
+            this._orgParCliClaude = orgParCli;
+            this._orgQuotaClaude = OrganisationQuotaClaude(orgParCli, orgAffichee);
 
             var cwdActif = this._sessionClaudeAffiche is not null
                 ? brutes.FirstOrDefault(b => b.Conv.Id == this._sessionClaudeAffiche).Cwd
@@ -137,15 +142,35 @@ namespace Loupedeck.TrinitePlugin
 
         private static String NormaliserDossier(String d) => String.IsNullOrWhiteSpace(d) ? null : d.Replace('/', '\\').TrimEnd('\\');
 
-        // Sessions récentes du compte Claude connecté (cliSessionId), relevées par Claude().
-        private HashSet<String> _clisClaude = [];
+        // Sessions récentes du compte Claude connecté (cliSessionId → organisation), relevées par Claude().
+        private IReadOnlyDictionary<String, String> _orgParCliClaude = new Dictionary<String, String>();
         private String _sessionClaudeAffiche;
-        private String _cliClaudeAffiche;
+        private String _orgQuotaClaude;
+        private String _dossierClaude;
+
+        // Organisation dont le pad montre le quota : celle de la conversation affichée ; sans elle, l'organisation unique des
+        // sessions récentes du compte (plusieurs : aucune devinée).
+        internal static String OrganisationQuotaClaude(IReadOnlyDictionary<String, String> orgParCli, String orgAffichee)
+        {
+            if (orgAffichee is not null)
+            {
+                return orgAffichee;
+            }
+
+            var orgs = orgParCli.Values.Distinct(StringComparer.Ordinal).Take(2).ToList();
+            return orgs.Count == 1 ? orgs[0] : null;
+        }
+
+        // Le quota est celui du compte et de l'organisation, pas d'une conversation : la publication de n'importe quelle
+        // session récente du compte connecté vaut si elle est de la même organisation (une autre organisation ou un autre
+        // compte a son propre quota : jamais mélangés, voir l'historique plus bas).
+        internal static Boolean PublicationQuotaClaudeAcceptee(String session, IReadOnlyDictionary<String, String> orgParCli, String orgQuota) =>
+            session is not null && orgQuota is not null && orgParCli.TryGetValue(session, out var org) && org == orgQuota;
 
         // Quota écrit par le plugin Claude « Nexus Pad » (facultatif, non publié ici) à chaque réponse : les deux fenêtres exactes,
-        // sans réseau ni menu ouvert. Gardé seulement s'il vient de la session affichée du compte connecté ; une fenêtre
-        // dont la remise à zéro est passée vaut 0 %. Null : pas de plugin, autre session/compte, ou fichier illisible.
-        // valable : publication lisible du compte connecté ; elle fait alors foi, même périmée (null : jauge grise).
+        // sans réseau ni menu ouvert. Gardé seulement s'il vient d'une session récente du compte connecté et de l'organisation
+        // affichée ; une fenêtre dont la remise à zéro est passée vaut 0 %. Null : pas de plugin, autre compte/organisation,
+        // ou fichier illisible. valable : publication lisible acceptée ; elle fait alors foi, même périmée (null : jauge grise).
         private Quota QuotaClaudePlugin(out Boolean valable)
         {
             valable = false;
@@ -159,7 +184,7 @@ namespace Loupedeck.TrinitePlugin
 
                 using var doc = JsonDocument.Parse(File.ReadAllText(fichier));
                 var r = doc.RootElement;
-                if (r.GetProperty("session").GetString() is not String session || session != this._cliClaudeAffiche || !this._clisClaude.Contains(session))
+                if (r.GetProperty("session").GetString() is not String session || !PublicationQuotaClaudeAcceptee(session, this._orgParCliClaude, this._orgQuotaClaude))
                 {
                     return null;
                 }
@@ -285,7 +310,10 @@ namespace Loupedeck.TrinitePlugin
             ? Directory.EnumerateDirectories(Path.Combine(Local, "Claude-Data")).FirstOrDefault(d => File.Exists(Path.Combine(d, "plan-usage-history.json")))
             : null;
 
-        private String PerimetreQuotaClaude() => PerimetreQuotaClaudeCompte(DossierHistoriqueClaude(), this._compteClaude.Compte, this._sessionClaudeAffiche);
+        // Périmètre prouvé par la fiche affichée ; sans elle, celui de l'organisation retenue pour la publication du quota.
+        private String PerimetreQuotaClaude() => PerimetreQuotaClaudeCompte(DossierHistoriqueClaude(), this._compteClaude.Compte, this._sessionClaudeAffiche)
+            ?? (this._orgQuotaClaude is String org && this._dossierClaude is String dossier
+                ? Path.GetFullPath(dossier) + "\0" + this._compteClaude.Compte + "\0" + org : null);
 
         internal static String PerimetreQuotaClaudeCompte(String dossier, String compte, String sessionAffichee = null)
         {

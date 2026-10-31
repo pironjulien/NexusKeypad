@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.11] - 2026-10-31
+
+### Fixed
+- Claude's quota no longer disappears when you switch conversations: the quota published by any recent session of the
+  connected account is accepted when it belongs to the same organisation as the displayed conversation (or, with no
+  conversation displayed, to the account's only organisation among recent sessions). Other accounts and organisations
+  are still refused.
+- The pad no longer shows Claude as finished while background sub-agents it launched are still working: the hook tracks
+  background `Agent`/`Task` calls per session, a `Stop` with agents still running keeps the pad on "working" without the
+  end-of-turn note, and the last agent's `SubagentStop` ends the wait (the note plays at the end of the turn in which
+  Claude reads their report). The Claude connector now subscribes to `SubagentStop`. Connector version 1.2.5.
+
 ## [1.8.10] - 2026-10-31
 
 ### Added
