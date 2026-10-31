@@ -59,6 +59,12 @@ namespace Loupedeck.TrinitePlugin
         private static Connexion Verifier(Int32 agent)
         {
             var configuration = Connecteurs.LireConfiguration(agent);
+            // Claude or Codex updated NexusSystem's copy itself: re-attested silently, never a new question.
+            if (configuration.Etat == EtatConnexion.Reparer && Connecteurs.CopieCatalogueMiseAJour(agent)
+                && Connecteurs.Activer(agent).Etat == EtatConnexion.Pret)
+            {
+                configuration = Connecteurs.LireConfiguration(agent);
+            }
             var lancement = Lanceurs.Preparer(agent);
             if (lancement.Etat == EtatLancement.Absent)
             {

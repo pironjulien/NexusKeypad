@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.14] - 2026-10-31
+
+### Fixed
+- When Claude or Codex updates NexusSystem's copy of the plugin itself (a new installed folder, the same enabled
+  identity), the keypad re-attests it silently instead of showing the wrench and asking « Connect … to NexusKeypad? »
+  again. Any other repair keeps its question.
+
 ## [1.8.13] - 2026-10-31
 
 ### Changed
