@@ -134,14 +134,33 @@ function Stop-Logi([int]$TimeoutSeconds = 30) {
     $before = @(Get-LogiPluginProcesses $runtime)
     if ($before.Count -eq 0) { return }
     # The official control bus stops only the plugin service cooperatively. Never stop the keyboard/mouse agent.
-    $control = Start-Process -FilePath $runtime.Tool -ArgumentList 'stop' -WindowStyle Hidden -PassThru
+    # The Logi Options+ agent restarts a just-stopped plugin service once, about a second later: a service that comes
+    # back with new processes is stopped again (three stops at most).
+    $seen = @($before.ProcessId)
     $completed = $false
+    $control = $null
     try {
-        $completed = $control.WaitForExit(30000)
-        if (-not $completed) { throw 'The official Logi stop command is still running; its outcome is unknown. Installation refused.' }
-        if ($control.ExitCode -ne 0) { throw 'The official Logi plugin service stop command failed. Installation refused.' }
-        Wait-LogiPluginService $runtime $true $TimeoutSeconds
-        $script:LogiStoppedProcessIds = @($before.ProcessId)
+        for ($attempt = 1; ; $attempt++) {
+            if ($control) { $control.Dispose() }
+            $completed = $false
+            $control = Start-Process -FilePath $runtime.Tool -ArgumentList 'stop' -WindowStyle Hidden -PassThru
+            $completed = $control.WaitForExit(30000)
+            if (-not $completed) { throw 'The official Logi stop command is still running; its outcome is unknown. Installation refused.' }
+            if ($control.ExitCode -ne 0) { throw 'The official Logi plugin service stop command failed. Installation refused.' }
+            # The stopped processes exit (a restarted service may already run beside them), then the agent gets time
+            # to restart it.
+            $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+            while (@(Get-LogiPluginProcesses $runtime | Where-Object { $_.ProcessId -in $seen }).Count -gt 0) {
+                if ([DateTime]::UtcNow -ge $deadline) { throw "Logi plugin service did not stop in $TimeoutSeconds seconds. Installation refused." }
+                Start-Sleep -Milliseconds 100
+            }
+            Start-Sleep -Seconds 3
+            $back = @(Get-LogiPluginProcesses $runtime)
+            if ($back.Count -eq 0) { break }
+            if ($attempt -ge 3) { throw 'Logi Options+ keeps restarting the plugin service. Installation refused.' }
+            $seen += @($back.ProcessId)
+        }
+        $script:LogiStoppedProcessIds = $seen
     } catch {
         $stopFailure = $_
         # A completed command can fail after it stopped the service. Restore only a verified fully stopped runtime;
@@ -151,7 +170,7 @@ function Stop-Logi([int]$TimeoutSeconds = 30) {
             catch { Write-Warning "Cooperative recovery of the plugin service was refused: $($_.Exception.Message)" }
         }
         throw $stopFailure
-    } finally { $control.Dispose() }
+    } finally { if ($control) { $control.Dispose() } }
 }
 
 function Start-Logi([int]$TimeoutSeconds = 30) {

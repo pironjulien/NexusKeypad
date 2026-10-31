@@ -26,6 +26,7 @@ foreach ($file in 'LogiPluginServiceTool.exe', 'LogiPluginService.exe', 'LogiPlu
 }
 $script:running = $true
 $script:started = $false
+$script:restarts = 0
 $script:events = [Collections.Generic.List[string]]::new()
 $script:signatureChecks = [Collections.Generic.List[string]]::new()
 function robocopy.exe {
@@ -57,7 +58,7 @@ function Get-CimInstance([string]$ClassName, [string]$Filter) {
     Assert ($ClassName -eq 'Win32_Process' -and $Filter -notmatch 'agent|optionsplus') 'Only plugin service processes may be inspected.'
     if ($script:running) {
         foreach ($name in 'LogiPluginService.exe', 'LogiPluginServiceExt.exe') {
-            [pscustomobject]@{ Name = $name; ProcessId = $(if ($script:started) { 4236 } elseif ($name -eq 'LogiPluginService.exe') { 1618 } else { 2618 });
+            [pscustomobject]@{ Name = $name; ProcessId = $(if ($script:started) { 4236 } elseif ($name -eq 'LogiPluginService.exe') { 1618 + 10 * $script:restarts } else { 2618 + 10 * $script:restarts });
                 ExecutablePath = $(if ($Case -eq 'foreign-process') { Join-Path $Root $name } else { Join-Path $serviceDirectory $name }) }
         }
     }
@@ -67,7 +68,9 @@ function Start-Process([string]$FilePath, [string]$ArgumentList, [string]$Window
     Assert ($FilePath -ceq (Join-Path $serviceDirectory 'LogiPluginServiceTool.exe')) 'Only the official plugin control tool may run.'
     Assert ($ArgumentList -ceq 'stop' -and $WindowStyle -ceq 'Hidden' -and $PassThru) 'Stop must be cooperative and hidden.'
     $script:events.Add('stop')
-    if ($Case -notin 'stop-failed', 'stop-unconfirmed') { $script:running = $false }
+    # The Logi Options+ agent restarts a stopped service with new processes: once, or every time.
+    if ($Case -eq 'agent-restart-forever' -or ($Case -eq 'agent-restart' -and $script:restarts -eq 0)) { $script:restarts++ }
+    elseif ($Case -notin 'stop-failed', 'stop-unconfirmed') { $script:running = $false }
     $process = [pscustomobject]@{ ExitCode = $(if ($Case -in 'stop-failed', 'stop-failed-after-stop') { 1 } else { 0 }); Completed = ($Case -ne 'stop-control-timeout') }
     $process | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value { param($Milliseconds) return $Milliseconds -eq 30000 -and $this.Completed }
     $process | Add-Member -MemberType ScriptMethod -Name Dispose -Value { }
@@ -113,10 +116,11 @@ $work = Join-Path ([IO.Path]::GetTempPath()) "nexuskeypad-$PID"
 Assert ($work.StartsWith([IO.Path]::GetFullPath($Root) + '\', [StringComparison]::OrdinalIgnoreCase)) 'The installer work folder must remain inside this fixture.'
 $failure = $null
 try { $null = Install-NexusKeypad } catch { $failure = $_.Exception.Message }
-if ($Case -eq 'success') {
+if ($Case -in 'success', 'agent-restart') {
     Assert (-not $failure) "Isolated successful installation failed: $failure"
     Assert (Test-Path -LiteralPath (Join-Path $Target 'bin\NexusKeypadPlugin.dll')) 'Successful copy is absent.'
-    Assert (($script:events -join ',') -ceq 'stop,copy,start') 'One cooperative stop must precede copy and one detached start.'
+    $expected = if ($Case -eq 'agent-restart') { 'stop,stop,copy,start' } else { 'stop,copy,start' }
+    Assert (($script:events -join ',') -ceq $expected) "Cooperative stops ($expected) must precede copy and one detached start."
 } else {
     $pattern = switch ($Case) {
         'bad-signature' { 'no valid Logitech signature' }
@@ -126,6 +130,7 @@ if ($Case -eq 'success') {
         'stop-failed-after-stop' { 'stop command failed' }
         'stop-control-timeout' { 'still running; its outcome is unknown' }
         'stop-unconfirmed' { 'did not stop' }
+        'agent-restart-forever' { 'keeps restarting' }
         'start-refused' { 'could not start independently' }
         'start-unconfirmed' { 'did not start' }
         'copy-failed-existing' { 'Copy to .* failed' }
