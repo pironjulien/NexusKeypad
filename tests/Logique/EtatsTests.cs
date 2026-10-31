@@ -49,6 +49,18 @@ public sealed class EtatsTests
     }
 
     [Fact]
+    public void Arret_par_echap_repasse_au_repos()
+    {
+        // Escape sends no hook; the app still moves lastTurnEdgeAt when the turn stops.
+        var run = DateTime.UtcNow.AddMinutes(-1);
+        Vrai(Observateur.Traduire("run", run, run.AddSeconds(5)) == Etat.Repos, "run puis bord de tour → repos");
+        Vrai(Observateur.Traduire("ask", run, run.AddSeconds(5)) == Etat.Repos, "ask puis bord de tour → repos");
+        Vrai(Observateur.Traduire("run", run, run.AddSeconds(-1)) == Etat.Travaille, "bord de début puis run → travaille");
+        Vrai(Observateur.Traduire("wait", run, run.AddSeconds(5)) == Etat.Attend, "une question reste une question");
+        Vrai(Observateur.Traduire("run", run, null) == Etat.Travaille, "sans bord connu → travaille");
+    }
+
+    [Fact]
     public void Clignotement_seulement_question_ou_fin_non_vues_hors_relais()
     {
         Vrai(C(1, Etat.Attend).Alerte, "question non vue → alerte");

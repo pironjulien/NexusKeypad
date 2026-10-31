@@ -343,8 +343,11 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        internal static Etat Traduire(String etat, DateTime quand) => (etat, DateTime.UtcNow - quand) switch
+        // finTour : dernier début ou fin de tour noté par l'appli (lastTurnEdgeAt de Claude). Un arrêt par Échap n'envoie
+        // aucun hook : un « run » plus ancien que ce bord est un tour fini, même sans Stop (31/10).
+        internal static Etat Traduire(String etat, DateTime quand, DateTime? finTour = null) => (etat, DateTime.UtcNow - quand) switch
         {
+            ("run" or "ask", _) when finTour > quand => Etat.Repos,
             ("wait", var age) when age < TimeSpan.FromHours(12) => Etat.Attend,
             ("perm", var age) when age < TimeSpan.FromHours(12) => Etat.Autorisation,
             ("error", var age) when age < TimeSpan.FromHours(12) => Etat.Erreur,

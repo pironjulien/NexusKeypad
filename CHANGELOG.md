@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.17] - 2026-10-31
+
+### Fixed
+- A Claude turn stopped with Escape returns the keypad to idle within seconds instead of showing Claude at work for
+  up to two hours: Escape sends no hook, so the keypad now also reads the turn edge Claude's app records
+  (`lastTurnEdgeAt`) and treats a working state older than that edge as a finished turn.
+
+### Changed
+- Opening a Codex conversation from the keypad uses Codex's official link (`codex://threads/<id>`); the click on its
+  row through the debugging port remains as a fallback when the link does not open it.
+
 ### Security
 - CodeQL (GitHub default setup) and the OpenSSF Scorecard workflow run again on every push to main.
 
