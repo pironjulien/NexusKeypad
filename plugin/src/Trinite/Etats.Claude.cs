@@ -88,7 +88,7 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 var hook = cli is not null ? Hook("claude", cli) : null;
-                var etat = hook is { } h ? Traduire(h.Etat, h.Quand) : Etat.Repos;
+                var etat = hook is { } h ? Traduire(h.Etat, h.Quand, Instant(Champ(meta, "lastTurnEdgeAt"))) : Etat.Repos;
                 var depuis = hook?.Quand ?? activite;
                 var vu = regard > depuis || this.Vu(0, id, depuis);
                 // Regardée : sa question, sa fin ou son erreur retourne au repos (le « ? » s'efface dès l'arrivée, 29/10).

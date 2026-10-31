@@ -63,9 +63,19 @@ namespace Loupedeck.TrinitePlugin
 
                     return false;
                 case 1:
-                    var clic = Cdp.Evaluer(Cdp.PortCodex, Js.OuvrirCodex(c.Id)) is { ValueKind: System.Text.Json.JsonValueKind.True };
+                    // Lien officiel de l'appli (codex://threads/<id>) ; s'il n'aboutit pas (lien ignoré sous Windows,
+                    // openai/codex#30916), clic sur sa ligne par le port.
+                    Boolean Affichee() => Cdp.Evaluer(Cdp.PortCodex, Js.SelectionCodex, attente: 1)?.GetString() == c.Id;
+                    if (Uia.FenetrePrincipale(Observateur.Processus[1]) == IntPtr.Zero)
+                    {
+                        Lances[1] = Environment.TickCount64; // Codex fermé : le lien le lance, Premier ne le relance pas
+                    }
+
+                    Lancer("codex://threads/" + Uri.EscapeDataString(c.Id));
                     Premier(agent);
-                    return clic && Attendre(() => Cdp.Evaluer(Cdp.PortCodex, Js.SelectionCodex, attente: 1)?.GetString() == c.Id, 2000);
+                    if (Attendre(Affichee, 2000)) { return true; }
+                    return Cdp.Evaluer(Cdp.PortCodex, Js.OuvrirCodex(c.Id)) is { ValueKind: System.Text.Json.JsonValueKind.True }
+                        && Attendre(Affichee, 2000);
                 default:
                     // Fenêtre fermée (dans la zone de notification) : pas de page sur le port tant qu'elle n'est pas rouverte. Sa
                     // page est attendue passivement avant le clic unique sur sa ligne ou sa route.
