@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "nexus-keypad",
   "displayName": "NexusKeypad",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "logo": "logo.png",
   "description": "Connect Antigravity to your Logitech keypad; diagnose, enable or disable the local connection.",
   "author": { "name": "Julien Piron" },

@@ -35,7 +35,7 @@ namespace Loupedeck.TrinitePlugin
     public static class Connecteurs
     {
         public const String Nom = "nexus-keypad";
-        public const String Version = "1.2.4";
+        public const String Version = "1.2.5";
         private const String ProgrammeHook = "__NEXUS_KEYPAD_HOOK__";
         private static readonly String[] Agents = ["claude", "codex", "antigravity"];
         private static readonly Object Verrou = new();
