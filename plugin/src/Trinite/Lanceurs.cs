@@ -440,7 +440,10 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 using var doc = JsonDocument.Parse(liste);
-                if (!fenetreVisible && doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() == 0)
+                // Fenêtre fermée dans la zone de notification : aucune cible, ou seulement l'écran de démarrage
+                // (page data: du logo) qu'Antigravity garde en arrière-plan.
+                if (!fenetreVisible && doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.EnumerateArray().All(page =>
+                    page.TryGetProperty("url", out var url) && url.GetString()?.StartsWith("data:", StringComparison.Ordinal) == true))
                 {
                     return new(EtatLancement.Masquee, "local port verified; reopen the app window without restarting");
                 }

@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.16] - 2026-10-31
+
+### Fixed
+- Antigravity closed to the notification area no longer shows the restart arrow: in the background it keeps only
+  its splash page (a data: page), now read as a hidden window that the keypad reopens without restarting.
+
 ## [1.8.15] - 2026-10-31
 
 ### Fixed
