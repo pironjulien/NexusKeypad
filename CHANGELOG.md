@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.15] - 2026-10-31
+
+### Fixed
+- `get.ps1` no longer fails its first installation attempt: the Logi Options+ agent restarts a just-stopped plugin
+  service once, about a second later, so the installer now waits for the stopped processes to exit, then stops a
+  restarted service again (three stops at most) before copying.
+
 ## [1.8.14] - 2026-10-31
 
 ### Fixed
