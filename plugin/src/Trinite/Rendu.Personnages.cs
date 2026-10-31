@@ -51,6 +51,11 @@ namespace Loupedeck.TrinitePlugin
                 {
                     Zzz(b, T - 30, T / 2, 56, s.Temps, agent * 0.2);
                 }
+
+                if (!ecoute)
+                {
+                    ObjetConnexion(b, agent, x0, s);
+                }
             }
 
             if (ecoute)

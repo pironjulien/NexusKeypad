@@ -46,9 +46,6 @@ public static class Program
                     return Touches.Executer(profil, plugin, retirer: false);
                 case ["keys", var profil, var plugin, "--remove"]:
                     return Touches.Executer(profil, plugin, retirer: true);
-                case ["swap", var nouveau, var cible, var ancien, var etat, var version]:
-                    // échange des dossiers d'une mise à jour, lancé détaché par le plugin
-                    return Echange.Executer(nouveau, cible, ancien, etat, version, Echange.LogiPour(cible));
                 case ["--play-note", var note] when note is "claude" or "antigravity":
                     // Processus bref, sans fenêtre : le hook appelant a déjà rendu sa réponse JSON.
                     Son.Jouer(note);

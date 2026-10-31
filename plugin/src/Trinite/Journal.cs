@@ -22,7 +22,7 @@ namespace Loupedeck.TrinitePlugin
         private const String Cadre = "logi";
 #endif
         // Version du paquet installé (Plugins/<nom>/metadata), sinon celle de l'assemblage (Stream Deck).
-        private static readonly String Outil = MiseAJour.Version(
+        private static readonly String Outil = EtatPlugin.Version(
             Path.GetDirectoryName(Path.GetDirectoryName(typeof(Journal).Assembly.Location)) ?? "") is { Length: > 0 } version
                 ? version
                 : typeof(Journal).Assembly.GetName().Version?.ToString(3);

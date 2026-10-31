@@ -67,9 +67,9 @@ namespace Loupedeck.TrinitePlugin
             this.Moteur.Demarrer();
             var dossier = System.IO.Path.GetDirectoryName(System.IO.Path.GetDirectoryName(this.AssemblyFilePath)); // Plugins/<nom>
 #if NEXUS
-            MiseAJour.Demarrer(this.Moteur, dossier); // édition complète : se met à jour elle-même
+            EtatPlugin.Ecrire(EtatPlugin.Version(dossier), "installed by get.ps1");
 #elif MARKETPLACE || POSTE || COMPLETE
-            MiseAJour.Ecrire(MiseAJour.Version(dossier), null, "idle", "updated by Logi Options+");
+            EtatPlugin.Ecrire(EtatPlugin.Version(dossier), "updated by Logi Options+");
 #endif
 #if !POSTE
             EtatsEnDirect.Demarrer(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.AssemblyFilePath) ?? "", EtatsEnDirect.NomExe));

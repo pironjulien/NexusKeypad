@@ -1,12 +1,12 @@
 # NexusKeypad complete edition, outside the Logi Marketplace, for Windows 10/11 (Windows PowerShell 5.1 or PowerShell 7),
 # no administrator rights. Everything the author runs on his own keypad. This file is attached to every release, listed in
-# its signed SHA256SUMS.txt and attested: download it, check it, then run it as a file (never piped into iex):
+# its SHA256SUMS.txt and attested: download it, check it, then run it as a file (never piped into iex):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1            (-Remove removes the plugin, live states and
 #                                                                              keys; Logi Options+ itself is left alone)
 # The NexusSystem app (Microsoft Store) runs it the same way.
 #
-# It downloads the latest release's NexusKeypad package (its hash and the offline ECDSA signature of SHA256SUMS.txt
-# are verified before extraction or execution; its build
+# It downloads the latest release's NexusKeypad package (its hash is checked against the release's SHA256SUMS.txt
+# before extraction or execution; its build
 # provenance can be checked with `gh attestation verify <file> --repo pironjulien/NexusKeypad`), copies it into Logi
 # Options+'s plugin folder (%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad), where the Logi Plugin Service
 # loads it, then offers to place the 18 keys on the keypad's general profile (backed up first; the plugin service restarts
@@ -41,44 +41,10 @@ $Sandbox = -not $LogiService -and [bool]$env:NEXUS_KEYPAD_LOGI
 $Logi = if ($Sandbox) { $env:NEXUS_KEYPAD_LOGI } else { Join-Path $env:LOCALAPPDATA 'Logi\LogiPluginService' }
 $Target = Join-Path $Logi "Plugins\$Plugin"
 $Results = [ordered]@{}
-# Same SPKI public keys as MiseAJour.Cles. No private key or newly installed runtime is needed.
-$ReleaseKeys = @('MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwSIk2pqKmyLcWfNgwY6uXVzS7qq6kj14BxckZIvSvE2R3tPqi4yITye4c8czlGrdEMYM1PrnIN8o3ba2APvbJQ==')
 
 function Say([string]$Text, [string]$Color = 'Gray') { Write-Host $Text -ForegroundColor $Color }
 
-function Test-ReleaseSignature([byte[]]$Content, [string]$Signature, [string[]]$PublicKeys = $ReleaseKeys) {
-    try { $signatureBytes = [Convert]::FromBase64String($Signature.Trim()) } catch { return $false }
-    # ECDSA P-256 / SHA-256, fixed-width IEEE P1363 (r || s), as written by signer_release.ps1.
-    if ($signatureBytes.Length -ne 64) { return $false }
-    # .NET Framework in Windows PowerShell 5.1 has no ImportSubjectPublicKeyInfo. Accept only this exact
-    # P-256 SPKI prefix, then import its public X/Y coordinates into Windows CNG (also available in PS7).
-    $prefix = '30-59-30-13-06-07-2A-86-48-CE-3D-02-01-06-08-2A-86-48-CE-3D-03-01-07-03-42-00-04'
-    foreach ($publicKey in $PublicKeys) {
-        $key = $null
-        $ecdsa = $null
-        try {
-            $spki = [Convert]::FromBase64String($publicKey)
-            if ($spki.Length -ne 91 -or [BitConverter]::ToString($spki, 0, 27) -cne $prefix) { continue }
-            # BCRYPT_ECDSA_PUBLIC_P256_MAGIC ('ECS1'), cbKey=32, followed by X and Y (big-endian each).
-            $blob = New-Object byte[] 72
-            [Array]::Copy([byte[]](0x45, 0x43, 0x53, 0x31, 0x20, 0, 0, 0), 0, $blob, 0, 8)
-            [Array]::Copy($spki, 27, $blob, 8, 64)
-            $key = [Security.Cryptography.CngKey]::Import($blob, [Security.Cryptography.CngKeyBlobFormat]::EccPublicBlob)
-            $ecdsa = [Security.Cryptography.ECDsaCng]::new($key)
-            if ($ecdsa.VerifyData($Content, $signatureBytes, [Security.Cryptography.HashAlgorithmName]::SHA256)) { return $true }
-        } catch {
-            # Invalid/unsupported keys never turn a failed signature into success; another configured key may match.
-        } finally {
-            if ($ecdsa) { $ecdsa.Dispose() }
-            if ($key) { $key.Dispose() }
-        }
-    }
-    return $false
-}
-
-function Get-VerifiedPackageHash([byte[]]$Manifest, [string]$Signature, [string]$PackageName) {
-    if (-not (Test-ReleaseSignature $Manifest $Signature)) { throw 'SHA256SUMS.txt has no valid release signature: installation refused.' }
-    # The signature covers the original bytes, including line endings. Decode only after verifying them.
+function Get-PackageHash([byte[]]$Manifest, [string]$PackageName) {
     $text = [Text.UTF8Encoding]::new($false, $true).GetString($Manifest).TrimStart([char]0xfeff)
     $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
     $expected = $null
@@ -88,13 +54,13 @@ function Get-VerifiedPackageHash([byte[]]$Manifest, [string]$Signature, [string]
         if (-not $seen.Add($name)) { throw 'SHA256SUMS.txt lists a file more than once: installation refused.' }
         if ($name -ceq $PackageName) { $expected = $hash }
     }
-    if (-not $expected) { throw "$PackageName is absent from the signed manifest: installation refused." }
+    if (-not $expected) { throw "$PackageName is absent from SHA256SUMS.txt: installation refused." }
     return $expected
 }
 
 function Get-LatestTag {
     # NEXUS_RELEASE_TAG (set by NexusSystem for its development channel): that release instead, a stable vX.Y.Z or a
-    # development vX.Y.Z-dev.N build, checked against its own signed SHA256SUMS.txt like any other.
+    # development vX.Y.Z-dev.N build, checked against its own SHA256SUMS.txt like any other.
     if ($env:NEXUS_RELEASE_TAG) {
         if ($env:NEXUS_RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+(-dev\.\d+)?$') { throw "NEXUS_RELEASE_TAG is not a release tag: $env:NEXUS_RELEASE_TAG" }
         return $env:NEXUS_RELEASE_TAG
@@ -221,13 +187,20 @@ function Set-Keys([string]$Hook, [switch]$Clear) {
     if ($Clear) { return 'removed' } else { return 'placed' }
 }
 
-function Set-Connectors([string]$Hook) {
+function Set-Connectors([string]$Hook, [switch]$Update) {
     # Declares the NexusKeypad plugin and its hooks in each AI app found (Claude, Codex, Antigravity), with the real path of
     # the installed nexuskeypad-hook.exe: Codex hooks cannot come from a catalog, they need this path. The helper keeps
     # third-party settings, turns off a nexus-keypad copy from the Nexus catalogs instead of doubling its hooks, and
     # reports an absent app as Absent. A failure only leaves that key unplugged.
+    # On an update, only the connections already enabled are refreshed (a new package carries a new connector, which
+    # leaves the old one to repair); a connection the user turned off or never set up stays as it is.
     if ($Sandbox) { return 'left (test folder)' }  # the real AI profiles are not the test's
     $states = foreach ($agent in 'claude', 'codex', 'antigravity') {
+        $state = $null
+        if ($Update) {
+            $state = try { ((& $Hook connecteur $agent status 2>$null) | ConvertFrom-Json).state } catch { $null }
+            if ($state -and $state -ne 'Reparer') { "$agent=$state"; continue }
+        }
         $state = try { ((& $Hook connecteur $agent enable 2>$null) | ConvertFrom-Json).state } catch { $null }
         "$agent=$(if ($state) { $state } else { 'failed' })"
     }
@@ -256,8 +229,7 @@ function Install-NexusKeypad {
             $package = Join-Path $work $name
             Invoke-WebRequest -UseBasicParsing "$base/$name" -OutFile $package
             $manifest = (Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS.txt").RawContentStream.ToArray()
-            $signature = [Text.Encoding]::UTF8.GetString((Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS.txt.sig").RawContentStream.ToArray())
-            $expected = Get-VerifiedPackageHash $manifest $signature $name
+            $expected = Get-PackageHash $manifest $name
             $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($expected -ne $actual) { throw "SHA-256 mismatch for $($name): the download is not the published package." }
         }
@@ -308,7 +280,7 @@ function Install-NexusKeypad {
     }
     if ($place -eq 'yes') { $Results['Keys'] = Set-Keys $hook } else { $Results['Keys'] = 'guided' }
     $Results['Live states'] = 'asked by the plugin'
-    $Results['AI connections'] = Set-Connectors $hook
+    $Results['AI connections'] = Set-Connectors $hook -Update:$previous
     Say ''
     if ($Results['Keys'] -ne 'placed') {
         Say 'Keys: in Logi Options+, open the MX Keypad, Customize keys, and drag Key 1 to Key 9 of the "AI agents" group onto page 1, then Key 10 to Key 18 onto page 2.'

@@ -5,6 +5,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.12] - 2026-10-31
+
+### Changed
+- Release: a push whose version is not released yet becomes the stable release right after its development build
+  (same files); "Run workflow" still promotes by hand.
+- Updates go through `get.ps1` only (run by the user, the NexusSystem app or an AI); `get.ps1` checks the package
+  against the release's `SHA256SUMS.txt` and its build provenance stays attested.
+
+### Fixed
+- An update no longer leaves the enabled connectors to repair (« Le connecteur doit être mis à jour ») : `get.ps1`
+  refreshes, without asking, the connections already enabled; those turned off or never set up stay as they are.
+- The connection questions (« Connect Claude to NexusKeypad? » and the others) open on their own thread: a dialog
+  left open no longer freezes the keypad.
+- A connector to repair or enable stays visible (the wrench or the unplugged plug in front of the character) while its
+  AI works; activity used to hide it for as long as the AI kept working.
+
+### Removed
+- The offline release signature (`SHA256SUMS.txt.sig`, `outils/signer_release.ps1`, the `signed` job) and its check
+  in `get.ps1`.
+- The complete edition's self-update: the daily check, the pipe's `update` command, the folder swap of
+  `nexuskeypad-hook.exe` and the `miseAJourAuto` setting. `~/.nexus/status/keypad.json` now only carries the loaded
+  version for the Nexus app.
+- CodeQL and OpenSSF Scorecard workflows and badge.
+
 ## [1.8.11] - 2026-10-31
 
 ### Fixed

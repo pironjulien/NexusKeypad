@@ -1,7 +1,6 @@
 # NexusKeypad
 
 [![Tests](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pironjulien/NexusKeypad/badge)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusKeypad)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusKeypad/blob/main/LICENSE)
 [![C# .NET 10](https://img.shields.io/badge/C%23-.NET%2010-512BD4)](https://github.com/pironjulien/NexusKeypad/blob/main/plugin/src/TrinitePadPlugin.csproj)
 [![Windows 11](https://img.shields.io/badge/Windows-11-0078D4)](#requirements)
@@ -176,8 +175,8 @@ gh attestation verify get.ps1 --repo pironjulien/NexusKeypad   # optional: build
 powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1
 ```
 
-It downloads the latest release's `NexusKeypad` package (its hash and the ECDSA signature of `SHA256SUMS.txt` are
-verified before extraction or execution), copies it
+It downloads the latest release's `NexusKeypad` package (its hash is checked against the release's `SHA256SUMS.txt`
+before extraction or execution), copies it
 into Logi Options+'s plugin folder (`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad`), where the Logi Plugin
 Service loads it, and offers to place the 18 keys for you (your keypad profile is backed up first and Logi Options+
 restarts for a few seconds; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). It then sets up the
@@ -189,14 +188,8 @@ with `-Remove`:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1 -Remove
 ```
 
-**Updates.** The complete edition updates itself: once a day it looks at the latest release (the
-`github.com/pironjulien/NexusKeypad/releases/latest` redirect, no API), downloads its package, checks it against the
-release's `SHA256SUMS.txt`, itself signed offline by the maintainer (`SHA256SUMS.txt.sig`, ECDSA P-256; the public key
-is built into the plugin and the private key is never on GitHub, so even a compromised repository cannot push an
-update), and swaps it in only while the keypad is idle (no press for a minute). Logi Plugin
-Service keeps the plugin's files open, so Logi Options+ stops for a few seconds during the swap and restarts by
-itself, as with `get.ps1`; a failed swap puts the previous version back. Turn this off with `{"miseAJourAuto": false}` in `%LOCALAPPDATA%\NexusKeypad\reglages.json`.
-Its state is in `~/.nexus/status/keypad.json` (read by the Nexus app, which can also start an update).
+**Updates.** The plugin never updates itself: `get.ps1`, run again by you, the NexusSystem app or an AI, installs
+the latest release. The loaded version is in `~/.nexus/status/keypad.json` (read by the Nexus app).
 
 **Usage journal.** The complete edition also keeps a local usage journal, one line per key press in
 `%LOCALAPPDATA%\NexusJournal\keypad\<ai>\<YYYY-MM>.jsonl`: which key, which AI app it aimed at, how long it took,
@@ -265,7 +258,7 @@ in PC Dashboard (no website is set by default). Package it yourself with
 
 Each [release](https://github.com/pironjulien/NexusKeypad/releases) carries the three packages (`.lplug4`), built by
 GitHub Actions from `main` (first published as a development pre-release `vX.Y.Z-dev.N`, then promoted unchanged to the
-stable `vX.Y.Z`), with `SHA256SUMS.txt`, its offline signature and a build provenance attestation
+stable `vX.Y.Z`), with `SHA256SUMS.txt` and a build provenance attestation
 (`gh attestation verify <file> --repo pironjulien/NexusKeypad`). Logi Options+ does not install a package opened
 from a file (double-clicking it does nothing): install from the Marketplace when you can. Developers can install a
 package with the official Logi Plugin Tool (`dotnet tool install -g LogiPluginTool`, then
@@ -305,7 +298,7 @@ Anything listening on these ports can drive the app: do not enable them on a sha
 
 NexusKeypad has no analytics or data-collection server. Its activity files, connector receipts and cached images stay
 on the PC. Local app connections use `127.0.0.1`; an attached phone uses adb over USB or the local network. The complete
-edition also contacts GitHub to check for and download signed updates. An app or browser opened by a key connects to
+edition contacts GitHub only when `get.ps1` installs or updates it. An app or browser opened by a key connects to
 its own service under that app's privacy policy. See the [Privacy Policy](PRIVACY.md) for the detailed local files.
 
 - **Read**: the agents' local session files and logs, their windows (UI Automation) and pages (debugging ports), the

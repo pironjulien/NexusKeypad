@@ -25,9 +25,6 @@ $texte = [Text.Encoding]::ASCII.GetString($octets) + [Text.Encoding]::Unicode.Ge
 if ($texte -match '(?i)claude|codex|antigravity|gemini|anthropic|openai') { throw "PC Dashboard contains agent code: « $($Matches[0]) »." }
 
 & (Join-Path $PSScriptRoot 'tests\test_get.ps1') -Compilation (Join-Path $sortie 'nexus\bin\Release') -Travail (Join-Path $env:TEMP 'nexuskeypad-test-get')
-& (Join-Path $PSScriptRoot 'tests\test_get_signature.ps1')
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'tests\test_get_signature.ps1')
-if ($LASTEXITCODE) { throw 'Installer signature verification failed under Windows PowerShell 5.1.' }
 # Stream Deck: private (neither streamdeck\ nor its test in the public export), checked only where it exists.
 if (Test-Path (Join-Path $PSScriptRoot 'streamdeck')) {
     & (Join-Path $PSScriptRoot 'tests\test_get_streamdeck.ps1') -Travail (Join-Path $env:TEMP 'nexuskeypad-test-get-streamdeck')

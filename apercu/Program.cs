@@ -434,8 +434,8 @@ for (var ligne = 0; ligne < expressionsEtats.Length; ligne++)
 File.WriteAllBytes(Path.Combine(sortie, "connexion-expressions.png"), expressions.ToArray(BitmapImageFormat.Png));
 Console.WriteLine("connexion-expressions.png");
 
-// Vraies activités prioritaires : le connecteur à préparer ne change aucun pixel d'une question, permission,
-// activité, fin, erreur, limite ou dictée. La scène prête reste identique à la scène sans suivi de connexion.
+// Vraies activités : le personnage reste celui de l'activité, mais un connecteur à réparer garde sa clé devant lui
+// (une IA qui travaille sans arrêt ne cache jamais ce besoin). La scène prête reste identique à la scène sans suivi.
 foreach (var etat in new[] { Etat.Repos, Etat.Travaille, Etat.Attend, Etat.Autorisation, Etat.Fini, Etat.Erreur, Etat.Limite })
 {
     var priorite = new Instantane([.. Enumerable.Range(0, 3).Select(a => new[] { C(a, "priority", etat) })],
@@ -448,7 +448,7 @@ foreach (var etat in new[] { Etat.Repos, Etat.Travaille, Etat.Attend, Etat.Autor
         if (etat != Etat.Repos)
         {
             var sceneConfiguration = new Scene { Instantane = priorite with { Connexions = [new(EtatConnexion.Reparer, ""), new(EtatConnexion.Reparer, ""), new(EtatConnexion.Reparer, "")] }, Temps = scene.Temps, Maintenant = scene.Maintenant, Appuis = scene.Appuis };
-            if (!Rendu.Png(agent, scene).AsSpan().SequenceEqual(Rendu.Png(agent, sceneConfiguration))) { throw new InvalidOperationException("Activity must take priority over setup."); }
+            if (Rendu.Png(agent, scene).AsSpan().SequenceEqual(Rendu.Png(agent, sceneConfiguration))) { throw new InvalidOperationException("A connector to repair must stay visible during activity."); }
         }
     }
 }

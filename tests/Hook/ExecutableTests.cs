@@ -7,7 +7,7 @@ namespace NexusKeypad.Tests;
 
 // The published nexuskeypad-hook.exe itself (Native AOT, as shipped in the plugin package), run in temporary profiles:
 // live states of Claude and Antigravity (rules recorded on etat.py, the original version retired on 26/10), the passive
-// Codex contract, and the update swap (temporary folders only: never the real plugins folder nor the real Logi service).
+// Codex contract (temporary folders only: never the real plugins folder nor the real Logi service).
 public sealed class ExecutableTests : IDisposable
 {
     private const String Choix = "mcp__ccd_turn__wrap_up"; // the app's end-of-turn box: a question when "ask" is filled
