@@ -52,6 +52,11 @@ jobs:
             $yaml = "plugin/src/$package/metadata/LoupedeckPackage.yaml"
             $found[$yaml] = (Get-Content $yaml | Select-String '^version:\s*(\S+)').Matches[0].Groups[1].Value
           }
+          # The connector folder is also NexusSystem's catalog plugin, pinned at this release's tag.
+          foreach ($manifest in 'connecteurs/.claude-plugin/plugin.json', 'connecteurs/.codex-plugin/plugin.json', 'connecteurs/plugin.json') {
+            $found[$manifest] = (Get-Content $manifest -Raw | ConvertFrom-Json).version
+          }
+          $found['Connecteurs.Version'] = [regex]::Match((Get-Content plugin/src/Trinite/Connecteurs.cs -Raw), 'const String Version = "([^"]+)"').Groups[1].Value
           $wrong = @($found.GetEnumerator() | Where-Object { $_.Value -ne $version } | ForEach-Object { "$($_.Key)=$($_.Value)" })
           if ($wrong) { throw "Version $version expected: $($wrong -join ', ')" }
           if (-not (Select-String -Path CHANGELOG.md -SimpleMatch "## [$version]" -Quiet)) { throw "CHANGELOG.md has no [$version] section." }

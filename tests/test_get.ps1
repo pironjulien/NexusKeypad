@@ -52,6 +52,12 @@ try {
     if ((Get-Content $profil -Raw | ConvertFrom-Json).macroCommands[0].name -ne 'garde') { throw 'le reste du profil a changé' }
     $null = Lancer @('-Keys', 'yes')  # mise à jour : sauvegarde gardée telle quelle
     if ((Get-Content $sauvegarde -Raw) -match 'NexusKeypad') { throw 'sauvegarde écrasée à la réinstallation' }
+    # Mise à jour par NexusSystem, touches déjà posées : ni question ni consigne de placement.
+    $env:NEXUS_PACK = '1'
+    $sortie = Lancer @()
+    Remove-Item Env:NEXUS_PACK
+    if ($sortie[-1] -notmatch 'Keys=already placed' -or ($sortie -match 'drag Key 1')) { throw "mise à jour : $($sortie -join "`n")" }
+    if ((Actions).Count -ne 18) { throw 'mise à jour : touches modifiées' }
 
     $null = Lancer @('-Remove')
     if (Test-Path (Join-Path $logi 'Plugins\NexusKeypad')) { throw 'plugin encore là après le retrait' }

@@ -203,7 +203,7 @@ public sealed class ExecutableTests : IDisposable
     }
 
     [Fact]
-    public void Connecteur_Codex_declare_ses_hooks_avec_le_vrai_chemin_sans_doublon()
+    public void Connecteur_Codex_declare_ses_hooks_vers_le_programme_installe_sans_doublon()
     {
         // The shipped executable, next to its package's connectors as in the plugin folder, sets up Codex in a throwaway
         // profile that already enables nexus-keypad from both Nexus catalogs: one plugin keeps the hooks, the others go off.
@@ -223,7 +223,8 @@ public sealed class ExecutableTests : IDisposable
         File.Copy(Path.Combine(Entree.Depot, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"), quota);
         var config = Path.Combine(this._d, ".codex", "config.toml");
         Directory.CreateDirectory(Path.GetDirectoryName(config)!);
-        File.WriteAllText(config, "[plugins.\"nexus-keypad@nexus-plugins\"]\nenabled = true\n[plugins.\"nexus-keypad@nexus\"]\nenabled = true\n");
+        // Without NexusSystem's catalog in Codex: the connector's personal copy; another enabled copy is turned off.
+        File.WriteAllText(config, "[plugins.\"nexus-keypad@nexus\"]\nenabled = true\n");
         var profil = new Dictionary<String, String?> { ["USERPROFILE"] = this._d, ["LOCALAPPDATA"] = Path.Combine(this._d, "local"), ["CLAUDE_CONFIG_DIR"] = null };
         Sortie Connecteur(String action)
         {
@@ -244,18 +245,19 @@ public sealed class ExecutableTests : IDisposable
         }
 
         var texte = File.ReadAllText(config);
-        Assert.Contains("[plugins.\"nexus-keypad@nexus-plugins\"]\nenabled = false", texte.Replace("\r\n", "\n"));
         Assert.Contains("[plugins.\"nexus-keypad@nexus\"]\nenabled = false", texte.Replace("\r\n", "\n"));
-        var hooks = Json(File.ReadAllText(Path.Combine(this._d, ".codex", "plugins", "nexus-keypad", "hooks", "hooks.json")))["hooks"]!.AsObject();
+        var manifeste = Path.Combine(this._d, ".codex", "plugins", "nexus-keypad", ".codex-plugin", "plugin.json");
+        var hooks = Json(File.ReadAllText(manifeste))["hooks"]!["hooks"]!.AsObject();
         Assert.Equal(10, hooks.Count);
+        const String Prefixe = "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\nexuskeypad-hook.exe\" codex ";
         foreach (var (evenement, groupes) in hooks)
         {
             Assert.Single(groupes!.AsArray());
             var commande = groupes![0]!["hooks"]![0]!["command"]!.GetValue<String>();
-            var programme = commande[..commande.LastIndexOf(" codex ", StringComparison.Ordinal)].Trim('"');
-            Assert.True(File.Exists(programme), $"{evenement}: {commande}");
-            Assert.EndsWith(" codex " + evenement, commande);
+            Assert.Equal(Prefixe + evenement, commande);
         }
+        // %LOCALAPPDATA% names the program the connector installed there.
+        Assert.True(File.Exists(Path.Combine(profil["LOCALAPPDATA"]!, "NexusKeypad", "hook", "nexuskeypad-hook.exe")));
 
         Assert.Equal("Pret", Json(Connecteur("status").Stdout)["state"]!.GetValue<String>());
     }

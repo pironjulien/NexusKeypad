@@ -35,7 +35,8 @@ namespace Loupedeck.TrinitePlugin
     public static class Connecteurs
     {
         public const String Nom = "nexus-keypad";
-        public const String Version = "1.2.5";
+        // The product's version: the connector folder is also NexusSystem's catalog plugin, pinned at the release tag.
+        public const String Version = "1.8.13";
         private const String ProgrammeHook = "__NEXUS_KEYPAD_HOOK__";
         private static readonly String[] Agents = ["claude", "codex", "antigravity"];
         private static readonly Object Verrou = new();
@@ -139,13 +140,28 @@ namespace Loupedeck.TrinitePlugin
             return valeur as TomlTable ?? throw new InvalidDataException("Une section TOML a un type inattendu.");
         }
 
-        // nexus-keypad plugins of the Nexus catalogs (private nexus, NexusSystem's nexus-plugins) enabled next to the
-        // connector's own identity: their hooks would double the connector's.
+        // Every other nexus-keypad identity enabled in Codex (Nexus catalogs, the connector's former personal copy):
+        // their hooks would double the connector's.
         private static String[] CodexDoublons(String texte, String identite)
         {
             var plugins = Table(LireToml(texte), "plugins", false);
-            return plugins is null ? [] : EtatsEnDirect.IdentitesNexus.Where(p => p != identite)
+            return plugins is null ? [] : EtatsEnDirect.IdentitesNexus.Append(IdentiteCodex(LireCatalogueCodex())).Where(p => p != identite)
                 .Where(p => Table(plugins, p, false) is { } t && t.TryGetValue("enabled", out var v) && v is true).ToArray();
+        }
+
+        private static readonly String[] FichiersCodexNexus = [".codex-plugin/plugin.json", "skills/nexus-keypad/SKILL.md"];
+
+        // NexusSystem's catalog copy, once declared in Codex's profile, is the connector (as for Claude): its folder in
+        // Codex's cache is the newest complete version, or null while Codex has not installed it.
+        private static (String Identite, String Dossier)? PluginCodexNexus(String texte)
+        {
+            var plugins = Table(LireToml(texte), "plugins", false);
+            if (plugins is null || Table(plugins, EtatsEnDirect.PluginClaudePublic, false) is null) { return null; }
+            var cache = Path.Combine(Codex, "plugins", "cache", "nexus-plugins", Nom);
+            var dossier = !Directory.Exists(cache) ? null : Directory.EnumerateDirectories(cache)
+                .Where(d => System.Version.TryParse(Path.GetFileName(d), out _) && FichiersCodexNexus.All(f => File.Exists(Path.Combine(d, f))))
+                .OrderByDescending(d => System.Version.Parse(Path.GetFileName(d))).FirstOrDefault();
+            return (EtatsEnDirect.PluginClaudePublic, dossier);
         }
 
         private static Boolean CodexActif(String identite)
@@ -258,18 +274,20 @@ namespace Loupedeck.TrinitePlugin
             return Equals(a, b);
         }
 
-        // One connector folder serves the three hosts (Source): shared guide and logo, plus each host's own manifest
-        // and hooks. Installed layouts stay those each host expects (hooks/hooks.json for Claude and Codex, root
-        // hooks.json and logo.png for Antigravity); Codex and Antigravity hooks get this PC's program path.
+        // One connector folder serves the three hosts (Source), and is also the plugin NexusSystem's catalog serves to
+        // Claude and Codex: shared guide and logo, plus each host's own manifest and hooks (Claude's hooks/ and modules,
+        // Codex's inline in its manifest, both reaching the program by %LOCALAPPDATA%). Without that catalog the same
+        // files are installed locally; only Antigravity's root hooks.json gets this PC's program path.
         private static readonly (String Agent, String Source, String Cible)[] PlanConnecteur =
         [
             ("claude", ".claude-plugin/plugin.json", ".claude-plugin/plugin.json"),
-            ("claude", "claude/hooks.json", "hooks/hooks.json"),
-            ("claude", "claude/register.ts", "hooks/register.ts"),
+            ("claude", "hooks/hooks.json", "hooks/hooks.json"),
+            ("claude", "hooks/register.tsx", "hooks/register.tsx"),
+            ("claude", "hooks/quota.ts", "hooks/quota.ts"),
             ("claude", "types/index.d.ts", "types/index.d.ts"),
+            ("claude", "tsconfig.json", "tsconfig.json"),
             ("claude", "assets/logo.png", "assets/logo.png"),
             ("codex", ".codex-plugin/plugin.json", ".codex-plugin/plugin.json"),
-            ("codex", "codex/hooks.json", "hooks/hooks.json"),
             ("codex", "assets/logo.png", "assets/logo.png"),
             ("codex", "assets/composer-icon.png", "assets/composer-icon.png"),
             ("antigravity", "plugin.json", "plugin.json"),
@@ -296,7 +314,6 @@ namespace Loupedeck.TrinitePlugin
                 if ((File.GetAttributes(chemin) & FileAttributes.ReparsePoint) != 0) { throw new IOException("Le paquet contient un lien."); }
                 var contenu = File.ReadAllBytes(chemin);
                 if (agent == 2 && cible == "hooks.json") { contenu = RendreHooksAgy(contenu); }
-                if (agent == 1 && cible == "hooks/hooks.json") { contenu = RendreHooksCodex(contenu); }
                 fichiers.Add((cible.Replace('/', Path.DirectorySeparatorChar), contenu));
             }
             return fichiers;
@@ -398,13 +415,22 @@ namespace Loupedeck.TrinitePlugin
 
                     if (agent == 1)
                     {
-                        if (CodexDoublons(File.ReadAllText(Path.Combine(Codex, "config.toml")), recu["identity"]!.GetValue<String>()).Length > 0)
+                        var texte = File.ReadAllText(Path.Combine(Codex, "config.toml"));
+                        if (CodexDoublons(texte, recu["identity"]!.GetValue<String>()).Length > 0)
                         {
                             return new(EtatConnexion.Reparer, "Un autre plugin nexus-keypad est actif dans Codex : ses hooks doubleraient ceux du connecteur.");
                         }
 
-                        var catalogue = LireCatalogueCodex();
-                        if (((JsonArray)catalogue["plugins"]).OfType<JsonObject>().Count(x => x["name"]?.GetValue<String>() == Nom
+                        if (PluginCodexNexus(texte) is { } nexus)
+                        {
+                            // The catalog copy Codex installed is the connector: the receipt must attest its current folder.
+                            if (recu["identity"]!.GetValue<String>() != nexus.Identite || nexus.Dossier is null
+                                || !FichiersCodexNexus.All(f => fichiers.ContainsKey(Path.Combine(nexus.Dossier, f))))
+                            {
+                                return new(EtatConnexion.Reparer, "Le plugin NexusKeypad du catalogue NexusSystem est installé dans Codex ; le connecteur doit l’adopter.");
+                            }
+                        }
+                        else if (((JsonArray)LireCatalogueCodex()["plugins"]).OfType<JsonObject>().Count(x => x["name"]?.GetValue<String>() == Nom
                             && x["source"]?["source"]?.GetValue<String>() == "local"
                             && x["source"]?["path"]?.GetValue<String>() == "./.codex/plugins/" + Nom) != 1)
                         {
@@ -582,15 +608,11 @@ namespace Loupedeck.TrinitePlugin
             return Utf8(Json(new JsonObject { [Nom] = EtatsEnDirect.GroupeAntigravity(CheminHook(Executable)) }));
         }
 
-        private static Byte[] RendreHooksCodex(Byte[] modele)
-        {
-            var source = JsonNode.Parse(Encoding.UTF8.GetString(modele)) as JsonObject;
-            var attendu = HooksCodex(ProgrammeHook);
-            if (!JsonNode.DeepEquals(source, attendu)) { throw new InvalidDataException("Les hooks du paquet Codex sont incohérents."); }
-            return Utf8(Json(HooksCodex(CheminHook(Executable))));
-        }
+        // Codex reads no variable in a hook command: cmd.exe expands %LOCALAPPDATA% to the program's stable place.
+        internal const String ProgrammeCodex = "cmd.exe /d /c \"%LOCALAPPDATA%\\NexusKeypad\\hook\\" + EtatsEnDirect.NomExe + "\"";
 
-        private static JsonObject HooksCodex(String programme)
+        // The Codex manifest's inline hooks: Codex's lifecycle events, synchronous and short.
+        internal static JsonObject HooksCodex(String programme)
         {
             var evenements = new JsonObject();
             foreach (var evenement in new[] { "SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse",
@@ -808,7 +830,9 @@ namespace Loupedeck.TrinitePlugin
                     if (actif && complet is { } selection && !CacheClaudeComplet(selection.Dossier)) { return AttenteClaude(selection.Identite); }
                     var prive = complet?.Dossier;
                     if (agent == 0 && actif && prive is null) { VerifierCatalogueClaude(); } // before any transaction write
-                    if (actif && prive is null)
+                    var catalogueCodex = agent == 1 && PluginCodexNexus(File.Exists(Path.Combine(Codex, "config.toml"))
+                        ? File.ReadAllText(Path.Combine(Codex, "config.toml")) : "") is not null;
+                    if (actif && prive is null && !catalogueCodex)
                     {
                         foreach (var (relatif, contenu) in FichiersConnecteur(agent))
                         {
@@ -833,8 +857,6 @@ namespace Loupedeck.TrinitePlugin
                         }
                         else if (actif)
                         {
-                            var quota = Path.Combine(Path.GetDirectoryName(_exePaquet), "claude-quota", "nexuskeypad-quota", "hooks", "register.ts");
-                            Fichier(Path.Combine(cible, "hooks", "quota.ts"), File.ReadAllBytes(quota));
                             var catalogue = new JsonObject { ["name"] = "nexuskeypad", ["description"] = "NexusKeypad connections for the official desktop AI applications.", ["owner"] = new JsonObject { ["name"] = "Julien Piron" },
                                 ["plugins"] = new JsonArray(new JsonObject { ["name"] = Nom, ["source"] = "./" + Nom, ["description"] = "NexusKeypad connector for Claude." }) };
                             Fichier(Path.Combine(Racine, "claude", ".claude-plugin", "marketplace.json"), Utf8(Json(catalogue)));
@@ -846,24 +868,46 @@ namespace Loupedeck.TrinitePlugin
                     }
                     else if (agent == 1)
                     {
-                        var catalogue = LireCatalogueCodex();
-                        identite = IdentiteCodex(catalogue);
-                        var liste = (JsonArray)catalogue["plugins"];
-                        foreach (var ancien in liste.OfType<JsonObject>().Where(x => x["name"]?.GetValue<String>() == Nom).ToList()) { liste.Remove(ancien); }
-                        liste.Add((JsonNode)new JsonObject { ["name"] = Nom, ["source"] = new JsonObject { ["source"] = "local", ["path"] = "./.codex/plugins/" + Nom },
-                            ["policy"] = new JsonObject { ["installation"] = "AVAILABLE", ["authentication"] = "ON_INSTALL" }, ["category"] = "Productivity" });
-                        transaction.PoserJson(CatalogueCodex, catalogue);
                         var configuration = Path.Combine(Codex, "config.toml");
-                        var texte = ActiverToml(File.Exists(configuration) ? File.ReadAllText(configuration) : "", identite, actif);
+                        var texte = File.Exists(configuration) ? File.ReadAllText(configuration) : "";
+                        var catalogue = LireCatalogueCodex();
+                        var liste = (JsonArray)catalogue["plugins"];
+                        var nexus = PluginCodexNexus(texte);
+                        if (actif && nexus is { Dossier: null } attente)
+                        {
+                            return new(EtatConnexion.EnCours, $"{attente.Identite} est déclaré ; son installation par Codex reste à terminer.") { CodeAttente = "codex_plugin_install_pending" };
+                        }
+
+                        identite = nexus?.Identite ?? IdentiteCodex(catalogue);
+                        var anciens = liste.OfType<JsonObject>().Where(x => x["name"]?.GetValue<String>() == Nom).ToList();
+                        foreach (var ancien in anciens) { liste.Remove(ancien); }
+                        if (nexus is null)
+                        {
+                            liste.Add((JsonNode)new JsonObject { ["name"] = Nom, ["source"] = new JsonObject { ["source"] = "local", ["path"] = "./.codex/plugins/" + Nom },
+                                ["policy"] = new JsonObject { ["installation"] = "AVAILABLE", ["authentication"] = "ON_INSTALL" }, ["category"] = "Productivity" });
+                        }
+
+                        // The catalog copy replaces the connector's former personal one: its entry leaves the personal catalog.
+                        if (nexus is null || anciens.Count > 0) { transaction.PoserJson(CatalogueCodex, catalogue); }
+                        texte = ActiverToml(texte, identite, actif);
                         if (actif)
                         {
-                            // A nexus-keypad plugin from the Nexus catalogs cannot carry hooks with this PC's executable path:
-                            // only this connector keeps them, so another enabled copy is turned off instead of doubling them.
+                            // One nexus-keypad identity carries the hooks: any other enabled copy is turned off instead of
+                            // doubling them.
                             foreach (var doublon in CodexDoublons(texte, identite)) { texte = ActiverToml(texte, doublon, false); }
                         }
 
                         transaction.Poser(configuration, Utf8(texte));
-                        if (actif)
+                        if (actif && nexus is { Dossier: { } installe })
+                        {
+                            // Codex's manager owns that copy: the receipt attests its installed files, never rewrites them.
+                            foreach (var fichier in FichiersCodexNexus)
+                            {
+                                var chemin = Path.Combine(installe, fichier);
+                                fichiers[chemin] = Empreinte(File.ReadAllBytes(chemin));
+                            }
+                        }
+                        else if (actif)
                         {
                             // Codex resolves the installed cache, not only the marketplace source directory.
                             var cache = Path.Combine(Codex, "plugins", "cache", catalogue["name"]!.GetValue<String>(), Nom, Version);

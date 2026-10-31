@@ -7,7 +7,7 @@ $tokens = $null
 $errors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($Installer, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw 'Installer does not parse.' }
-foreach ($name in 'Get-LogiPluginRuntime', 'Get-LogiPluginProcesses', 'Wait-LogiPluginService', 'Stop-Logi', 'Start-Logi', 'Install-NexusKeypad') {
+foreach ($name in 'Get-LogiPluginRuntime', 'Get-LogiPluginProcesses', 'Wait-LogiPluginService', 'Stop-Logi', 'Start-Logi', 'Get-Profile', 'Install-NexusKeypad') {
     $definition = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) | Where-Object Name -eq $name)
     if ($definition.Count -ne 1) { throw "Expected one function $name." }
     . ([scriptblock]::Create($definition[0].Extent.Text))
