@@ -156,24 +156,31 @@ namespace Loupedeck.TrinitePlugin
             // L'application reste accessible normalement ; la proposition n'apparaît qu'après l'installation ci-dessous.
             if (connexion.Etat is EtatConnexion.Pret or EtatConnexion.Relancer or EtatConnexion.EnCours) { return false; }
             if (Interlocked.Exchange(ref _question, 1) == 1) { return true; }
+            // Les questions sont des boîtes modales : jamais sur le fil du moteur, qui continue de dessiner le pad.
+            new Thread(() => Dialoguer(agent, connexion, instantane, actuel)) { IsBackground = true, Name = "NexusKeypad connexion" }.Start();
+            return true;
+        }
+
+        private static void Dialoguer(Int32 agent, Connexion connexion, Instantane instantane, Func<Instantane> actuel)
+        {
             try
             {
                 if (connexion.Etat == EtatConnexion.Absent)
                 {
                     Informer($"Install the official {Noms[agent]} app first, then press its key again to connect NexusKeypad.");
-                    return true;
+                    return;
                 }
 
                 if (connexion.Etat is EtatConnexion.Activer or EtatConnexion.Reparer or EtatConnexion.Erreur)
                 {
                     var demande = $"Connect {Noms[agent]} to NexusKeypad?\n\nThis installs its connector so the keypad can show its activity and operate the official app locally. Other settings will be preserved. The app will be started if closed.";
-                    if (!Oui(demande)) { return true; }
+                    if (!Oui(demande)) { return; }
                     if (Connecteurs.LireConfiguration(agent).Etat == EtatConnexion.Absent)
                     {
                         Lanceurs.Demarrer(agent);
                         Informer("Complete the official app’s first launch, then press its key again to connect NexusKeypad.");
                         Invalider();
-                        return true;
+                        return;
                     }
                     lock (Verrou) { _etats[agent] = new(EtatConnexion.EnCours, "Activation"); }
                     var resultat = Connecteurs.Activer(agent);
@@ -181,7 +188,7 @@ namespace Loupedeck.TrinitePlugin
                     if (resultat.Etat != EtatConnexion.Pret)
                     {
                         Informer("NexusKeypad setup did not finish. This connection remains pending; press the character again to retry.");
-                        return true;
+                        return;
                     }
 
                     if (Lanceurs.Preparer(agent).Etat == EtatLancement.Fermee)
@@ -215,14 +222,14 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 Invalider();
-                return true;
+                return;
             }
             catch (Exception ex)
             {
                 PluginLog.Error(ex, "connexion NexusKeypad");
                 Informer("NexusKeypad could not finish setup. This connection remains pending.");
                 Invalider();
-                return true;
+                return;
             }
             finally { Volatile.Write(ref _question, 0); }
         }

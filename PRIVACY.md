@@ -69,8 +69,7 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
   stops its activity observation and, for Claude and Antigravity, its native completion note. Other plugins and
   unrelated settings are preserved.
 - `%LOCALAPPDATA%\NexusKeypad\quota-antigravity.json`: the last Antigravity quota read.
-- `~/.nexus/status/keypad.json`: the Plugin's version and update status for the Nexus app. The complete edition may
-  also keep update preferences and temporary update files under `%LOCALAPPDATA%\NexusKeypad`.
+- `~/.nexus/status/keypad.json`: the Plugin's version for the Nexus app.
 - The plugin log of the Logi Plugin Service (`…\LogiPluginService\Logs\plugin_logs\TrinitePad.log`): technical events,
   which can include conversation titles and file names. It stays on your computer.
 - The Windows clipboard: Screen capture and Phone photo put the image in the clipboard before pasting it.
@@ -79,8 +78,8 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 
 The Plugin connects to `127.0.0.1` for the apps' local debugging ports and codex-lb when present, and to your phone
 through adb when reachable (see above). When a key opens a page, your browser connects to that page. The complete
-NexusKeypad edition, distributed outside the Marketplace, also contacts GitHub to check for and download signed
-updates; Marketplace editions are updated through Logitech. The Plugin has no analytics or data-collection endpoint
+NexusKeypad edition, distributed outside the Marketplace, contacts GitHub only when `get.ps1` installs or updates
+it; Marketplace editions are updated through Logitech. The Plugin has no analytics or data-collection endpoint
 and sends none of its session files, images or local diagnostics to the Developer.
 
 Screen capture and Phone photo paste an image without pressing Send. Dictation or voice recording is performed by

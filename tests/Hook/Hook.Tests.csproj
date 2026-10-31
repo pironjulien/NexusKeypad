@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- The native hook nexuskeypad-hook.exe shipped in the plugin package: its rules in-process (hook\*.cs compiled here),
-       and the published Native AOT executable itself, run in temporary profiles (states, Codex, update swap). The pad's
+       and the published Native AOT executable itself, run in temporary profiles (states, Codex). The pad's
        test tool outils\pad.ps1 is checked here too (its reel guard). -->
   <PropertyGroup>
     <Nullable>annotations</Nullable>
@@ -31,7 +31,7 @@
     <AssemblyMetadata Include="NexusKeypad.Hook" Value="$(HookSortie)nexuskeypad-hook.exe" />
   </ItemGroup>
   <Target Name="HookPublie" BeforeTargets="Build"
-          Inputs="$(HookProjet)Program.cs;$(HookProjet)Codex.cs;$(HookProjet)Son.cs;$(HookProjet)assets\antigravity.wav;$(HookProjet)assets\claude.wav;$(HookProjet)PluginLog.cs;$(HookProjet)Touches.cs;$(HookProjet)Echange.cs;$(HookProjet)hook.csproj;$(PluginTrinite)EtatsEnDirect.cs;$(PluginTrinite)Connecteurs.cs"
+          Inputs="$(HookProjet)Program.cs;$(HookProjet)Codex.cs;$(HookProjet)Son.cs;$(HookProjet)assets\antigravity.wav;$(HookProjet)assets\claude.wav;$(HookProjet)PluginLog.cs;$(HookProjet)Touches.cs;$(HookProjet)hook.csproj;$(PluginTrinite)EtatsEnDirect.cs;$(PluginTrinite)Connecteurs.cs"
           Outputs="$(HookSortie)nexuskeypad-hook.exe">
     <Exec Command="set &quot;PATH=$(MSBuildProgramFiles32)\Microsoft Visual Studio\Installer;%PATH%&quot; &amp;&amp; dotnet publish &quot;$(HookProjet)hook.csproj&quot; -c Release -nologo -v q -o &quot;$(HookSortie.TrimEnd('\'))&quot;"
           EnvironmentVariables="DOTNET_CLI_TELEMETRY_OPTOUT=1" />

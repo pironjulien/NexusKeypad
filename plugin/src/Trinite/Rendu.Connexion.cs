@@ -43,6 +43,27 @@ namespace Loupedeck.TrinitePlugin
             return true;
         }
 
+        // Pendant une vraie activité, le personnage reste celui de l'activité, mais un connecteur à réparer ou à activer
+        // garde son objet devant lui : sinon une IA qui travaille sans arrêt cacherait le besoin indéfiniment.
+        private static void ObjetConnexion(BitmapBuilder b, Int32 agent, Int32 x0, Scene s)
+        {
+            var connexions = s.Instantane.Connexions;
+            if (connexions is null || agent >= connexions.Length || connexions[agent] is not { } connexion)
+            {
+                return;
+            }
+
+            const Int32 Cy = 65;
+            if (connexion.Etat == EtatConnexion.Reparer)
+            {
+                ClefConnexion(b, x0 + 40, Cy);
+            }
+            else if (connexion.Etat == EtatConnexion.Activer)
+            {
+                PriseDeconnectee(b, x0 + 40, Cy, Ambre);
+            }
+        }
+
         // Les yeux gardent la place et la couleur propres à chaque personnage : noirs chez Clawd, blancs sur les
         // logos. Aucun visage ne monte au-dessus de la silhouette, dans la zone des questions et permissions.
         private static void VisageConnexion(BitmapBuilder b, Int32 agent, Int32 x0, Int32 y0, Int32 p, EtatConnexion etat)

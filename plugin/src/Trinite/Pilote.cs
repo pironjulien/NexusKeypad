@@ -107,10 +107,6 @@ namespace Loupedeck.TrinitePlugin
                 case "releve":
                     return this._moteur.ReleverAntigravity();
 #endif
-#if NEXUS
-                case "update":
-                    return MiseAJour.Lancer(this._moteur, demande: true) ? "started" : "already running";
-#endif
 #if !POSTE
                 case "connexions":
                     return String.Join(" | ", ConnexionPad.Lire(forcer: true).Select((c, i) => $"{Observateur.Agents[i]}: {c.Etat} ({c.Detail})"));

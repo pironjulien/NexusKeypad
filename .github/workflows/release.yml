@@ -4,12 +4,9 @@
 #   Tool), plus get.ps1 and SHA256SUMS.txt. product-dev-release attests them (verify with `gh attestation verify <file>
 #   --repo pironjulien/NexusKeypad`; the Sigstore bundle is attached as NexusKeypad-X.Y.Z.intoto.jsonl) and publishes
 #   the pre-release vX.Y.Z-dev.N (NexusSystem's development channel).
-# - Offline signature: the maintainer signs that pre-release's SHA256SUMS.txt (outils/signer_release.ps1 -Tag
-#   vX.Y.Z-dev.N, key never on GitHub). get.ps1 and the complete edition's automatic update refuse a release without a
-#   valid SHA256SUMS.txt.sig.
-# - Stable: "Run workflow" (promote: a vX.Y.Z-dev.N, or empty for the newest) runs product-promote: the SAME files,
-#   signature included, become the release vX.Y.Z with the CHANGELOG section. get.ps1 and the automatic update install
-#   from releases/latest, never a pre-release. NexusKeypad is not in the MCP registry.
+# - Stable: right after that build when its version is not released yet, or "Run workflow" (promote: a vX.Y.Z-dev.N,
+#   or empty for the newest), product-promote runs: the SAME files become the release vX.Y.Z with the CHANGELOG
+#   section. get.ps1 installs from releases/latest, never a pre-release. NexusKeypad is not in the MCP registry.
 # Actions and shared workflows pinned by commit SHA; Dependabot (github-actions) keeps them up to date.
 name: Release
 
@@ -19,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       promote:
-        description: Development build to publish as stable (vX.Y.Z-dev.N, signed; empty = the newest)
+        description: Development build to publish as stable (vX.Y.Z-dev.N; empty = the newest)
         required: false
         default: ''
 
@@ -98,45 +95,19 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: pironjulien/NexusSystem/.github/workflows/product-dev-release.yml@a409925bafd1184acc207dd90ca4a43ba987d0e3  # v1.6.39
+    uses: pironjulien/NexusSystem/.github/workflows/product-dev-release.yml@9cf03f2ac93e207307351b393130ff1cfe2aef7b  # v1.6.40
     with:
       product: NexusKeypad
       version: ${{ needs.build.outputs.version }}
 
-  signed:
-    # The development build to promote (the newest when none is given) must carry the offline signature
-    # (SHA256SUMS.txt.sig, outils/signer_release.ps1): a stable release without it would be refused by every installer.
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      tag: ${{ steps.dev.outputs.tag }}
-    steps:
-      - name: Signed development build
-        id: dev
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PROMOTE: ${{ inputs.promote }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          dev="$PROMOTE"
-          if [[ -z "$dev" ]]; then
-            dev=$(gh release list --repo "$REPOSITORY" --limit 100 --json tagName,isPrerelease,createdAt \
-              --jq '[.[] | select(.isPrerelease and (.tagName | test("-dev\\.[0-9]+$")))] | sort_by(.createdAt) | last | .tagName')
-          fi
-          [[ "$dev" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9]+$ ]] || { echo "Not a development build: $dev"; exit 1; }
-          assets=$(gh release view "$dev" --repo "$REPOSITORY" --json assets --jq '.assets[].name')
-          grep -qx 'SHA256SUMS.txt.sig' <<<"$assets" || { echo "$dev is not signed: run outils/signer_release.ps1 -Tag $dev first."; exit 1; }
-          echo "tag=$dev" >> "$GITHUB_OUTPUT"
-
   promote:
-    needs: signed
+    # Right after the push that built a new version (same files), or by hand ("Run workflow").
+    needs: dev
+    if: always() && (needs.dev.result == 'success' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
       id-token: write
-    uses: pironjulien/NexusSystem/.github/workflows/product-promote.yml@a409925bafd1184acc207dd90ca4a43ba987d0e3  # v1.6.39
+    uses: pironjulien/NexusSystem/.github/workflows/product-promote.yml@9cf03f2ac93e207307351b393130ff1cfe2aef7b  # v1.6.40
     with:
       product: NexusKeypad
-      promote: ${{ needs.signed.outputs.tag }}
+      promote: ${{ inputs.promote || needs.dev.outputs.tag }}
