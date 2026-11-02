@@ -144,6 +144,21 @@ public sealed class JournalCodexTests
     }
 
     [Fact]
+    public void Chat_du_relais_par_son_dossier()
+    {
+        // Relay wake: a chat opened in the relay's Codex project folder. Codex lists that folder among the workspace roots
+        // of every chat (02/11): a user chat that merely names it is not the relay.
+        static String Entete(String cwd, String racines) => JsonSerializer.Serialize(new { type = "session_meta", payload = new { id = "x", cwd, runtime_workspace_roots = racines.Split('|') } });
+        var maison = Environment.GetEnvironmentVariable("USERPROFILE") ?? "";
+        var projet = Path.Combine(maison, ".nexus", "relay", "codex-projet");
+        var documents = Path.Combine(maison, "OneDrive", "Documents");
+        Vrai(Observateur.ChatDuRelais(Entete(projet, projet)), "chat ouvert dans le projet du relais → relais");
+        Vrai(Observateur.ChatDuRelais(Entete(projet.ToUpperInvariant() + "\\", projet)), "casse et barre finale ignorées");
+        Vrai(!Observateur.ChatDuRelais(Entete(documents, documents + "|" + projet)), "chat de l'utilisateur qui liste le dossier du relais → pas un relais");
+        Vrai(!Observateur.ChatDuRelais("{\"type\":\"session_meta\"}"), "sans dossier → pas un relais");
+    }
+
+    [Fact]
     public void Delais_robustes() => Robustesse.Delais(Vrai);
 
     [Fact]

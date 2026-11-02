@@ -60,7 +60,7 @@ namespace Loupedeck.TrinitePlugin
                         continue;
                     }
 
-                    var relais = entete.Contains(@".nexus\\relay", StringComparison.OrdinalIgnoreCase);
+                    var relais = ChatDuRelais(entete);
                     var (etat, depuis) = this.EtatCodexGarde(f, relais, id);
                     if (relais && etat is not (Etat.Travaille or Etat.Attend or Etat.Autorisation) && DateTime.UtcNow - f.LastWriteTimeUtc > TimeSpan.FromHours(12))
                     {
@@ -72,6 +72,49 @@ namespace Loupedeck.TrinitePlugin
                     var regardee = etat == Etat.Fini && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
                     yield return new(1, id, titre, regardee ? Etat.Repos : etat, depuis, f.LastWriteTimeUtc, vu, relais);
                 }
+            }
+        }
+
+        // Réveil du relais : chat ouvert dans le dossier du projet Codex du relais, la règle du relais lui-même (CodexSpace).
+        // Le dossier cité ailleurs dans l'en-tête ne suffit pas : Codex le range dans les espaces de travail de tous les
+        // chats, et un chat de l'utilisateur faisait courir les messagers sans aucun relais (02/11).
+        public static Boolean ChatDuRelais(String entete) =>
+            Champ(entete, "cwd") is { } cwd && ProjetsRelais.Any(p => String.Equals(Chemin(cwd), p, StringComparison.OrdinalIgnoreCase));
+
+        // Dossiers du projet Codex du relais : celui d'origine, et celui choisi dans ses réglages (codex_workspace).
+        // Lu au premier usage : Maison (Etats.cs) est alors initialisée, quel que soit l'ordre des fichiers.
+        private static String[] ProjetsRelais => _projetsRelais ??= ProjetsCodexRelais();
+
+        private static String[] _projetsRelais;
+
+        private static String[] ProjetsCodexRelais()
+        {
+            var projets = new List<String> { Chemin(Path.Combine(Maison, ".nexus", "relay", "codex-projet")) };
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(Maison, ".nexus", "nexus-relay", "settings.json")));
+                if (doc.RootElement.TryGetProperty("codex_workspace", out var w) && w.GetString() is { Length: > 0 } choisi)
+                {
+                    projets.Add(Chemin(choisi));
+                }
+            }
+            catch (Exception)
+            {
+                // pas de réglages : le dossier d'origine
+            }
+
+            return [.. projets];
+        }
+
+        private static String Chemin(String dossier)
+        {
+            try
+            {
+                return Path.GetFullPath(dossier).TrimEnd('\\', '/');
+            }
+            catch (Exception)
+            {
+                return dossier;
             }
         }
 
