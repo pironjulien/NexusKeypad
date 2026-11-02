@@ -39,6 +39,7 @@ namespace Loupedeck.TrinitePlugin
         private (DateTime Ecrit, Dictionary<String, String> Noms) _indexCodex = (DateTime.MinValue, []);
         private List<(String Id, String Titre, DateTime Activite, Boolean Selection)> _lignesAgy = [];
         private readonly Dictionary<String, String> _sujets = [];
+        private readonly Dictionary<String, Int32> _sources = [];
         private readonly Quota[] _quotas = [null, null, QuotaAntigravity.Garde(out _)];
         private readonly Process[] _lancees = new Process[3];
         private readonly DateTime[] _recherche = new DateTime[3];
@@ -357,6 +358,51 @@ namespace Loupedeck.TrinitePlugin
             ("done", var age) when age < TimeSpan.FromHours(12) => Etat.Fini,
             _ => Etat.Repos,
         };
+
+        public static Int32 SourceDuNomDeFichier(String nom)
+        {
+            var morceaux = nom.Split('.');
+            if (morceaux.Length >= 2)
+            {
+                return morceaux[1].ToLowerInvariant() switch
+                {
+                    "claude" => 0,
+                    "codex" => 1,
+                    "antigravity" or "agy" => 2,
+                    _ => -1,
+                };
+            }
+            return -1;
+        }
+
+        public static Int32 SourcePourSujet(String sujet, Int32 defaut = 0)
+        {
+            try
+            {
+                var messages = Path.Combine(DossierRelais, "messages");
+                if (!Directory.Exists(messages))
+                {
+                    return defaut;
+                }
+
+                var dernier = Directory.EnumerateFiles(messages, $"*.*.*.{sujet}.json")
+                    .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
+                    .FirstOrDefault();
+
+                if (dernier is not null)
+                {
+                    var src = SourceDuNomDeFichier(Path.GetFileNameWithoutExtension(dernier));
+                    if (src >= 0)
+                    {
+                        return src;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return defaut;
+        }
 
 #endif
         private static String Champ(String json, String nom)

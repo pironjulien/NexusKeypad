@@ -799,7 +799,7 @@ namespace Loupedeck.TrinitePlugin
                     var vive = false; // aucune IA sur PC Dashboard
 #else
                     var vive = t < 3 && (i.EtatIA(t) is not (Etat.Repos or Etat.Ferme or Etat.Fini) || i.Premiere(t)?.Alerte == true
-                        || i.PourClaude(1) || i.PourClaude(2) || i.DicteeIa == t || Gestes.LanceIlYA(t) < 15);
+                        || i.LiaisonsRelais().Count > 0 || i.DicteeIa == t || Gestes.LanceIlYA(t) < 15);
 #endif
                     if ((t != Photo || horloge) && (vive || this._tic % 2 == 0))
                     {

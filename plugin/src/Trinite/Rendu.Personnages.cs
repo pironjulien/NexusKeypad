@@ -97,27 +97,41 @@ namespace Loupedeck.TrinitePlugin
         // Écart entre deux touches voisines, en pixels du contenu (marges des deux touches et bord du pad entre elles).
         private const Int32 EcartTouches = 36;
 
-        // Relais : des messagers font le va-et-vient du tout premier relais. Un mini-Clawd part du
-        // flanc de Claude, traverse les touches jusqu'au flanc du pair qui travaille pour lui (Codex ou Antigravity) et lui
-        // envoie une décharge électrique ; puis un mini-pair repart vers Claude et le secoue d'une décharge à son tour. En
-        // boucle, 3,6 s : aller (40 %), décharge sur le pair (10 %), retour (40 %), décharge sur Claude (10 %). Avec les deux
-        // pairs, les cycles sont décalés d'une demi-période.
+        // Relais : des messagers font le va-et-vient entre l'initiateur et le pair qui travaille pour lui.
+        // Chaque liaison active fait courir son messager (Clawd, nuage Codex ou arche Antigravity) de la source à
+        // l'ouvrier, lui envoie une décharge électrique, puis le messager de l'ouvrier repart vers la source et la secoue
+        // d'une décharge à son tour. En boucle, 3,6 s.
         private static void Liaison(BitmapBuilder b, Int32 agent, Scene s)
         {
-            var claude = Moteur.Place(0) % 3;
-            foreach (var pair in new[] { 1, 2 })
+            var liaisons = s.Instantane.LiaisonsRelais();
+            if (liaisons.Count == 0)
             {
-                if ((agent != 0 && agent != pair) || !s.Instantane.Ouverte[0] || !s.Instantane.Ouverte[pair] || !s.Instantane.PourClaude(pair))
+                return;
+            }
+
+            var posAgent = Moteur.Place(agent) % 3;
+            for (var idx = 0; idx < liaisons.Count; idx++)
+            {
+                var (source, ouvrier) = liaisons[idx];
+                if (!s.Instantane.Ouverte[source] || !s.Instantane.Ouverte[ouvrier])
                 {
                     continue;
                 }
 
-                var ecart = (Moteur.Place(pair) % 3) - claude;
+                var posSource = Moteur.Place(source) % 3;
+                var posOuvrier = Moteur.Place(ouvrier) % 3;
+                var minPos = Math.Min(posSource, posOuvrier);
+                var maxPos = Math.Max(posSource, posOuvrier);
+                if (posAgent < minPos || posAgent > maxPos)
+                {
+                    continue;
+                }
+
+                var ecart = posOuvrier - posSource;
                 var sens = Math.Sign(ecart);
                 var distance = Math.Abs(ecart) * (T + EcartTouches); // de centre à centre
                 const Int32 Flanc = 46; // le messager s'arrête au flanc du personnage visité (80 px de large, centrés)
-                Int32 Local(Double g) => (Int32)(agent == 0 ? (T / 2) + (sens * g) : (T / 2) - (sens * (distance - g)));
-                var phase = ((s.Temps / 3.6) + (pair == 2 ? 0.5 : 0)) % 1;
+                var phase = ((s.Temps / 3.6) + (idx * 0.5)) % 1;
                 var (aller, k, decharge) = phase switch
                 {
                     < 0.4 => (true, Lisse(phase / 0.4), false),
@@ -126,27 +140,33 @@ namespace Loupedeck.TrinitePlugin
                     _ => (false, 1.0, true),
                 };
                 var g = Flanc + ((aller ? k : 1 - k) * (distance - (2 * Flanc)));
-                var x = Local(g);
+                var x = (T / 2) + (sens * (Int32)g) - ((posAgent - posSource) * (T + EcartTouches));
                 var y = T - 22;
                 if (x > -24 && x < T + 24)
                 {
-                    if (aller)
-                    {
-                        PetitClawd(b, x, y, decharge ? 0 : s.Temps);
-                    }
-                    else
-                    {
-                        PetitPair(b, pair, x, y - 2, decharge ? 0 : s.Temps);
-                    }
+                    var messager = aller ? source : ouvrier;
+                    PetitMessager(b, messager, x, y, s.Temps, decharge);
                 }
 
                 // La décharge, sur la touche du visité : un éclair du messager jusqu'au personnage, des étincelles autour.
-                var visite = aller ? pair : 0;
+                var visite = aller ? ouvrier : source;
                 if (decharge && agent == visite)
                 {
                     var versCentre = x < T / 2 ? 1 : -1;
                     Decharge(b, x + (versCentre * 6), y - 4, (T / 2) - (versCentre * 18), (T / 2) - 4, s.Temps);
                 }
+            }
+        }
+
+        private static void PetitMessager(BitmapBuilder b, Int32 messager, Int32 cx, Int32 y, Double t, Boolean decharge)
+        {
+            if (messager == 0)
+            {
+                PetitClawd(b, cx, y, decharge ? 0 : t);
+            }
+            else
+            {
+                PetitPair(b, messager, cx, y - 2, decharge ? 0 : t);
             }
         }
 

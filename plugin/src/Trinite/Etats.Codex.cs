@@ -68,9 +68,10 @@ namespace Loupedeck.TrinitePlugin
                     }
 
                     var vu = this.Vu(1, id, depuis);
-                    var titre = relais ? "Relais · " + Sujet(f) : this._indexCodex.Noms.GetValueOrDefault(id) ?? "Chat Codex";
+                    var (sujet, source) = relais ? this.SujetEtSource(f) : (this._indexCodex.Noms.GetValueOrDefault(id) ?? "Chat Codex", -1);
+                    var titre = relais ? "Relais · " + sujet : sujet;
                     var regardee = etat == Etat.Fini && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
-                    yield return new(1, id, titre, regardee ? Etat.Repos : etat, depuis, f.LastWriteTimeUtc, vu, relais);
+                    yield return new(1, id, titre, regardee ? Etat.Repos : etat, depuis, f.LastWriteTimeUtc, vu, relais, source);
                 }
             }
         }
@@ -172,12 +173,14 @@ namespace Loupedeck.TrinitePlugin
 
         private (DateTime Quand, List<String> Chemins) _journauxCodex = (DateTime.MinValue, []);
 
-        // Sujet d'un réveil du relais : son texte cite read(id="…") ; le message <id>.<de>.<vers>.<sujet>.json le nomme.
-        private String Sujet(FileInfo f)
+        // Sujet et source d'un réveil du relais : son texte cite read(id="…") ; le message <id>.<de>.<vers>.<sujet>.json le nomme.
+        private (String Sujet, Int32 Source) SujetEtSource(FileInfo f)
         {
-            if (this._sujets.TryGetValue(f.FullName, out var connu))
+            this._sujets.TryGetValue(f.FullName, out var connuSujet);
+            this._sources.TryGetValue(f.FullName, out var connuSource);
+            if (connuSujet is not null)
             {
-                return connu;
+                return (connuSujet, connuSource);
             }
 
             var m = Regex.Match(Debut(f.FullName, 1 << 20), @"read\(id=\\?""([0-9A-Za-z-]+)");
@@ -185,13 +188,22 @@ namespace Loupedeck.TrinitePlugin
             var fichier = m.Success && Directory.Exists(messages) ? Directory.EnumerateFiles(messages, m.Groups[1].Value + ".*.json").FirstOrDefault() : null;
             var morceaux = fichier is null ? [] : Path.GetFileNameWithoutExtension(fichier).Split('.');
             var sujet = morceaux.Length >= 4 ? String.Join('.', morceaux[3..]) : "Nexus Relay";
+            var source = fichier is not null ? SourceDuNomDeFichier(Path.GetFileNameWithoutExtension(fichier)) : -1;
+            if (source < 0)
+            {
+                source = SourcePourSujet(sujet, 0);
+            }
+
             if (m.Success)
             {
                 this._sujets[f.FullName] = sujet; // le sujet d'un chat ne change plus
+                this._sources[f.FullName] = source;
             }
 
-            return sujet;
+            return (sujet, source);
         }
+
+        private String Sujet(FileInfo f) => this.SujetEtSource(f).Sujet;
 
         // Quota de Codex : celui de Codex LB, cumulé sur tous ses comptes (/api/usage/summary) ; sans LB, le dernier
         // « token_count » des journaux, qui ne reflète que le compte qui a servi la dernière réponse.

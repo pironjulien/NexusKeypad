@@ -26,7 +26,9 @@ namespace Loupedeck.TrinitePlugin
             {
                 vues.Add(id);
                 var relais = titre.StartsWith("Nexus Relay", StringComparison.Ordinal) || sujets.ContainsKey(id);
-                if (this.ConversationAgy(id, relais && sujets.TryGetValue(id, out var sujet) ? "Relais · " + sujet : titre, activite, relais) is { } c)
+                var sujet = relais && sujets.TryGetValue(id, out var s) ? s : (relais ? "Nexus Relay" : null);
+                var source = relais && sujet is not null ? SourcePourSujet(sujet, 0) : -1;
+                if (this.ConversationAgy(id, relais ? "Relais · " + sujet : titre, activite, relais, source) is { } c)
                 {
                     yield return c;
                 }
@@ -34,14 +36,18 @@ namespace Loupedeck.TrinitePlugin
 
             foreach (var (id, sujet) in sujets)
             {
-                if (!vues.Contains(id) && this.ConversationAgy(id, "Relais · " + sujet, DateTime.MinValue, true) is { } c)
+                if (!vues.Contains(id))
                 {
-                    yield return c;
+                    var source = SourcePourSujet(sujet, 0);
+                    if (this.ConversationAgy(id, "Relais · " + sujet, DateTime.MinValue, true, source) is { } c)
+                    {
+                        yield return c;
+                    }
                 }
             }
         }
 
-        private Conversation ConversationAgy(String id, String titre, DateTime activite, Boolean relais)
+        private Conversation ConversationAgy(String id, String titre, DateTime activite, Boolean relais, Int32 source = -1)
         {
             var hook = Hook("antigravity", id);
             var etat = hook is { } h ? Traduire(h.Etat, h.Quand) : Etat.Repos;
@@ -53,7 +59,7 @@ namespace Loupedeck.TrinitePlugin
             var depuis = hook?.Quand ?? activite;
             var vu = this.Vu(2, id, depuis);
             var regardee = etat == Etat.Fini && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
-            return new(2, id, titre, regardee ? Etat.Repos : etat, depuis, activite == DateTime.MinValue ? depuis : activite, vu, relais);
+            return new(2, id, titre, regardee ? Etat.Repos : etat, depuis, activite == DateTime.MinValue ? depuis : activite, vu, relais, source);
         }
 
         // Conversations d'Antigravity ouvertes par le relais, par sujet : conversation → sujet.

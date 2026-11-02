@@ -91,8 +91,11 @@ namespace Loupedeck.TrinitePlugin
                 var etat = hook is { } h ? Traduire(h.Etat, h.Quand, Instant(Champ(meta, "lastTurnEdgeAt"))) : Etat.Repos;
                 var depuis = hook?.Quand ?? activite;
                 var vu = regard > depuis || this.Vu(0, id, depuis);
+                var relais = (cwd is not null && String.Equals(Chemin(cwd), Chemin(Path.Combine(Maison, ".nexus", "relay", "claude-projet")), StringComparison.OrdinalIgnoreCase))
+                    || titre.StartsWith("Nexus Relay", StringComparison.Ordinal) || titre.StartsWith("Relais · ", StringComparison.Ordinal);
+                var source = relais ? SourcePourSujet(titre.StartsWith("Relais · ", StringComparison.Ordinal) ? titre["Relais · ".Length..] : "Nexus Relay", 1) : -1;
                 // Regardée : sa question, sa fin ou son erreur retourne au repos (le « ? » s'efface dès l'arrivée, 29/10).
-                var conv = new Conversation(0, id, titre, etat is Etat.Fini or Etat.Erreur or Etat.Attend && vu ? Etat.Repos : etat, depuis, activite, vu);
+                var conv = new Conversation(0, id, titre, etat is Etat.Fini or Etat.Erreur or Etat.Attend && vu ? Etat.Repos : etat, depuis, activite, vu, relais, source);
                 brutes.Add((conv, cwd));
             }
 

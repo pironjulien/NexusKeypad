@@ -16,8 +16,9 @@ namespace Loupedeck.TrinitePlugin
 
     // Une conversation d'une IA : Id = ce qui sert à l'ouvrir (Claude local_…, Codex conversationId, Antigravity cascade).
     // Vu : l'utilisateur l'a regardée depuis son dernier changement d'état (le clignotement s'arrête).
-    // Relais : ouverte par Nexus Relay pour Claude, pas par l'utilisateur ; elle ne le prévient jamais.
-    public sealed record Conversation(Int32 Agent, String Id, String Titre, Etat Etat, DateTime Depuis, DateTime Activite, Boolean Vu, Boolean Relais = false)
+    // Relais : ouverte par Nexus Relay, pas par l'utilisateur ; elle ne le prévient jamais.
+    // Source : IA qui a demandé le travail (0 Claude, 1 Codex, 2 Antigravity) ; -1 si non précisée.
+    public sealed record Conversation(Int32 Agent, String Id, String Titre, Etat Etat, DateTime Depuis, DateTime Activite, Boolean Vu, Boolean Relais = false, Int32 Source = -1)
     {
         // Clignote pour l'utilisateur : une question, une autorisation, une erreur ou une fin qu'il n'a pas encore
         // regardée, hors relais. La limite d'usage ne clignote pas : il n'y peut rien.
@@ -62,8 +63,29 @@ namespace Loupedeck.TrinitePlugin
         public Conversation Premiere(Int32 agent) => this.Conversations[agent].Length > 0 ? this.Conversations[agent][0] : null;
 
 #if !POSTE
-        // Codex ou Antigravity travaille pour Claude par le relais (au moins un de ses chats du relais tourne).
-        public Boolean PourClaude(Int32 agent) => this.Conversations[agent].Any(c => c is { Relais: true, Etat: Etat.Travaille });
+        // Couples (source, ouvrier) où un ouvrier travaille pour une source par le relais.
+        public System.Collections.Generic.IReadOnlyList<(Int32 Source, Int32 Ouvrier)> LiaisonsRelais()
+        {
+            var paires = new System.Collections.Generic.List<(Int32, Int32)>();
+            for (var w = 0; w < 3; w++)
+            {
+                foreach (var c in this.Conversations[w])
+                {
+                    if (c is { Relais: true, Etat: Etat.Travaille })
+                    {
+                        var s = c.Source >= 0 && c.Source < 3 && c.Source != w ? c.Source : (w == 0 ? 1 : 0);
+                        if (!paires.Contains((s, w)))
+                        {
+                            paires.Add((s, w));
+                        }
+                    }
+                }
+            }
+            return paires;
+        }
+
+        // Pour compatibilité : Codex ou Antigravity travaille pour Claude par le relais.
+        public Boolean PourClaude(Int32 agent) => this.Conversations[agent].Any(c => c is { Relais: true, Etat: Etat.Travaille } && (c.Source == 0 || c.Source < 0));
 #endif
 
         // État d'ensemble d'une IA : sa conversation la plus pressante.

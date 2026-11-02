@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.24] - 2026-11-02
+
+### Fixed
+- Relay courier animation on the keypad was hardcoded to Claude as the sole initiator, walking between Claude and Codex
+  even when Antigravity initiated the exchange. The animation now supports all 6 directions across the Trinity: the
+  messenger travels between the actual initiating agent (touch 0, 1, or 2) and the worker agent (touch 0, 1, or 2),
+  carrying the initiator's sprite (Clawd, Codex cloud, or Antigravity arch) and returning with the worker's sprite.
+
 ## [1.8.23] - 2026-11-02
 
 ### Fixed
