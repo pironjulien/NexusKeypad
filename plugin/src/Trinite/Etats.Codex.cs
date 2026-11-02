@@ -60,7 +60,7 @@ namespace Loupedeck.TrinitePlugin
                         continue;
                     }
 
-                    var relais = ChatDuRelais(entete);
+                    var relais = ChatDuRelais(id, entete, this.ConversationsRelais());
                     var (etat, depuis) = this.EtatCodexGarde(f, relais, id);
                     if (relais && etat is not (Etat.Travaille or Etat.Attend or Etat.Autorisation) && DateTime.UtcNow - f.LastWriteTimeUtc > TimeSpan.FromHours(12))
                     {
@@ -75,36 +75,67 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        // Réveil du relais : chat ouvert dans le dossier du projet Codex du relais, la règle du relais lui-même (CodexSpace).
-        // Le dossier cité ailleurs dans l'en-tête ne suffit pas : Codex le range dans les espaces de travail de tous les
-        // chats, et un chat de l'utilisateur faisait courir les messagers sans aucun relais (02/11).
-        public static Boolean ChatDuRelais(String entete) =>
-            Champ(entete, "cwd") is { } cwd && ProjetsRelais.Any(p => String.Equals(Chemin(cwd), p, StringComparison.OrdinalIgnoreCase));
+        // Réveil du relais : un chat que le relais a lui-même ouvert, d'après ses registres (sujet → conversation Codex,
+        // chats qu'il possède), ou un chat ouvert dans son propre dossier de projet. Le dossier choisi dans ses réglages
+        // (codex_workspace) ne suffit pas : sur le poste de Julien c'est Documents, celui de tous ses chats, et ses chats
+        // faisaient courir les messagers sans aucun relais (02/11).
+        public static Boolean ChatDuRelais(String id, String entete, IReadOnlySet<String> conversationsRelais) =>
+            id is not null && conversationsRelais.Contains(id)
+            || Champ(entete, "cwd") is { } cwd && String.Equals(Chemin(cwd), Chemin(Path.Combine(Maison, ".nexus", "relay", "codex-projet")), StringComparison.OrdinalIgnoreCase);
 
-        // Dossiers du projet Codex du relais : celui d'origine, et celui choisi dans ses réglages (codex_workspace).
-        // Lu au premier usage : Maison (Etats.cs) est alors initialisée, quel que soit l'ordre des fichiers.
-        private static String[] ProjetsRelais => _projetsRelais ??= ProjetsCodexRelais();
-
-        private static String[] _projetsRelais;
-
-        private static String[] ProjetsCodexRelais()
+        // Conversations Codex ouvertes par le relais : topics\<sujet>\codex.json (« conversation ») et
+        // state\codex-owned.json (« threads »), dans ~\.nexus\relay\v1. Relu toutes les 5 s : quelques petits fichiers.
+        private IReadOnlySet<String> ConversationsRelais()
         {
-            var projets = new List<String> { Chemin(Path.Combine(Maison, ".nexus", "relay", "codex-projet")) };
+            if (DateTime.UtcNow - this._relaisLu.Quand < TimeSpan.FromSeconds(5))
+            {
+                return this._relaisLu.Ids;
+            }
+
+            var ids = new HashSet<String>(StringComparer.OrdinalIgnoreCase);
+            var racine = Path.Combine(Maison, ".nexus", "relay", "v1");
             try
             {
-                using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(Maison, ".nexus", "nexus-relay", "settings.json")));
-                if (doc.RootElement.TryGetProperty("codex_workspace", out var w) && w.GetString() is { Length: > 0 } choisi)
+                var sujets = Path.Combine(racine, "topics");
+                foreach (var fichier in Directory.Exists(sujets) ? Directory.EnumerateFiles(sujets, "codex.json", SearchOption.AllDirectories) : [])
                 {
-                    projets.Add(Chemin(choisi));
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(File.ReadAllText(fichier));
+                        if (doc.RootElement.TryGetProperty("conversation", out var c) && c.GetString() is { Length: > 0 } conversation)
+                        {
+                            ids.Add(conversation);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // fichier en cours d'écriture : relu au tour suivant
+                    }
+                }
+
+                var possedes = Path.Combine(racine, "state", "codex-owned.json");
+                if (File.Exists(possedes))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(possedes));
+                    if (doc.RootElement.TryGetProperty("threads", out var fils) && fils.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var fil in fils.EnumerateObject())
+                        {
+                            ids.Add(fil.Name);
+                        }
+                    }
                 }
             }
             catch (Exception)
             {
-                // pas de réglages : le dossier d'origine
+                return this._relaisLu.Ids; // relecture ratée : la liste précédente
             }
 
-            return [.. projets];
+            this._relaisLu = (DateTime.UtcNow, ids);
+            return ids;
         }
+
+        private (DateTime Quand, IReadOnlySet<String> Ids) _relaisLu = (DateTime.MinValue, new HashSet<String>());
 
         private static String Chemin(String dossier)
         {

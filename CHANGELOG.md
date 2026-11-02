@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.23] - 2026-11-02
+
+### Fixed
+- Relay messengers still ran between Claude and Codex with no relay in use when the relay's Codex workspace is the
+  user's own folder (such as Documents): every chat opened there counted as a relay wake. A Codex chat is now a relay
+  wake only when the relay's own records list it (topic conversation or owned thread), or when it is opened in the
+  relay's dedicated project folder.
+
 ## [1.8.22] - 2026-11-02
 
 ### Added
