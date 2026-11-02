@@ -17,18 +17,22 @@ namespace Loupedeck.TrinitePlugin
         private const UInt32 CfDib = 8, CfHdrop = 15;
         private static readonly UInt32 CfPng = RegisterClipboardFormat("PNG");
 
-        // png : l'image ; fichier : le fichier joint. Vrai si les trois formats sont posés.
-        public static Boolean Poser(String png, String fichier)
+        // fichier : le WebP joint, dont l'image est aussi posée en PNG et en CF_DIB. Vrai si les trois formats sont posés.
+        // Le PNG n'est fait qu'en mémoire, au plus vite (sans filtre, zlib 1 : 33 ms au lieu de 114 ms pour une capture
+        // réduite, 02/11) : il n'est lu qu'une fois, au collage.
+        public static Boolean Poser(String fichier)
         {
-            var octetsPng = File.ReadAllBytes(png);
-            Byte[] dib;
-            using (var image = SKBitmap.Decode(octetsPng))
+            Byte[] octetsPng, dib;
+            using (var image = SKBitmap.Decode(fichier))
             {
                 if (image is null)
                 {
                     return false;
                 }
 
+                using var pixels = image.PeekPixels();
+                using var png = pixels.Encode(new SKPngEncoderOptions(SKPngEncoderFilterFlags.NoFilters, 1));
+                octetsPng = png.ToArray();
                 dib = Dib(image);
             }
 

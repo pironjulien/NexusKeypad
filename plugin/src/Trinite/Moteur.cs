@@ -446,7 +446,7 @@ namespace Loupedeck.TrinitePlugin
                             // L'écran tel que l'utilisateur le voit (capturé avant de changer d'appli).
                             geste = "capture";
                             (cible, cause) = this.CollerDansIa("Capture", () => Ecran.Capturer() is { } capture
-                                && this._observateur.Telephone.CopierImage(capture, Path.ChangeExtension(capture, null) + "-ia", "Capture"),
+                                && this._observateur.Telephone.Publier(capture, "Capture"),
                                 () => this._captureCollee = this._horloge.Elapsed.TotalSeconds);
                             break;
                         case Photo when this._observateur.Telephone.Derniere is null:

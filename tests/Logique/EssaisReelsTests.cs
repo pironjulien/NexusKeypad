@@ -22,16 +22,14 @@ public sealed class EssaisReelsTests
         var dossier = Directory.CreateTempSubdirectory("nexus-presse").FullName;
         try
         {
-            var png = Path.Combine(dossier, "essai.png");
             var webp = Path.Combine(dossier, "essai.webp");
             using (var image = new SkiaSharp.SKBitmap(7, 3))
             {
                 image.Erase(SkiaSharp.SKColors.Red);
-                File.WriteAllBytes(png, image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100).ToArray());
                 File.WriteAllBytes(webp, image.Encode(SkiaSharp.SKEncodedImageFormat.Webp, 100).ToArray());
             }
 
-            Vrai(PressePapiers.Poser(png, webp), "presse-papiers : trois formats posés");
+            Vrai(PressePapiers.Poser(webp), "presse-papiers : trois formats posés");
             Vrai(LecturePressePapiers.Formats().SetEquals([8u, 15u, LecturePressePapiers.Png]), "presse-papiers : PNG, CF_DIB et CF_HDROP lisibles");
             Vrai(LecturePressePapiers.Fichier() == webp, "presse-papiers : fichier joint = le WebP");
             Vrai(LecturePressePapiers.Dib() == (7, 3, 32), "presse-papiers : DIB 7×3 en 32 bits");
@@ -67,7 +65,8 @@ public sealed class EssaisReelsTests
                 }
 
                 using var telephone = new Telephone();
-                var copie = telephone.CopierImage(source, Path.Combine(dossier, "prepared"), "Fixture locale");
+                var reduite = ImageIa.Ecrire(source, Path.Combine(dossier, "prepared"));
+                var copie = reduite is not null && telephone.Publier(reduite, "Fixture locale");
                 sequence = LecturePressePapiers.GetClipboardSequenceNumber();
                 if (!copie || !System.Windows.Forms.Clipboard.ContainsImage() || !System.Windows.Forms.Clipboard.ContainsFileDropList())
                 {

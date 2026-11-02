@@ -130,8 +130,15 @@ namespace Loupedeck.TrinitePlugin
                 }
             }
 
-            this.Derniere = new(chemin, local, Miniature(local));
+            var photo = new Photo(chemin, local, Miniature(local));
+            this.Derniere = photo;
             Mesurer(chemin);
+#if !POSTE
+            if (Preparee(local) is null)
+            {
+                this.Preparer(photo);
+            }
+#endif
         }
 
         // Délai entre la prise (heure dans le nom : 20261023_163347.jpg) et l'arrivée sur la touche, au journal.
@@ -217,40 +224,52 @@ namespace Loupedeck.TrinitePlugin
                 return false;
             }
 
-            // Copie réduite toujours dans le cache (lisible des applis du Store), jamais à côté d'une image du PC de l'utilisateur.
-            // L'original reste sur le téléphone.
-            Directory.CreateDirectory(Cache);
-            return this.CopierImage(photo.Fichier, Path.Combine(Cache, Path.GetFileNameWithoutExtension(photo.Fichier) + "-ia"), "Photo");
+            // Préparée dès l'arrivée sur la touche (Rafraichir) : l'appui ne fait plus que la poser dans le presse-papiers.
+            var reduite = Preparee(photo.Fichier) ?? this.Preparer(photo);
+            return reduite is not null && this.Publier(reduite, "Photo");
         }
 
-        // Une image dans le presse-papiers pour l'IA (photo, capture d'écran), réduite selon la règle commune des images
-        // (ImageIa : WebP, ≤ 2000 px, ≤ 500 Ko) en <base_>.webp et <base_>.png.
-        public Boolean CopierImage(String source, String base_, String geste)
+        // Copie réduite pour l'IA (ImageIa : WebP, ≤ 2000 px, ≤ 500 Ko), toujours dans le cache (lisible des applis du
+        // Store), jamais à côté d'une image du PC de l'utilisateur. L'original reste sur le téléphone. Null : illisible.
+        private String Preparer(Photo photo)
         {
-            String reduite;
             try
             {
-                reduite = ImageIa.Ecrire(source, base_);
+                Directory.CreateDirectory(Cache);
+                var reduite = ImageIa.Ecrire(photo.Fichier, BaseIa(photo.Fichier));
+                if (reduite is null)
+                {
+                    PluginLog.Warning("Photo : image illisible ou trop lourde même réduite");
+                }
+
+                return reduite;
             }
             catch (Exception e)
             {
-                PluginLog.Error(e, $"{geste} : image réduite pour l'IA");
-                return false;
+                PluginLog.Error(e, "Photo : image réduite pour l'IA");
+                return null;
             }
+        }
 
-            if (reduite is null)
-            {
-                PluginLog.Warning($"{geste} : image illisible ou trop lourde même réduite, rien n'a été copié");
-                return false;
-            }
+        private static String BaseIa(String fichier) => Path.Combine(Cache, Path.GetFileNameWithoutExtension(fichier) + "-ia");
 
+        // WebP déjà préparé pour cette photo (écrit après elle), sinon null.
+        private static String Preparee(String fichier)
+        {
+            var webp = new FileInfo(BaseIa(fichier) + ".webp");
+            return webp.Exists && webp.Length > 0 && webp.LastWriteTimeUtc >= File.GetLastWriteTimeUtc(fichier) ? webp.FullName : null;
+        }
+
+        // Une image réduite pour l'IA (photo, capture d'écran) dans le presse-papiers : le fichier WebP pour les IA (elles le
+        // joignent par son nom), son image pour les autres applis.
+        public Boolean Publier(String reduite, String geste)
+        {
             this._copiee = reduite;
             lock (this._copie)
             {
                 try
                 {
-                    // Le fichier WebP pour les IA (elles le joignent par son nom), l'image pour les autres applis (le PNG).
-                    return PressePapiers.Poser(base_ + ".png", reduite);
+                    return PressePapiers.Poser(reduite);
                 }
                 catch (Exception e)
                 {
