@@ -8,13 +8,14 @@ namespace Loupedeck.TrinitePlugin
     using SkiaSharp;
 
     // Capture de l'écran où se trouve la fenêtre de devant, en pixels réels (le service Logi n'est pas forcément « DPI
-    // aware » : sans cela, une capture à 125 % ne prenait qu'un coin de l'écran), écrite en PNG.
+    // aware » : sans cela, une capture à 125 % ne prenait qu'un coin de l'écran), écrite seulement en WebP réduit pour
+    // l'IA (ImageIa) : plus de PNG pleine taille (0,9 s sur un écran 5120×1440, 02/11).
     public static class Ecran
     {
         private static readonly String Dossier = Path.Combine(
             Environment.GetEnvironmentVariable("USERPROFILE") ?? "", ".nexus", "trinite", "captures");
 
-        // Rend le chemin du PNG de la capture, null si elle a échoué. Garde les 5 dernières captures.
+        // Rend le chemin du WebP de la capture, null si elle a échoué. Garde les 5 dernières captures.
         public static String Capturer()
         {
             var avant = SetThreadDpiAwarenessContext(new IntPtr(-4)); // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
@@ -58,15 +59,10 @@ namespace Loupedeck.TrinitePlugin
                 using var bitmap = new SKBitmap(new SKImageInfo(l, h, SKColorType.Bgra8888, SKAlphaType.Opaque));
                 Marshal.Copy(pixels, 0, bitmap.GetPixels(), pixels.Length);
                 Directory.CreateDirectory(Dossier);
-                var fichier = Path.Combine(Dossier, $"ecran-{DateTime.Now:yyyyMMdd-HHmmss-fff}.png");
-                using (var flux = File.Create(fichier))
+                var fichier = ImageIa.Ecrire(bitmap, Path.Combine(Dossier, $"ecran-{DateTime.Now:yyyyMMdd-HHmmss-fff}"));
+                foreach (var vieille in new DirectoryInfo(Dossier).EnumerateFiles("ecran-*").OrderByDescending(f => f.Name).Skip(5))
                 {
-                    bitmap.Encode(flux, SKEncodedImageFormat.Png, 100);
-                }
-
-                foreach (var vieille in new DirectoryInfo(Dossier).EnumerateFiles("ecran-*").OrderByDescending(f => f.Name).Skip(15))
-                {
-                    vieille.Delete(); // 5 captures, chacune avec sa copie WebP et PNG pour l'IA
+                    vieille.Delete(); // 5 captures (et les PNG des versions d'avant)
                 }
 
                 return fichier;

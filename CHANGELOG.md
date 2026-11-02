@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.20] - 2026-11-02
+
+### Fixed
+- Screenshot and Phone photo keys took 4 to 7 s before the image was pasted on a PC with a 5120×1440 screen: the pad
+  wrote the full screen as PNG (0.9 s), encoded lossless WebP at maximum effort, then a second, reduced PNG, and did all
+  of it for the photo at the key press. It now follows the shared Nexus image rule with a single file, the WebP: the
+  screenshot is reduced in memory and written once (about 150 ms instead of 1.3 s), lossless WebP uses a faster effort
+  (4 to 5 times quicker, 2 to 5 % larger), a phone photo (JPEG, already lossy) skips the lossless attempt that never
+  fit 500 KB, and the photo is prepared as soon as it reaches the key, so the press only fills the clipboard (about
+  140 ms instead of 2.6 s). The clipboard still offers the image (PNG, built in memory only, and CF_DIB) and the WebP
+  file.
+
 ## [1.8.19] - 2026-11-02
 
 ### Changed

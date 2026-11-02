@@ -273,7 +273,29 @@ namespace Loupedeck.TrinitePlugin
         // cible : l'IA visée à l'appui ; vrai si l'image est partie dans son champ.
         public static Boolean Coller(String geste, Int32 cible)
         {
+            // Durée de chaque étape au journal du plugin : la touche mettait 4 à 7 s sur un PC (02/11).
+            var chrono = Stopwatch.StartNew();
+            var etapes = new List<String>();
+            void Etape(String nom)
+            {
+                etapes.Add($"{nom} {chrono.ElapsedMilliseconds} ms");
+                chrono.Restart();
+            }
+
+            try
+            {
+                return CollerMesure(geste, cible, Etape);
+            }
+            finally
+            {
+                PluginLog.Info($"{geste} : collage, {String.Join(", ", etapes)}");
+            }
+        }
+
+        private static Boolean CollerMesure(String geste, Int32 cible, Action<String> etape)
+        {
             AttendreClaude();
+            etape("attente de Claude");
             var agent = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan());
             if (agent != cible)
             {
@@ -281,15 +303,20 @@ namespace Loupedeck.TrinitePlugin
                 return false;
             }
 
-            if (Uia.Fenetres(Observateur.Processus[agent]).Count > 1)
+            var plusieurs = Uia.Fenetres(Observateur.Processus[agent]).Count > 1;
+            etape("fenêtres");
+            if (plusieurs)
             {
                 PluginLog.Warning($"{geste} : plusieurs fenêtres de l'appli ouvertes, rien n'a été collé");
                 return false;
             }
 
-            if (Preparer(geste, vide: false, cible) is IntPtr fenetre && Toujours(fenetre, geste))
+            var fenetre = Preparer(geste, vide: false, cible);
+            etape("champ");
+            if (fenetre is IntPtr f && Toujours(f, geste))
             {
                 Touches(VK_CONTROL, 0x56);
+                etape("Ctrl+V");
                 return true;
             }
 

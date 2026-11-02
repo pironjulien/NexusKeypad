@@ -446,7 +446,7 @@ namespace Loupedeck.TrinitePlugin
                             // L'écran tel que l'utilisateur le voit (capturé avant de changer d'appli).
                             geste = "capture";
                             (cible, cause) = this.CollerDansIa("Capture", () => Ecran.Capturer() is { } capture
-                                && this._observateur.Telephone.CopierImage(capture, Path.ChangeExtension(capture, null) + "-ia", "Capture"),
+                                && this._observateur.Telephone.Publier(capture, "Capture"),
                                 () => this._captureCollee = this._horloge.Elapsed.TotalSeconds);
                             break;
                         case Photo when this._observateur.Telephone.Derniere is null:
@@ -822,15 +822,20 @@ namespace Loupedeck.TrinitePlugin
                 return (cible, "NexusKeypad disabled");
             }
 
+            var chrono = System.Diagnostics.Stopwatch.StartNew();
             if (!copier() || this._arret)
             {
                 return (cible, this._arret ? "stopped" : "copy failed");
             }
 
+            PluginLog.Info($"{geste} : image dans le presse-papiers en {chrono.ElapsedMilliseconds} ms");
             if (devant < 0)
             {
+                chrono.Restart();
                 Gestes.Premier(cible);
-                if (!this.Devant(cible))
+                var ramenee = this.Devant(cible);
+                PluginLog.Info($"{geste} : IA ramenée devant en {chrono.ElapsedMilliseconds} ms");
+                if (!ramenee)
                 {
                     return (cible, "not in front");
                 }
