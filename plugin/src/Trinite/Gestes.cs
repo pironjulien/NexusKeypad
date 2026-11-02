@@ -580,33 +580,79 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 var infos = new INFOS_MONITEUR { Taille = Marshal.SizeOf<INFOS_MONITEUR>() };
-                if (!GetMonitorInfo(moniteur, ref infos))
+                if (GetMonitorInfo(moniteur, ref infos))
                 {
+                    Poser(fenetre, gauche, infos.Travail);
+                    System.Threading.Thread.Sleep(800); // le temps qu'elle redessine ses boutons
+                }
+            }
+            finally
+            {
+                SetThreadDpiAwarenessContext(avant);
+            }
+        }
+
+        // Pose la fenêtre sur une moitié de la zone de travail (pixels réels : contexte PER_MONITOR_AWARE_V2 de l'appelant).
+        private static void Poser(IntPtr fenetre, Boolean gauche, RECT travail)
+        {
+            var demi = (travail.Droite - travail.Gauche) / 2;
+            var (x, l) = gauche ? (travail.Gauche, demi) : (travail.Gauche + demi, travail.Droite - travail.Gauche - demi);
+            var h = travail.Bas - travail.Haut;
+            // Réduite ou agrandie : rendue à l'état normal sans activation (SW_SHOWNOACTIVATE garderait l'agrandie).
+            var place = new PLACEMENT { Taille = Marshal.SizeOf<PLACEMENT>() };
+            if (GetWindowPlacement(fenetre, ref place) && place.Affichage != 1)
+            {
+                place.Affichage = 4; // SW_SHOWNOACTIVATE
+                place.Normale = new RECT { Gauche = x - travail.Gauche, Haut = 0, Droite = x - travail.Gauche + l, Bas = h }; // repère de la zone de travail
+                SetWindowPlacement(fenetre, ref place);
+            }
+
+            SetWindowPos(fenetre, IntPtr.Zero, x, travail.Haut, l, h, 0x0010 | 0x0040); // HWND_TOP ; NOACTIVATE | SHOWWINDOW
+            if (GetWindowRect(fenetre, out var cadre) && DwmGetWindowAttribute(fenetre, 9, out var visible, Marshal.SizeOf<RECT>()) == 0)
+            {
+                // DWMWA_EXTENDED_FRAME_BOUNDS : la partie visible ; l'écart avec le cadre, ce sont les marges invisibles.
+                var (mg, mh, md, mb) = (visible.Gauche - cadre.Gauche, visible.Haut - cadre.Haut, cadre.Droite - visible.Droite, cadre.Bas - visible.Bas);
+                SetWindowPos(fenetre, IntPtr.Zero, x - mg, travail.Haut - mh, l + mg + md, h + mh + mb, 0x0010 | 0x0040);
+            }
+        }
+
+        // Agrandie ; sur un écran très large (plus de φ² fois plus large que haut : le 5120×1440 du travail, deux écrans en
+        // un, 02/11), agrandie elle prenait toute la largeur : posée sur la moitié opposée à la fenêtre où l'utilisateur
+        // travaillait (enCours), à côté d'elle sans la cacher. Déjà posée sur une moitié : laissée là. Le 16:9 et le 21:9
+        // restent agrandis.
+        private static void Agrandir(IntPtr fenetre, IntPtr enCours)
+        {
+            var avant = SetThreadDpiAwarenessContext(new IntPtr(-4)); // PER_MONITOR_AWARE_V2 : pixels réels partout
+            try
+            {
+                var moniteur = MonitorFromWindow(fenetre, 2); // réduite : l'écran où elle était avant
+                var infos = new INFOS_MONITEUR { Taille = Marshal.SizeOf<INFOS_MONITEUR>() };
+                var lu = GetMonitorInfo(moniteur, ref infos);
+                var travail = infos.Travail;
+                if (!lu || travail.Droite - travail.Gauche < 2.618 * (travail.Bas - travail.Haut))
+                {
+                    if (!IsZoomed(fenetre))
+                    {
+                        ShowWindow(fenetre, SW_SHOWMAXIMIZED);
+                    }
+
                     return;
                 }
 
-                var travail = infos.Travail;
-                var demi = (travail.Droite - travail.Gauche) / 2;
-                var (x, l) = gauche ? (travail.Gauche, demi) : (travail.Gauche + demi, travail.Droite - travail.Gauche - demi);
-                var h = travail.Bas - travail.Haut;
-                // Réduite ou agrandie : rendue à l'état normal sans activation (SW_SHOWNOACTIVATE garderait l'agrandie).
-                var place = new PLACEMENT { Taille = Marshal.SizeOf<PLACEMENT>() };
-                if (GetWindowPlacement(fenetre, ref place) && place.Affichage != 1)
+                var milieu = (travail.Gauche + travail.Droite) / 2;
+                if (!IsZoomed(fenetre) && !IsIconic(fenetre) && DwmGetWindowAttribute(fenetre, 9, out var vu, Marshal.SizeOf<RECT>()) == 0)
                 {
-                    place.Affichage = 4; // SW_SHOWNOACTIVATE
-                    place.Normale = new RECT { Gauche = x - travail.Gauche, Haut = 0, Droite = x - travail.Gauche + l, Bas = h }; // repère de la zone de travail
-                    SetWindowPlacement(fenetre, ref place);
+                    static Boolean Pres(Int32 a, Int32 b) => Math.Abs(a - b) <= 8;
+                    if (Pres(vu.Haut, travail.Haut) && Pres(vu.Bas, travail.Bas) && (Pres(vu.Gauche, travail.Gauche) && Pres(vu.Droite, milieu) || Pres(vu.Gauche, milieu) && Pres(vu.Droite, travail.Droite)))
+                    {
+                        return;
+                    }
                 }
 
-                SetWindowPos(fenetre, IntPtr.Zero, x, travail.Haut, l, h, 0x0010 | 0x0040); // HWND_TOP ; NOACTIVATE | SHOWWINDOW
-                if (GetWindowRect(fenetre, out var cadre) && DwmGetWindowAttribute(fenetre, 9, out var visible, Marshal.SizeOf<RECT>()) == 0)
-                {
-                    // DWMWA_EXTENDED_FRAME_BOUNDS : la partie visible ; l'écart avec le cadre, ce sont les marges invisibles.
-                    var (mg, mh, md, mb) = (visible.Gauche - cadre.Gauche, visible.Haut - cadre.Haut, cadre.Droite - visible.Droite, cadre.Bas - visible.Bas);
-                    SetWindowPos(fenetre, IntPtr.Zero, x - mg, travail.Haut - mh, l + mg + md, h + mh + mb, 0x0010 | 0x0040);
-                }
-
-                System.Threading.Thread.Sleep(800); // le temps qu'elle redessine ses boutons
+                // À gauche si l'on travaillait à droite sur cet écran ; sinon (plein écran, autre écran, rien) à droite.
+                var gauche = enCours != fenetre && MonitorFromWindow(enCours, 2) == moniteur && GetWindowRect(enCours, out var cadre)
+                    && (cadre.Gauche + cadre.Droite) / 2 > milieu;
+                Poser(fenetre, gauche, travail);
             }
             finally
             {
@@ -743,10 +789,7 @@ namespace Loupedeck.TrinitePlugin
         public static void Devant(IntPtr fenetre)
         {
             // Restaurée ou relancée, l'appli reprenait parfois une petite fenêtre (Codex, 24/10) : toujours agrandie.
-            if (!IsZoomed(fenetre))
-            {
-                ShowWindow(fenetre, SW_SHOWMAXIMIZED);
-            }
+            Agrandir(fenetre, GetForegroundWindow());
 
             // Windows ne cède le premier plan qu'à l'appli qui a reçu la dernière entrée : le fil du pad est rattaché un
             // instant à celui de la fenêtre de devant, qui peut le céder. Plus d'Alt neutre (il partait à l'appli de
@@ -785,6 +828,7 @@ namespace Loupedeck.TrinitePlugin
         // dans la taille qu'elle avait gardée ; agrandie dès qu'elle paraît, hors de la file des gestes (30 s au plus).
         private static void AgrandirALOuverture(Func<IntPtr> trouver)
         {
+            var enCours = GetForegroundWindow(); // avant qu'elle paraisse : la fenêtre où l'utilisateur travaille
             for (var i = 0; i < 120; i++)
             {
                 Thread.Sleep(250);
@@ -794,9 +838,9 @@ namespace Loupedeck.TrinitePlugin
                     // Agrandie seulement si elle a pris le premier plan d'elle-même : arrivée tard (démarrage à froid),
                     // elle ne le vole pas à ce que l'utilisateur fait entre-temps (relecture d'Antigravity, 24/10).
                     Thread.Sleep(500); // laisse l'appli poser sa propre taille, puis l'agrandit
-                    if (!IsZoomed(fenetre) && GetForegroundWindow() == fenetre)
+                    if (GetForegroundWindow() == fenetre)
                     {
-                        ShowWindow(fenetre, SW_SHOWMAXIMIZED);
+                        Agrandir(fenetre, enCours);
                     }
 
                     return;
@@ -904,6 +948,9 @@ namespace Loupedeck.TrinitePlugin
 
         [DllImport("user32.dll")]
         private static extern Boolean IsZoomed(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern Boolean IsIconic(IntPtr hWnd);
 
         private const Int32 SW_SHOWMAXIMIZED = 3;
     }

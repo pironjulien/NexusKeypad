@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.21] - 2026-11-02
+
+### Changed
+- On a very wide screen (more than φ² times wider than tall, such as a 5120×1440 32:9 monitor, two screens in one),
+  an AI app opened or brought forward by the pad no longer fills the whole width: it takes the half opposite the window
+  the user was working in (the right half when that window is full screen or elsewhere), and stays on the half it
+  already occupies. 16:9 and 21:9 screens keep the maximized window.
+
+### Fixed
+- Relay messengers ran between Claude and Codex while no relay was in use: a Codex chat counted as a relay wake as soon
+  as its header named the relay folder, and Codex lists that folder among the workspace roots of every chat. A chat is
+  now a relay wake only when it is opened in the relay's Codex project folder, the relay's own rule.
+
 ## [1.8.20] - 2026-11-02
 
 ### Fixed
