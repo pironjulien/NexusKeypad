@@ -1,8 +1,8 @@
 {
   "name": "nexus-keypad",
   "displayName": "Nexus Keypad",
-  "version": "1.8.24",
-  "description": "NexusKeypad in Claude and Codex: live states for the Logitech keypad (hooks), Claude's exact usage (5-hour and weekly) and, under Claude's prompt, whether Codex and Antigravity are reachable through Nexus Relay. No alert, no network. Needs NexusKeypad, installed by NexusSystem (or NexusKeypad's get.ps1).",
+  "version": "1.8.25",
+  "description": "NexusKeypad in Claude and Codex: live states for the Logitech keypad (hooks), Claude's exact usage (5-hour and weekly) for the keypad. No alert, no network. Needs NexusKeypad, installed by NexusSystem (or NexusKeypad's get.ps1).",
   "author": {
     "name": "Julien Piron",
     "url": "https://github.com/pironjulien"
@@ -18,6 +18,5 @@
     "claude",
     "codex"
   ],
-  "icon": "./assets/logo.png",
-  "types": "./types/index.d.ts"
+  "icon": "./assets/logo.png"
 }

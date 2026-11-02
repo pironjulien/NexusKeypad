@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.25] - 2026-11-02
+
+### Removed
+- The Nexus Relay line under Claude's prompt (Codex and AGY dots, unread messages): the Claude connector now only
+  writes Claude's exact usage for the keypad.
+
 ## [1.8.24] - 2026-11-02
 
 ### Fixed

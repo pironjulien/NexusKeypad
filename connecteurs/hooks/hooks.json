@@ -1,5 +1,5 @@
 {
-  "description": "NexusKeypad: live states of Claude and end-of-task note through the native helper installed by NexusKeypad; modules: exact usage and the Nexus Relay line under the prompt.",
+  "description": "NexusKeypad: live states of Claude and end-of-task note through the native helper installed by NexusKeypad; module: exact usage for the keypad.",
   "modules": [
     "./register.tsx"
   ],

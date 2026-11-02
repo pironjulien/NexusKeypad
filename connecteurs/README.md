@@ -8,7 +8,7 @@ stable place, `%LOCALAPPDATA%\NexusKeypad\hook\nexuskeypad-hook.exe`.
 
 - Shared: `skills/nexus-keypad/SKILL.md` (one guide), `assets/`, `LICENSE`.
 - Claude: `.claude-plugin/plugin.json`, `hooks/hooks.json` (lifecycle hooks), `hooks/register.tsx` and `hooks/quota.ts`
-  (modules: the Nexus Relay line under the prompt, the exact usage for the pad), `types/`, `tsconfig.json`.
+  (module: the exact usage for the pad), `tsconfig.json`.
 - Codex: `.codex-plugin/plugin.json`, its lifecycle hooks inline (`cmd.exe` expands `%LOCALAPPDATA%`).
 - Antigravity: root `plugin.json` + `hooks.json`; installation renders the program path in that `hooks.json` and
   migrates only the former NexusKeypad global handlers.
