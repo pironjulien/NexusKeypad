@@ -193,7 +193,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1 -Remove
 the latest release. The loaded version is in `~/.nexus/status/keypad.json` (read by the Nexus app).
 
 **Usage journal.** The complete edition also keeps a local usage journal, one line per key press in
-`%LOCALAPPDATA%\NexusJournal\keypad\<ai>\<YYYY-MM>.jsonl`: which key, which AI app it aimed at, how long it took,
+`%USERPROFILE%\.nexus\journal\keypad\<ai>\<YYYY-MM>.jsonl`: which key, which AI app it aimed at, how long it took,
 whether it worked and a short fixed cause when it did not (`not opened`, `paste failed`…). It never holds a
 conversation title, text or path, and never leaves your PC. Set `NEXUS_JOURNAL=0` to turn it off. The Marketplace
 editions have no such journal.
@@ -322,7 +322,9 @@ its own service under that app's privacy policy. See the [Privacy Policy](PRIVAC
   dictation), English for Antigravity, taken from the apps' own language files. With another app language these
   presses do nothing; the states, alerts, Codex and Antigravity quotas, capture and page 2 do not depend on it.
 - The agents' apps change often; a new version can move a button the plugin relies on.
-- The keypad turns off with the PC screen (Windows powers its display down); the plugin stops drawing meanwhile.
+- While the PC screen is off, Logi Options+ puts the keypad to sleep. The NexusKeypad edition keeps it lit (it restarts
+  the plugin service with Logi's official tool, which keeps the keypad on without waking the screen) and shows a night
+  sky; the Marketplace editions leave the keypad to Logi, so it turns off with the screen.
 - Code comments and identifiers are in French.
 
 ## Development
