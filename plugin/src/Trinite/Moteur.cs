@@ -822,15 +822,20 @@ namespace Loupedeck.TrinitePlugin
                 return (cible, "NexusKeypad disabled");
             }
 
+            var chrono = System.Diagnostics.Stopwatch.StartNew();
             if (!copier() || this._arret)
             {
                 return (cible, this._arret ? "stopped" : "copy failed");
             }
 
+            PluginLog.Info($"{geste} : image dans le presse-papiers en {chrono.ElapsedMilliseconds} ms");
             if (devant < 0)
             {
+                chrono.Restart();
                 Gestes.Premier(cible);
-                if (!this.Devant(cible))
+                var ramenee = this.Devant(cible);
+                PluginLog.Info($"{geste} : IA ramenée devant en {chrono.ElapsedMilliseconds} ms");
+                if (!ramenee)
                 {
                     return (cible, "not in front");
                 }
