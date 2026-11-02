@@ -178,8 +178,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1
 It downloads the latest release's `NexusKeypad` package (its hash is checked against the release's `SHA256SUMS.txt`
 before extraction or execution), copies it
 into Logi Options+'s plugin folder (`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad`), where the Logi Plugin
-Service loads it, and offers to place the 18 keys for you (your keypad profile is backed up first and Logi Options+
-restarts for a few seconds; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). It then sets up the
+Service loads it, and offers to place the 18 keys for you on their own **NexusKeypad** profile, made active (your own
+profile is left as it is: switch back to it in Logi Options+ at any time; the plugin service restarts for a few seconds,
+with the Logi Options+ window closed; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). It then sets up the
 connector of each AI app found (Claude, Codex, Antigravity); an unplugged character on the keypad sets one up again. Run
 it again to update. To remove it (plugin, live states and keys; Logi Options+ is left alone), run the same verified file
 with `-Remove`:
@@ -274,16 +275,11 @@ dotnet build -c Debug plugin\src -p:Edition=Nexus -p:Reel=true   # builds outsid
 
 Press the unplugged character on each AI key to install its connector. No separate hook-installation command is needed.
 
-Then place the 18 keys on the keypad's default profile with the plugin's own helper (the same one get.ps1 uses), with
-the Logi service stopped, after backing up `ProfileInfo.json` (copy the backup back to restore it), and restart the Logi
-Options+ agent:
+Then place the 18 keys on their own NexusKeypad profile, made active (your own profile is left as it is), with the
+Logi Options+ window closed:
 
 ```powershell
-$app = "$env:LOCALAPPDATA\Logi\LogiPluginService\Applications\Loupedeck70\@_defaultwin"
-$profil = "$app\Profiles\$((Get-Content "$app\ApplicationInfo.json" -Raw | ConvertFrom-Json).defaultProfileName)\ProfileInfo.json"
-Copy-Item $profil (Join-Path (Split-Path $profil) 'ProfileInfo.before-nexuskeypad.json')
-& "$env:LOCALAPPDATA\Logi\LogiPluginService\Plugins\NexusKeypad\bin\nexuskeypad-hook.exe" keys $profil NexusKeypad
-pwsh -File outils\relancer_logi.ps1
+pwsh -File .\get.ps1 -KeysOnly
 ```
 
 **Debugging ports.** Opening a Codex or Antigravity conversation and dictating into them go through their Chromium

@@ -175,7 +175,7 @@ public sealed class CodexTests : IDisposable
         using (var tenu = new FileStream(verrouPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
         {
             var chrono = Stopwatch.StartNew();
-            Vrai(!Noter("SessionEnd", Charge("concurrent"), 1081) && chrono.ElapsedMilliseconds < 500, "Un verrou occupé ne bloque jamais le harnais une seconde.");
+            Vrai(!Noter("SessionEnd", Charge("concurrent"), 1081) && chrono.ElapsedMilliseconds < 1000, "Un verrou occupé ne bloque jamais le harnais une seconde.");
         }
 
         Vrai(Noter("SessionEnd", Charge("concurrent"), 1082) && Actuel() == "end", "Le verrou se reprend sans supprimer un fichier actif.");

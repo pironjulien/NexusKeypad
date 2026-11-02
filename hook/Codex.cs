@@ -57,6 +57,8 @@ public static class Codex
 
     // Pas d'attente longue dans un hook synchrone. Un verrou de fichier partagé est libéré par Windows à la mort du
     // processus ; le fichier vide reste en place, donc aucune course de suppression/recréation n'est possible.
+    // 0,618 s au plus, sous la seconde que le harnais tolère (02/11/2026) : à 0,16 s, huit appels parallèles de Codex sur un PC chargé (ou la CI) perdaient des
+    // événements, et le pad un appel en cours.
     private static FileStream? Prendre(string chemin)
     {
         var attente = Stopwatch.StartNew();
@@ -64,7 +66,7 @@ public static class Codex
         {
             try { return new FileStream(chemin, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
             catch (IOException) { Thread.Sleep(10); }
-        } while (attente.ElapsedMilliseconds < 162);
+        } while (attente.ElapsedMilliseconds < 618);
         return null;
     }
 

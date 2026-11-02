@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.19] - 2026-11-02
+
+### Changed
+- The 18 keys go on their own **NexusKeypad** profile of the keypad, made active, instead of the user's profile: that
+  profile is left as it is, and switching back to it in Logi Options+ is enough to leave the keypad's keys. `-Remove`
+  makes the original profile active again and deletes the NexusKeypad profile. A profile edited by an earlier version
+  is restored from its one-time backup (`ProfileInfo.before-nexuskeypad.json`).
+- `get.ps1 -KeysOnly`: places the keys of the plugin already installed, nothing downloaded; nothing if already placed.
+
+### Fixed
+- Codex hooks waited at most 0.16 s for their session lock: eight parallel tool calls on a busy PC (or in CI) lost
+  events, so the keypad missed a running call. The wait is now 0.618 s, still under the second the harness tolerates.
+
 ## [1.8.18] - 2026-11-02
 
 ### Fixed
