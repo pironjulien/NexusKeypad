@@ -9,11 +9,12 @@
 # before extraction or execution; its build
 # provenance can be checked with `gh attestation verify <file> --repo pironjulien/NexusKeypad`), copies it into Logi
 # Options+'s plugin folder (%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad), where the Logi Plugin Service
-# loads it, then offers to place the 18 keys on the keypad's general profile (backed up first; the plugin service restarts
-# for a few seconds). It then sets up the NexusKeypad connector of each AI app found (Claude, Codex, Antigravity: plugin and
+# loads it, then offers to place the 18 keys on their own "NexusKeypad" profile, made active (your own profile is left as
+# it is: switch back to it in Logi Options+ at any time; the plugin service restarts for a few seconds). It then sets up the NexusKeypad connector of each AI app found (Claude, Codex, Antigravity: plugin and
 # hooks with the installed helper's real path); an unplugged character on the keypad sets one up again.
 # Run this installer again to update.
 #   -Keys yes|no   place the keys without asking (yes) or leave them to drag in Logi Options+ (no)
+#   -KeysOnly      only place the keys of the plugin already installed (nothing downloaded); nothing if already placed
 # NEXUS_PACK=1 (the Nexus pack, get-nexus.ps1): no question, no wait, no window, keys left to place by hand; exit code
 # 0 on success; a last "NEXUS_PACK_RESULT ..." line.
 # For tests only: NEXUS_KEYPAD_SOURCE (a local .lplug4 instead of the latest release) and NEXUS_KEYPAD_LOGI (another
@@ -21,7 +22,7 @@
 # Logi folder is refused (a test that lost its test folder must not install for real) unless -Real is given.
 [CmdletBinding()]
 param([switch]$Remove, [ValidateSet('ask', 'yes', 'no')] [string]$Keys = 'ask', [switch]$Real,
-    [ValidateSet('stop', 'start')] [string]$LogiService)
+    [ValidateSet('stop', 'start')] [string]$LogiService, [switch]$KeysOnly)
 
 $ErrorActionPreference = 'Stop'
 # Windows PowerShell started by PowerShell 7 inherits Core module folders before its own standard modules.
@@ -89,6 +90,63 @@ function Get-Profile {
     $name = (Get-Content -LiteralPath $info -Raw -Encoding UTF8 | ConvertFrom-Json).defaultProfileName
     $file = Join-Path $app "Profiles\$name\ProfileInfo.json"
     if (Test-Path -LiteralPath $file) { return $file } else { return $null }
+}
+
+# The keys live in their own "NexusKeypad" profile of the keypad's general application, made active; the user's own
+# profile is never edited (switch back to it in Logi Options+ at any time). Its description names that original profile.
+$ProfileMark = 'NexusKeypad keys; original profile: '
+function Get-KeypadProfiles {
+    $app = Join-Path $Logi 'Applications\Loupedeck70\@_defaultwin'
+    $info = Join-Path $app 'ApplicationInfo.json'
+    if (-not (Test-Path -LiteralPath $info)) { return $null }
+    $nexus = $null; $origin = $null
+    foreach ($folder in @(Get-ChildItem -LiteralPath (Join-Path $app 'Profiles') -Directory -ErrorAction SilentlyContinue)) {
+        $file = Join-Path $folder.FullName 'ProfileInfo.json'
+        if (-not (Test-Path -LiteralPath $file)) { continue }
+        $data = Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($data.displayName -ceq $Plugin -and "$($data.description)".StartsWith($ProfileMark)) {
+            $nexus = $folder.Name; $origin = "$($data.description)".Substring($ProfileMark.Length)
+        }
+    }
+    [pscustomobject]@{
+        App = $app; Info = $info; Nexus = $nexus; Origin = $origin
+        Active = (Get-Content -LiteralPath $info -Raw -Encoding UTF8 | ConvertFrom-Json).defaultProfileName
+    }
+}
+
+function Set-ActiveProfile($Profiles, [string]$Name) {
+    $text = [IO.File]::ReadAllText($Profiles.Info)
+    $text = ([regex]'("defaultProfileName"\s*:\s*")[^"]*(")').Replace($text, "`${1}$Name`${2}", 1)
+    [IO.File]::WriteAllText($Profiles.Info, $text, [Text.UTF8Encoding]::new($false))
+}
+
+function New-KeypadProfile($Profiles) {
+    # A copy of the active profile (its other keys and pages stay), renamed, before the keys are placed on it.
+    $origin = $Profiles.Active
+    $source = Join-Path $Profiles.App "Profiles\$origin"
+    $name = [guid]::NewGuid().ToString('N').ToUpperInvariant()
+    $target = Join-Path $Profiles.App "Profiles\$name"
+    Copy-Item -LiteralPath $source -Destination $target -Recurse
+    $file = Join-Path $target 'ProfileInfo.json'
+    # Earlier versions placed the keys on the original profile itself, after this one-time backup: start from it.
+    $legacy = Join-Path $target 'ProfileInfo.before-nexuskeypad.json'
+    if (Test-Path -LiteralPath $legacy) { Move-Item -LiteralPath $legacy -Destination $file -Force }
+    $text = [IO.File]::ReadAllText($file)
+    # Logi writes name, displayName and description first, before the layout: anything else is an unknown format.
+    if ($text -notmatch '^\s*\{\s*("\$type"\s*:\s*"[^"]*"\s*,\s*)?"name"\s*:\s*"[^"]*"\s*,\s*("profileFlags"\s*:\s*"[^"]*"\s*,\s*)?"displayName"\s*:\s*"[^"]*"\s*,\s*"description"\s*:\s*(null|"[^"]*")') {
+        Remove-Item -LiteralPath $target -Recurse -Force
+        throw 'Unknown Logi profile format: keys left to place by hand.'
+    }
+    $text = ([regex]'("name"\s*:\s*")[^"]*(")').Replace($text, "`${1}$name`${2}", 1)
+    $text = ([regex]'("displayName"\s*:\s*")[^"]*(")').Replace($text, "`${1}$Plugin`${2}", 1)
+    $text = ([regex]'("description"\s*:\s*)(null|"[^"]*")').Replace($text, "`${1}`"$ProfileMark$origin`"", 1)
+    [IO.File]::WriteAllText($file, $text, [Text.UTF8Encoding]::new($false))
+    $yaml = Join-Path $target 'metadata\LoupedeckPackage.yaml'
+    if (Test-Path -LiteralPath $yaml) {
+        $lines = @(Get-Content -LiteralPath $yaml -Encoding UTF8 | ForEach-Object { if ($_ -match '^displayName:') { "displayName: $Plugin" } else { $_ } })
+        [IO.File]::WriteAllLines($yaml, $lines, [Text.UTF8Encoding]::new($false))
+    }
+    return $name
 }
 
 function Get-LogiPluginRuntime {
@@ -194,21 +252,41 @@ function Start-Logi([int]$TimeoutSeconds = 30) {
 }
 
 function Set-Keys([string]$Hook, [switch]$Clear) {
-    # Places (or clears) the plugin's 18 keys on the general profile, Logi stopped, after a one-time backup.
-    $file = Get-Profile
-    if (-not $file) { Say 'No MX Keypad profile found: connect the keypad and open Logi Options+ once, then place the keys by hand.' Yellow; return 'guided' }
-    $backup = Join-Path (Split-Path $file) 'ProfileInfo.before-nexuskeypad.json'
-    if (-not $Clear -and -not (Test-Path -LiteralPath $backup)) { Copy-Item -LiteralPath $file -Destination $backup }
+    # Places the plugin's 18 keys on its own "NexusKeypad" profile and makes it active (or, with -Clear, makes the
+    # original profile active again and deletes it), Logi stopped. The user's own profile is left as it is, except a
+    # profile edited by an earlier version, restored from its one-time backup.
+    $profiles = Get-KeypadProfiles
+    if (-not $profiles) { Say 'No MX Keypad profile found: connect the keypad and open Logi Options+ once, then place the keys by hand.' Yellow; return 'guided' }
+    $legacy = $null
+    $restore = if ($profiles.Nexus) { $profiles.Origin } else { $profiles.Active }
+    $legacyBackup = Join-Path $profiles.App "Profiles\$restore\ProfileInfo.before-nexuskeypad.json"
+    if (Test-Path -LiteralPath $legacyBackup) { $legacy = $legacyBackup }
+    if ($Clear -and -not $profiles.Nexus -and -not $legacy) { return 'absent' }
     Stop-Logi
+    $code = 0
     try {
-        $arguments = @('keys', $file, $Plugin)
-        if ($Clear) { $arguments += '--remove' }
-        & $Hook @arguments | Out-Host
-        $code = $LASTEXITCODE
+        if ($Clear) {
+            if ($profiles.Nexus) {
+                if ($profiles.Active -ceq $profiles.Nexus -and (Test-Path -LiteralPath (Join-Path $profiles.App "Profiles\$($profiles.Origin)"))) {
+                    Set-ActiveProfile $profiles $profiles.Origin
+                }
+                Remove-Item -LiteralPath (Join-Path $profiles.App "Profiles\$($profiles.Nexus)") -Recurse -Force
+            }
+        } else {
+            $name = if ($profiles.Nexus) { $profiles.Nexus } else {
+                try { New-KeypadProfile $profiles } catch { Say $_.Exception.Message Yellow; $null }
+            }
+            if ($name) {
+                & $Hook keys (Join-Path $profiles.App "Profiles\$name\ProfileInfo.json") $Plugin | Out-Host
+                $code = $LASTEXITCODE
+            } else { $code = 1 }
+            if (-not $code) { Set-ActiveProfile $profiles $name }
+        }
+        if ($legacy -and -not $code) { Move-Item -LiteralPath $legacy -Destination (Join-Path (Split-Path $legacy) 'ProfileInfo.json') -Force }
     } finally {
         Start-Logi
     }
-    if ($code) { Say 'The keys could not be placed: place them by hand in Logi Options+ (the profile is unchanged).' Yellow; return 'failed' }
+    if ($code) { Say 'The keys could not be placed: place them by hand in Logi Options+ (your profile is unchanged).' Yellow; return 'failed' }
     if ($Clear) { return 'removed' } else { return 'placed' }
 }
 
@@ -298,9 +376,10 @@ function Install-NexusKeypad {
     $hook = Join-Path $Target 'bin\nexuskeypad-hook.exe'
     $place = $Keys
     if ($Pack) { $place = 'no' }
-    # Keys already on the general profile (an update): nothing to ask nor to explain.
-    $profile_ = Get-Profile
-    $placed = $profile_ -and (Select-String -LiteralPath $profile_ -SimpleMatch "`$$($Plugin)___" -Quiet)
+    # Keys already on the active NexusKeypad profile (an update): nothing to ask nor to explain.
+    $profiles = Get-KeypadProfiles
+    $placed = $profiles -and $profiles.Nexus -and $profiles.Active -ceq $profiles.Nexus -and
+        (Select-String -LiteralPath (Join-Path $profiles.App "Profiles\$($profiles.Nexus)\ProfileInfo.json") -SimpleMatch "`$$($Plugin)___" -Quiet)
     if ($placed -and $place -ne 'yes') { $place = 'already placed' }
     if ($place -eq 'ask') {
         Say ''
@@ -327,8 +406,7 @@ function Remove-NexusKeypad {
             & $hook --remove | Out-Host
             $Results['Live states'] = if ($LASTEXITCODE) { 'failed' } else { 'removed' }
         }
-        $file = Get-Profile
-        if ($file -and (Select-String -LiteralPath $file -SimpleMatch "`$$($Plugin)___" -Quiet)) { $Results['Keys'] = Set-Keys $hook -Clear }
+        $Results['Keys'] = Set-Keys $hook -Clear
     }
     if (Test-Path -LiteralPath $Target) {
         Remove-Item -LiteralPath $Target -Recurse -Force
@@ -342,13 +420,23 @@ function Remove-NexusKeypad {
             Remove-Item -LiteralPath (Join-Path $data $item) -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
-    Say 'NexusKeypad removed. Your keypad profile backup, if any, stays next to it (ProfileInfo.before-nexuskeypad.json).' Green
+    Say 'NexusKeypad removed. Your own keypad profile is active again.' Green
     return 0
 }
 
 if ($LogiService) {
     if ($LogiService -eq 'stop') { Stop-Logi } else { Start-Logi }
     return
+}
+if ($KeysOnly) {
+    $profiles = Get-KeypadProfiles
+    if ($profiles -and $profiles.Nexus -and $profiles.Active -ceq $profiles.Nexus -and
+        (Select-String -LiteralPath (Join-Path $profiles.App "Profiles\$($profiles.Nexus)\ProfileInfo.json") -SimpleMatch "`$$($Plugin)___" -Quiet)) {
+        Say 'Keys: already placed.'; exit 0
+    }
+    $result = Set-Keys (Join-Path $Target 'bin\nexuskeypad-hook.exe')
+    Say "Keys: $result"
+    exit $(if ($result -in 'placed', 'guided') { 0 } else { 1 })
 }
 
 $code = 1
