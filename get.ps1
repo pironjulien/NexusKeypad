@@ -107,6 +107,12 @@ function Get-LogiPluginRuntime {
 
 function Get-LogiPluginProcesses($Runtime) {
     $processes = @(Get-CimInstance Win32_Process -Filter "Name='LogiPluginService.exe' OR Name='LogiPluginServiceExt.exe'")
+    # A process that is exiting (during a stop) no longer reports its path: once gone, it is not an impostor.
+    $processes = @($processes | Where-Object {
+        if ($_.ExecutablePath) { return $true }
+        Start-Sleep -Milliseconds 300
+        [bool](Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue)
+    })
     foreach ($process in $processes) {
         $expected = Join-Path $Runtime.Directory $process.Name
         if ($process.Name -notin 'LogiPluginService.exe', 'LogiPluginServiceExt.exe' -or $process.ExecutablePath -ine $expected) {

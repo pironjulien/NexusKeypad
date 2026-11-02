@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.18] - 2026-11-02
+
+### Fixed
+- Placing the keys or installing refused to stop the Logi plugin service with "A process with a Logi plugin service
+  name has an unexpected identity" when a service process was exiting: an exiting process no longer reports its path.
+  It is now waited for and ignored once gone, so `get.ps1` places the 18 keys on a new PC instead of leaving the
+  keypad's original keys.
+
 ## [1.8.17] - 2026-10-31
 
 ### Fixed
