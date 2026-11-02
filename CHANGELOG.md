@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.22] - 2026-11-02
+
+### Added
+- Night sky while the PC screen is off: the keys form one starry sky with a crescent moon in the middle, an AI that
+  works or calls the user stays awake on its key, the others sleep ("z").
+- NexusKeypad edition: the keypad stays lit when the screen turns off. Logi Options+ puts it to sleep at that moment,
+  with no setting to prevent it; a plugin service restarted afterwards keeps it lit without waking the screen, so the
+  plugin restarts the service with Logi's official tool 3 s after the screen goes off (at most once a minute; the
+  keyboard and mouse agent is not touched). Marketplace editions leave the keypad to Logi.
+
 ## [1.8.21] - 2026-11-02
 
 ### Changed

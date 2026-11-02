@@ -345,6 +345,7 @@ var situations = new (String Nom, Instantane I, Double[] Temps)[]
     ("actif", new(actives, [5, 2, 1], quotas, [true, true, true], false, photo, 0), [0.0, 0.3, 0.6, 1.1]),
     ("relais", new(relais, [1, 1, 1], quotas, [true, true, true], false, photo, -1), [0.2, 0.9, 1.6, 2.4]),
     ("calme", new(calmes, [3, 0, 0], [quotas[0], quotas[1], null], [true, true, false], false, photo, -1), [0.0, 0.3, 4.1, 2.2]),
+    ("nuit", new(calmes, [3, 0, 0], [quotas[0], quotas[1], null], [true, true, false], true, photo, -1), [0.0, 0.8, 1.7, 2.9]), // écran éteint
 };
 
 foreach (var (nom, instantane, temps) in situations)
