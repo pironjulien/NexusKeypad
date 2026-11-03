@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.26] - 2026-11-03
+
+### Added
+- Antigravity Marketplace bundle `marketplace/antigravity` (passes `agy plugin validate --strict`), kept outside
+  `connecteurs/` so the Logi package carries no second copy: the connector's manifest (now with the Marketplace
+  fields), guide and logo, a README for the detail page, and a root `hooks.json` whose handlers run
+  `scripts/hook.cmd`. A Marketplace copy cannot name the helper's path (Antigravity expands only `${PLUGIN_ROOT}`), so
+  the script runs `%LOCALAPPDATA%\NexusKeypad\hook\nexuskeypad-hook.exe` when the NexusKeypad plugin installed it and
+  answers `{}` otherwise.
+
 ## [1.8.25] - 2026-11-02
 
 ### Removed

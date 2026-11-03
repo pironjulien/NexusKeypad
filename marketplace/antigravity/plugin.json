@@ -1,0 +1,27 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "nexus-keypad",
+  "displayName": "NexusKeypad",
+  "version": "1.8.26",
+  "description": "Shows Antigravity's live state on your Logitech MX Creative Keypad and plays a note when a task ends; diagnose, enable or disable the connection.",
+  "logo": "logo.png",
+  "suggestedPrompts": [
+    "Check whether my Logitech keypad is connected to Antigravity.",
+    "Enable the NexusKeypad connection for Antigravity.",
+    "Disable the NexusKeypad connection for Antigravity."
+  ],
+  "author": {
+    "name": "Julien Piron",
+    "url": "https://julienpiron.fr"
+  },
+  "homepage": "https://github.com/pironjulien/NexusKeypad#readme",
+  "repository": "https://github.com/pironjulien/NexusKeypad",
+  "license": "MIT",
+  "keywords": [
+    "keypad",
+    "logitech",
+    "desktop",
+    "status",
+    "nexus"
+  ]
+}

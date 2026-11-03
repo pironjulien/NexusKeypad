@@ -1,0 +1,42 @@
+{
+  "nexus-keypad": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "cmd.exe /d /c scripts\\hook.cmd antigravity PreInvocation",
+        "timeout": 10
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd.exe /d /c scripts\\hook.cmd antigravity PreToolUse",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd.exe /d /c scripts\\hook.cmd antigravity PostToolUse",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "cmd.exe /d /c scripts\\hook.cmd antigravity Stop",
+        "timeout": 10
+      }
+    ]
+  }
+}

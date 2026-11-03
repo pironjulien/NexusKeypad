@@ -26,6 +26,22 @@ public sealed class ConnecteursTests
     }
 
     [Fact]
+    public void Paquet_Marketplace_Antigravity_conforme_au_connecteur()
+    {
+        // marketplace/antigravity is what the Antigravity Marketplace installs, outside the Logi package: the same
+        // manifest, guide and logo as the connector, and hooks that run the helper by its stable place.
+        var connecteur = Path.Combine(Depot, "connecteurs");
+        var paquet = Path.Combine(Depot, "marketplace", "antigravity");
+        Assert.Equal(File.ReadAllText(Path.Combine(connecteur, "plugin.json")), File.ReadAllText(Path.Combine(paquet, "plugin.json")));
+        Assert.Equal(File.ReadAllText(Path.Combine(connecteur, "skills", "nexus-keypad", "SKILL.md")), File.ReadAllText(Path.Combine(paquet, "skills", "nexus-keypad", "SKILL.md")));
+        Assert.Equal(File.ReadAllBytes(Path.Combine(connecteur, "assets", "logo.png")), File.ReadAllBytes(Path.Combine(paquet, "logo.png")));
+        Assert.True(File.Exists(Path.Combine(paquet, "README.md")));
+        var hooks = JsonNode.Parse(File.ReadAllText(Path.Combine(paquet, "hooks.json")))!["nexus-keypad"]!.AsObject();
+        Assert.True(JsonNode.DeepEquals(EtatsEnDirect.GroupeAntigravity(@"cmd.exe /d /c scripts\hook.cmd"), hooks));
+        Assert.Contains(@"%LOCALAPPDATA%\NexusKeypad\hook\" + EtatsEnDirect.NomExe, File.ReadAllText(Path.Combine(paquet, "scripts", "hook.cmd")));
+    }
+
+    [Fact]
     public void Tableaux_et_plugins_tiers_du_profil_conserves()
     {
         // Real profiles contain TOML arrays (TomlArray does not necessarily implement the non-generic IList).
