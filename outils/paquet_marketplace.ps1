@@ -40,3 +40,7 @@ if ($LASTEXITCODE) { throw 'Emballage refusé par le Plugin Tool.' }
 logiplugintool verify $paquet
 if ($LASTEXITCODE) { throw 'Paquet refusé par le Plugin Tool.' }
 Write-Host "Paquet du Marketplace prêt : $paquet"
+# Éditions du Marketplace : leur profil prêt à importer (.lp5), partagé à côté du paquet, jamais dedans (règle Logitech).
+if ($Edition -ne 'Nexus') {
+    & (Join-Path $PSScriptRoot 'profil_marketplace.ps1') -Edition $Edition -Version $version -Sortie ([IO.Path]::ChangeExtension($paquet, '.lp5'))
+}

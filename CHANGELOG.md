@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.30] - 2026-11-04
+
+### Added
+- Ready profile (`.lp5`) for each Logi Marketplace edition, attached to every release beside the packages and listed
+  in `SHA256SUMS.txt`: import it in Logi Options+ (keypad, **+** on the profile bar) and every key is already in place.
+  Logitech's marketplace team confirmed that universal plugins cannot ship a default profile and suggested sharing it
+  separately; the plugins themselves are unchanged. Built by `outils/profil_marketplace.ps1`, reproducible byte for
+  byte.
+
 ## [1.8.29] - 2026-11-04
 
 ### Fixed

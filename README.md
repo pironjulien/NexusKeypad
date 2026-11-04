@@ -205,8 +205,9 @@ default website).
 ### From the Logitech Marketplace (page 1 only)
 
 The Marketplace edition, **AI Coding Agents**, is the agents page alone (the 9 keys above), without page 2 and without
-the local test pipe. Install it from Logi Options+, then in Options+ open the keypad's profile and drag the actions
-**Key 1** to **Key 9** of the *Trinity* group onto the 9 keys, in order (the plugin decides what each place shows).
+the local test pipe. Install it from Logi Options+, then place its keys in one step with its ready profile (see
+[Ready profiles](#ready-profiles-for-the-marketplace-editions)), or drag the actions **Key 1** to **Key 9** of the
+*Trinity* group onto the 9 keys, in order (the plugin decides what each place shows).
 
 Each AI has the same **NexusKeypad** connector and setup flow. A disconnected plug means setup is needed, a wrench
 means repair, and crossed eyes mean an error. Each character keeps its own face and style.
@@ -236,8 +237,9 @@ data: [Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIV
 ### From the Logitech Marketplace: PC Dashboard (page 2 only)
 
 The second Marketplace plugin, **PC Dashboard**, is page 2 alone (volume, mute, Gmail, Calendar, Messages, PC health,
-Store and Windows Update, a website key), without the agents. Install it from Logi Options+, then drag **Key 1** to
-**Key 8** of the *PC Dashboard* group onto the keys, in order, and **Website** onto the last one: type the address it
+Store and Windows Update, a website key), without the agents. Install it from Logi Options+, then import its ready
+profile (Key 1 to Key 8 already placed) or drag **Key 1** to **Key 8** of the *PC Dashboard* group onto the keys, in
+order; either way, drag **Website** onto the last one: type the address it
 opens in its settings (no website is set by default; you can add several Website keys, each with its own address).
 Gmail and Messages badges come from their Chrome windows or tabs, then from an Android phone over adb if any.
 
@@ -248,12 +250,23 @@ Package it yourself with `pwsh -File outils\paquet_marketplace.ps1 -Edition Post
 ### From the Logitech Marketplace: AI Coding Agents + PC (both pages)
 
 **AI Coding Agents + PC** is both pages in one plugin, like the source build below without the local test pipe:
-install it instead of the two plugins above, then drag **Key 1** to **Key 9** of the *Trinity* group onto page 1 and
-**Key 10** to **Key 17** onto page 2, and **Website** onto the last key: type the address it opens in its settings, as
+install it instead of the two plugins above, then import its ready profile (both pages already placed) or drag **Key 1**
+to **Key 9** of the *Trinity* group onto page 1 and **Key 10** to **Key 17** onto page 2; either way, drag **Website**
+onto the last key: type the address it opens in its settings, as
 in PC Dashboard (no website is set by default). Package it yourself with
 `pwsh -File outils\paquet_marketplace.ps1 -Edition Complete`. Terms:
 [EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-AI-AGENTS-PC.md); data:
 [Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-AI-AGENTS-PC.md).
+
+### Ready profiles for the Marketplace editions
+
+Logitech does not let a plugin that works in every app ship a profile of its own (a general profile can hold other
+plugins' actions), so each [release](https://github.com/pironjulien/NexusKeypad/releases/latest) carries one ready
+profile per Marketplace edition, beside the packages: `TrinitePad_X_Y_Z.lp5` (AI Coding Agents), `PcDashboard_X_Y_Z.lp5` (PC Dashboard) and
+`AiAgentsPc_X_Y_Z.lp5` (AI Coding Agents + PC), listed in `SHA256SUMS.txt` and attested like them.
+Install the plugin from the Marketplace first, download its profile, then in Logi Options+ select the keypad, click
+**+** on the profile bar and import the file: a new profile named after the plugin appears with every key in place.
+Your own profiles are left as they are; switch between them in Options+ at any time.
 
 ### Packages from a GitHub release
 

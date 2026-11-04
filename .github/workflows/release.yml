@@ -82,7 +82,10 @@ jobs:
           ./tests/test_package_connecteurs.ps1 -PackagePath $paquetComplet[0].FullName
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./tests/test_package_connecteurs.ps1 -PackagePath $paquetComplet[0].FullName
           if ($LASTEXITCODE) { throw 'Packaged connector checks failed under Windows PowerShell 5.1.' }
-          $fichiers | Copy-Item -Destination dist
+          # Ready profiles of the three Marketplace editions (.lp5), shared beside the packages, never inside them.
+          $profils = @(Get-ChildItem "$HOME\.nexus\build\nexuskeypad\marketplace" -File -Filter "*_$suffixe.lp5")
+          if ($profils.Count -ne 3) { throw "Expected 3 ready profiles at version $version, got $($profils.Count)." }
+          $fichiers + $profils | Copy-Item -Destination dist
           Copy-Item get.ps1 dist  # the installer too, for running it from a file (checked and attested like the packages)
           Get-ChildItem dist -File | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |
             Set-Content dist/SHA256SUMS.txt -Encoding utf8NoBOM
