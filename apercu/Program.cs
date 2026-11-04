@@ -84,6 +84,42 @@ if (args is ["animations", var dossierAnim])
     return;
 }
 
+// Page 2 animée (8 images par seconde, 8 s) pour les vidéos : musique qui joue, volume monté d'un appui, un mail et un
+// message qui arrivent, mises à jour en cours. Grille 3 × 3 à 232 px. Usage : dotnet run -- page2-anim <dossier>
+if (args is ["page2-anim", var dossierPage2])
+{
+    Directory.CreateDirectory(dossierPage2);
+    var calme = new Instantane([[], [], []], [0, 0, 0], new Quota[3], [true, true, true], false, null, 0);
+    const Int32 Cote2 = 232, Ecart2 = 24;
+    for (var f = 0; f < 64; f++)
+    {
+        var temps = 20 + (f / 8.0);
+        var s = f / 8.0;
+        var appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray();
+        appuis[Moteur.Disposition[9 + 2]] = 20 + 2.0; // volume monté à 2 s
+        var poste = new Poste(s < 2 ? 0.42 : 0.52, false, 0.35 + (0.3 * Math.Abs(Math.Sin(s * 5.3))) + (0.1 * Math.Sin(s * 13)),
+            0.18 + (0.12 * Math.Abs(Math.Sin(s * 1.7))), 0.61)
+        { Mails = s < 3.5 ? 2 : 3, Messages = s < 5 ? 0 : 1 };
+        var scene = new Scene
+        {
+            Instantane = calme, Temps = temps, Appuis = appuis, PhotoCopiee = -9, CaptureCollee = -9, Poste = poste,
+            MiseAJour = 20 + 1.0,
+        };
+        using var image = new BitmapBuilder((3 * Cote2) + (2 * Ecart2), (3 * Cote2) + (2 * Ecart2));
+        image.Clear(new BitmapColor(0, 0, 0, 0));
+        for (var k = 0; k < 9; k++)
+        {
+            image.DrawImage(Rendu.Png(Moteur.Disposition[9 + k], scene, Cote2), k % 3 * (Cote2 + Ecart2), k / 3 * (Cote2 + Ecart2),
+                BitmapRotation.None);
+        }
+
+        File.WriteAllBytes(Path.Combine(dossierPage2, $"{f:000}.png"), image.ToArray(BitmapImageFormat.Png));
+    }
+
+    Console.WriteLine($"page2-anim: 64 images dans {dossierPage2}");
+    return;
+}
+
 // Sprites pour la vidéo de l'écosystème : les trois personnages dans chaque état, les messagers du relais et les planches
 // des situations, en suites de PNG à 30 i/s couvrant un cycle d'animation, + index.json. Dessinés par le plugin lui-même
 // à sa taille (aucun redessin), puis agrandis au plus proche voisin (pixel art net, sans lissage) ; fond transparent
