@@ -84,17 +84,17 @@ if (args is ["animations", var dossierAnim])
     return;
 }
 
-// Planche animée de la page 2 pour la vidéo NexusKeypad (Remotion, PadMX2) : 150 images à 30 i/s au format des planches
-// (grille 380 px agrandie × 2 au plus proche voisin), en temps réel de la scène : musique qui joue, un mail (image 45) et
-// un message (image 70) qui arrivent, appui sur Store et Windows Update (image 95) puis la touche qui tourne.
+// Planche animée de la page 2 pour la vidéo NexusKeypad (Remotion, PadMX2) : 300 images à 30 i/s au format des planches
+// (grille 380 px agrandie × 2 au plus proche voisin), en temps réel de la scène : musique qui joue, un mail (image 130) et
+// un message (image 150) qui arrivent, appui sur Store et Windows Update (image 225) puis la touche qui tourne.
 // Écrit <sprites>/planches/page2/NNN.png et l'ajoute à <sprites>/index.json. Usage : dotnet run -- planche-page2 <sprites>
 if (args is ["planche-page2", var dossierSp])
 {
-    const Int32 Tp2 = 116, Ep2 = 16, Grille2 = (3 * Tp2) + (2 * Ep2), N2 = 150;
+    const Int32 Tp2 = 116, Ep2 = 16, Grille2 = (3 * Tp2) + (2 * Ep2), N2 = 300;
     var sortie2 = Path.Combine(dossierSp, "planches", "page2");
     Directory.CreateDirectory(sortie2);
     var calme = new Instantane([[], [], []], [0, 0, 0], new Quota[3], [true, true, true], false, null, 0);
-    var appuiStore = 20 + (95 / 30.0);
+    var appuiStore = 20 + (225 / 30.0);
     for (var f = 0; f < N2; f++)
     {
         var temps = 20 + (f / 30.0);
@@ -102,11 +102,11 @@ if (args is ["planche-page2", var dossierSp])
         appuis[Moteur.Disposition[9 + 7]] = appuiStore;
         var poste = new Poste(0.52, false, 0.35 + (0.3 * Math.Abs(Math.Sin(f / 30.0 * 5.3))) + (0.1 * Math.Sin(f / 30.0 * 13)),
             0.18 + (0.1 * Math.Abs(Math.Sin(f / 30.0 * 1.7))), 0.61)
-        { Mails = f < 45 ? 2 : 3, Messages = f < 70 ? 0 : 1 };
+        { Mails = f < 130 ? 2 : 3, Messages = f < 150 ? 0 : 1 };
         var scene = new Scene
         {
             Instantane = calme, Temps = temps, Appuis = appuis, PhotoCopiee = -9, CaptureCollee = -9, Poste = poste,
-            MiseAJour = f >= 95 ? appuiStore : -99,
+            MiseAJour = f >= 225 ? appuiStore : -99,
         };
         using var b = new BitmapBuilder(Grille2, Grille2);
         b.Clear(new BitmapColor(0, 0, 0, 0));
