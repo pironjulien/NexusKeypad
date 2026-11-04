@@ -84,39 +84,58 @@ if (args is ["animations", var dossierAnim])
     return;
 }
 
-// Page 2 animée (8 images par seconde, 8 s) pour les vidéos : musique qui joue, volume monté d'un appui, un mail et un
-// message qui arrivent, mises à jour en cours. Grille 3 × 3 à 232 px. Usage : dotnet run -- page2-anim <dossier>
-if (args is ["page2-anim", var dossierPage2])
+// Planche animée de la page 2 pour la vidéo NexusKeypad (Remotion, PadMX2) : 150 images à 30 i/s au format des planches
+// (grille 380 px agrandie × 2 au plus proche voisin), en temps réel de la scène : musique qui joue, un mail (image 45) et
+// un message (image 70) qui arrivent, appui sur Store et Windows Update (image 95) puis la touche qui tourne.
+// Écrit <sprites>/planches/page2/NNN.png et l'ajoute à <sprites>/index.json. Usage : dotnet run -- planche-page2 <sprites>
+if (args is ["planche-page2", var dossierSp])
 {
-    Directory.CreateDirectory(dossierPage2);
+    const Int32 Tp2 = 116, Ep2 = 16, Grille2 = (3 * Tp2) + (2 * Ep2), N2 = 150;
+    var sortie2 = Path.Combine(dossierSp, "planches", "page2");
+    Directory.CreateDirectory(sortie2);
     var calme = new Instantane([[], [], []], [0, 0, 0], new Quota[3], [true, true, true], false, null, 0);
-    const Int32 Cote2 = 232, Ecart2 = 24;
-    for (var f = 0; f < 64; f++)
+    var appuiStore = 20 + (95 / 30.0);
+    for (var f = 0; f < N2; f++)
     {
-        var temps = 20 + (f / 8.0);
-        var s = f / 8.0;
+        var temps = 20 + (f / 30.0);
         var appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray();
-        appuis[Moteur.Disposition[9 + 2]] = 20 + 2.0; // volume monté à 2 s
-        var poste = new Poste(s < 2 ? 0.42 : 0.52, false, 0.35 + (0.3 * Math.Abs(Math.Sin(s * 5.3))) + (0.1 * Math.Sin(s * 13)),
-            0.18 + (0.12 * Math.Abs(Math.Sin(s * 1.7))), 0.61)
-        { Mails = s < 3.5 ? 2 : 3, Messages = s < 5 ? 0 : 1 };
+        appuis[Moteur.Disposition[9 + 7]] = appuiStore;
+        var poste = new Poste(0.52, false, 0.35 + (0.3 * Math.Abs(Math.Sin(f / 30.0 * 5.3))) + (0.1 * Math.Sin(f / 30.0 * 13)),
+            0.18 + (0.1 * Math.Abs(Math.Sin(f / 30.0 * 1.7))), 0.61)
+        { Mails = f < 45 ? 2 : 3, Messages = f < 70 ? 0 : 1 };
         var scene = new Scene
         {
             Instantane = calme, Temps = temps, Appuis = appuis, PhotoCopiee = -9, CaptureCollee = -9, Poste = poste,
-            MiseAJour = 20 + 1.0,
+            MiseAJour = f >= 95 ? appuiStore : -99,
         };
-        using var image = new BitmapBuilder((3 * Cote2) + (2 * Ecart2), (3 * Cote2) + (2 * Ecart2));
-        image.Clear(new BitmapColor(0, 0, 0, 0));
+        using var b = new BitmapBuilder(Grille2, Grille2);
+        b.Clear(new BitmapColor(0, 0, 0, 0));
         for (var k = 0; k < 9; k++)
         {
-            image.DrawImage(Rendu.Png(Moteur.Disposition[9 + k], scene, Cote2), k % 3 * (Cote2 + Ecart2), k / 3 * (Cote2 + Ecart2),
-                BitmapRotation.None);
+            b.DrawImage(Rendu.Png(Moteur.Disposition[9 + k], scene), k % 3 * (Tp2 + Ep2), k / 3 * (Tp2 + Ep2), BitmapRotation.None);
         }
 
-        File.WriteAllBytes(Path.Combine(dossierPage2, $"{f:000}.png"), image.ToArray(BitmapImageFormat.Png));
+        using var natif = SkiaSharp.SKBitmap.Decode(b.ToArray(BitmapImageFormat.Png));
+        using var grand = natif.Resize(new SkiaSharp.SKImageInfo(Grille2 * 2, Grille2 * 2, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Unpremul), SkiaSharp.SKFilterQuality.None);
+        using var donnees = grand.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(Path.Combine(sortie2, $"{f:000}.png"), donnees.ToArray());
     }
 
-    Console.WriteLine($"page2-anim: 64 images dans {dossierPage2}");
+    var fichierIdx = Path.Combine(dossierSp, "index.json");
+    var idx = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(fichierIdx))!.AsObject();
+    var seqs = idx["sequences"]!.AsArray();
+    foreach (var s in seqs.Where(s => s?["chemin"]?.GetValue<String>() == "planches/page2").ToList())
+    {
+        seqs.Remove(s);
+    }
+
+    seqs.Add(new System.Text.Json.Nodes.JsonObject
+    {
+        ["chemin"] = "planches/page2", ["images"] = N2, ["duree_s"] = N2 / 30.0, ["largeur"] = Grille2 * 2, ["hauteur"] = Grille2 * 2,
+        ["echelle"] = 2, ["boucle"] = "aucune", ["ecart_boucle"] = 0,
+    });
+    File.WriteAllText(fichierIdx, idx.ToJsonString(new() { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+    Console.WriteLine($"planche-page2: {N2} images dans {sortie2}");
     return;
 }
 
