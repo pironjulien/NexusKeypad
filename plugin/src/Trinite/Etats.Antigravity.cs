@@ -25,8 +25,8 @@ namespace Loupedeck.TrinitePlugin
             foreach (var (id, titre, activite, _) in this._lignesAgy)
             {
                 vues.Add(id);
-                var relais = titre.StartsWith("Nexus Relay", StringComparison.Ordinal) || sujets.ContainsKey(id);
-                var sujet = relais && sujets.TryGetValue(id, out var s) ? s : (relais ? "Nexus Relay" : null);
+                var relais = TitreDuRelais(titre) || sujets.ContainsKey(id);
+                var sujet = relais && sujets.TryGetValue(id, out var s) ? s : (relais ? "NexusRelay" : null);
                 var source = relais && sujet is not null ? SourcePourSujet(sujet, 0) : -1;
                 if (this.ConversationAgy(id, relais ? "Relais · " + sujet : titre, activite, relais, source) is { } c)
                 {

@@ -16,7 +16,7 @@ namespace Loupedeck.TrinitePlugin
 
     // Une conversation d'une IA : Id = ce qui sert à l'ouvrir (Claude local_…, Codex conversationId, Antigravity cascade).
     // Vu : l'utilisateur l'a regardée depuis son dernier changement d'état (le clignotement s'arrête).
-    // Relais : ouverte par Nexus Relay, pas par l'utilisateur ; elle ne le prévient jamais.
+    // Relais : ouverte par NexusRelay, pas par l'utilisateur ; elle ne le prévient jamais.
     // Source : IA qui a demandé le travail (0 Claude, 1 Codex, 2 Antigravity) ; -1 si non précisée.
     public sealed record Conversation(Int32 Agent, String Id, String Titre, Etat Etat, DateTime Depuis, DateTime Activite, Boolean Vu, Boolean Relais = false, Int32 Source = -1)
     {

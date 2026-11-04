@@ -187,7 +187,7 @@ namespace Loupedeck.TrinitePlugin
             var messages = Path.Combine(Maison, ".nexus", "relay", "v1", "messages");
             var fichier = m.Success && Directory.Exists(messages) ? Directory.EnumerateFiles(messages, m.Groups[1].Value + ".*.json").FirstOrDefault() : null;
             var morceaux = fichier is null ? [] : Path.GetFileNameWithoutExtension(fichier).Split('.');
-            var sujet = morceaux.Length >= 4 ? String.Join('.', morceaux[3..]) : "Nexus Relay";
+            var sujet = morceaux.Length >= 4 ? String.Join('.', morceaux[3..]) : "NexusRelay";
             var source = fichier is not null ? SourceDuNomDeFichier(Path.GetFileNameWithoutExtension(fichier)) : -1;
             if (source < 0)
             {

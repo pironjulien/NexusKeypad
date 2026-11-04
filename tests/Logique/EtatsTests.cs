@@ -16,6 +16,18 @@ public sealed class EtatsTests
     internal static Instantane Instantane() =>
         new([[C(0, Etat.Travaille)], [], []], [1, 0, 0], SansQuota, [true, true, false], false, null, -1);
 
+    [Theory]
+    [InlineData("NexusRelay: message from a peer for you, claude.", true)]
+    [InlineData("NexusRelay : message d'un pair pour toi, antigravity.", true)]
+    [InlineData("Nexus Relay: message from a peer for you, codex.", true)]
+    [InlineData("Relais du jour", false)]
+    [InlineData("Ma conversation", false)]
+    public void Les_conversations_du_relais_sont_reconnues_sous_ses_deux_noms(String titre, Boolean attendu)
+    {
+        // NexusRelay 1.13.2 writes its name without a space; conversations opened before keep "Nexus Relay".
+        Assert.Equal(attendu, Observateur.TitreDuRelais(titre));
+    }
+
     [Fact]
     public void Disponibilite_et_premiere_observation_de_Claude_sont_distinctes()
     {

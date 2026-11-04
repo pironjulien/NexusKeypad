@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.29] - 2026-11-04
+
+### Fixed
+- Relay conversations are still recognized since NexusRelay 1.13.2 writes its name without a space: titles starting
+  with "NexusRelay" or "Nexus Relay" both count, and the default relay topic is "NexusRelay".
+
 ## [1.8.28] - 2026-11-04
 
 ### Changed

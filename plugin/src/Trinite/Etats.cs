@@ -375,6 +375,10 @@ namespace Loupedeck.TrinitePlugin
             return -1;
         }
 
+        // Conversation ouverte par le relais : « NexusRelay » depuis NexusRelay 1.13.2, « Nexus Relay » avant.
+        public static Boolean TitreDuRelais(String titre) =>
+            titre.StartsWith("NexusRelay", StringComparison.Ordinal) || titre.StartsWith("Nexus Relay", StringComparison.Ordinal);
+
         public static Int32 SourcePourSujet(String sujet, Int32 defaut = 0)
         {
             try
