@@ -1,22 +1,113 @@
+<div align="center">
+
+<a href="https://julienpiron.fr/nexuskeypad/"><img src="https://julienpiron.fr/nexuskeypad/assets/nexuskeypad-mark.svg" width="112" alt="NexusKeypad"></a>
+
 # NexusKeypad
 
-[![Tests](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml/badge.svg)](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/pironjulien/NexusKeypad/blob/main/LICENSE)
-[![C# .NET 10](https://img.shields.io/badge/C%23-.NET%2010-512BD4)](https://github.com/pironjulien/NexusKeypad/blob/main/plugin/src/TrinitePadPlugin.csproj)
-[![Windows 11](https://img.shields.io/badge/Windows-11-0078D4)](#requirements)
+**Your AI agents, live on your keypad.**
 
-**Claude, Codex and Antigravity as animated pixel-art characters on the Logitech MX Creative Keypad.** A Logi Plugin
-Service plugin that shows, at a glance, what each of your three AI coding agents is doing (working, waiting for you,
-done, asleep), how much of their usage quota is left, and lets you jump to the conversation that needs you with one
-key press.
+Claude, Codex and Antigravity as animated pixel-art characters on the Logitech MX Creative Keypad: what each one is
+doing, how much quota is left, and one press to the conversation that needs you.
+
+[![Release](https://img.shields.io/github/v/release/pironjulien/NexusKeypad?style=flat-square&label=release)](https://github.com/pironjulien/NexusKeypad/releases/latest)
+[![Tests](https://img.shields.io/github/actions/workflow/status/pironjulien/NexusKeypad/tests.yml?branch=main&style=flat-square&label=tests)](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/pironjulien/NexusKeypad?style=flat-square&label=scorecard)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusKeypad)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![C# .NET 10](https://img.shields.io/badge/C%23-.NET%2010-512BD4?style=flat-square)](plugin/src/TrinitePadPlugin.csproj)
+[![Windows 11](https://img.shields.io/badge/Windows-11-0078D4?style=flat-square)](#requirements)
+
+[![Website](https://img.shields.io/badge/%F0%9F%8C%90_Website-julienpiron.fr-1f6feb?style=for-the-badge)](https://julienpiron.fr/nexuskeypad/)
+[![Get it with NexusSystem](https://img.shields.io/badge/%F0%9F%93%A6_Get_it-NexusSystem-0078D4?style=for-the-badge)](https://github.com/pironjulien/NexusSystem)
+[![Watch the video](https://img.shields.io/badge/%E2%96%B6%EF%B8%8F_Watch-the_video-e5534b?style=for-the-badge)](https://media.julienpiron.fr/videos/nexuskeypad.h264.mp4)
+[![Changelog](https://img.shields.io/badge/%F0%9F%93%9D_Changelog-latest-6e7781?style=for-the-badge)](CHANGELOG.md)
+
+</div>
+
+<div align="center">
+<a href="https://media.julienpiron.fr/videos/nexuskeypad.h264.mp4"><img src="https://julienpiron.fr/nexuskeypad/assets/nexuskeypad-video-poster.webp" width="820" alt="▶ Watch the NexusKeypad video (subtitled)"></a>
+<br><sub>▶ Click to watch the video · <a href="https://julienpiron.fr/nexuskeypad/">more on julienpiron.fr</a></sub>
+</div>
+
+## Why NexusKeypad
+
+<table>
+<tr>
+<td width="33%" valign="top">👀 <b>Every agent at a glance</b><br>Working, waiting for you, done or asleep: each head is animated after its most urgent conversation.</td>
+<td width="33%" valign="top">🎯 <b>One press to what needs you</b><br>Opens the conversation that blinks, full screen and scrolled to the last message.</td>
+<td width="33%" valign="top">⏳ <b>Quotas without text</b><br>5-hour and weekly gauges for each agent, plus the number of open conversations.</td>
+</tr>
+<tr>
+<td width="33%" valign="top">📸 <b>Capture, photo, dictation</b><br>Screen captures, phone photos and dictation land in the agent's chat; you press Send yourself.</td>
+<td width="33%" valign="top">🖥️ <b>A PC dashboard too</b><br>Page 2: volume, Gmail and Messages unread counts, calendar, PC health, updates and your own website key.</td>
+<td width="33%" valign="top">🔒 <b>Stays on your PC</b><br>No analytics or data-collection server, no administrator rights; open source under MIT.</td>
+</tr>
+</table>
+
+### See it in action
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/docs/page1.png" width="400" alt="Page 1: Codex, Claude and Antigravity heads on the top row, their quota gauges below, then Screen capture, clock and Dictation keys">
-  <img src="https://raw.githubusercontent.com/pironjulien/NexusKeypad/main/docs/page2.png" width="400" alt="Page 2: volume down, mute and volume up; Gmail, Calendar and Messages; PC health, Store and Windows Update, and a website key">
+  <img src="docs/page1.png" width="400" alt="Page 1: Codex, Claude and Antigravity heads on the top row, their quota gauges below, then Screen capture, clock and Dictation keys">
+  <img src="docs/page2.png" width="400" alt="Page 2: volume down, mute and volume up; Gmail, Calendar and Messages; PC health, Store and Windows Update, and a website key">
 </p>
 
-Rendered with the plugin's own drawing code (`apercu`, see [Development](#development)); on the device every key is
-animated.
+<p align="center"><sub>Rendered with the plugin's own drawing code (<code>apercu</code>, see <a href="#development">Development</a>); on the device every key is animated.</sub></p>
+
+## Quick start
+
+You need Windows 11, a Logitech MX Creative Keypad and Logi Options+ (see [Requirements](#requirements)).
+
+> [!TIP]
+> **Let your AI install it.** Paste this into Claude Code, Codex or Antigravity:
+>
+> ```text
+> Install NexusKeypad by following https://raw.githubusercontent.com/pironjulien/NexusSystem/main/INSTALL-AI.md
+> ```
+
+Or use the **NexusSystem** app from the [Microsoft Store](https://apps.microsoft.com/detail/9NSH2P3QLWT1)
+(`winget install --id 9NSH2P3QLWT1 --source msstore`), which installs and updates the Nexus products. Both install the
+complete edition (both pages, everything, as the author runs it) with no administrator rights.
+
+<details><summary><b>Manual install (verified)</b></summary>
+
+Download `get.ps1` and `SHA256SUMS.txt` from the latest release, check the script, then run it as a file:
+
+```powershell
+$r = 'https://github.com/pironjulien/NexusKeypad/releases/latest/download'
+Invoke-WebRequest "$r/get.ps1" -OutFile get.ps1
+Invoke-WebRequest "$r/SHA256SUMS.txt" -OutFile SHA256SUMS.txt
+(Get-FileHash get.ps1 -Algorithm SHA256).Hash   # must match the get.ps1 line of SHA256SUMS.txt
+gh attestation verify get.ps1 --repo pironjulien/NexusKeypad   # optional: build provenance
+powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1
+```
+
+It downloads the latest release's `NexusKeypad` package (its hash is checked against the release's `SHA256SUMS.txt`
+before extraction or execution), copies it into Logi Options+'s plugin folder
+(`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad`), where the Logi Plugin Service loads it, and offers to
+place the 18 keys for you on their own **NexusKeypad** profile, made active (your own profile is left as it is: switch
+back to it in Logi Options+ at any time; the plugin service restarts for a few seconds, with the Logi Options+ window
+closed; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). It then sets up the connector of each
+AI app found (Claude, Codex, Antigravity); an unplugged character on the keypad sets one up again. Run it again to
+update. To remove it (plugin, live states and keys; Logi Options+ is left alone), run the same verified file with
+`-Remove`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1 -Remove
+```
+
+</details>
+
+**Updates.** The plugin never updates itself: `get.ps1`, run again by you, the NexusSystem app or an AI, installs the
+latest release. The loaded version is in `~/.nexus/status/keypad.json` (read by the Nexus app).
+
+**Usage journal.** The complete edition also keeps a local usage journal, one line per key press in
+`%USERPROFILE%\.nexus\journal\keypad\<ai>\<YYYY-MM>.jsonl`: which key, which AI app it aimed at, how long it took,
+whether it worked and a short fixed cause when it did not (`not opened`, `paste failed`…). It never holds a
+conversation title, text or path, and never leaves your PC. Set `NEXUS_JOURNAL=0` to turn it off. The Marketplace
+editions have no such journal.
+
+The complete edition has its own plugin name, so Logi Options+ never mixes it up with a Marketplace edition: install
+one or the other. The [Marketplace editions](#other-editions) are the same code, split and trimmed to Logitech's rules
+(one function per plugin, no default website).
 
 ## Page 1: the agents
 
@@ -48,6 +139,9 @@ animated.
   dictation control is unavailable; voice chat follows Codex's own conversation behavior and is not a promise of
   draft-only transcription. With no agent in front, the key opens Windows voice typing (Win+H).
 
+> [!NOTE]
+> Screen capture and Photo put the image in the clipboard and paste it; the keypad never presses Send.
+
 ## Page 2: the PC
 
 | | | |
@@ -76,7 +170,7 @@ animated.
 The two bottom buttons of the keypad switch pages. A hidden page costs nothing: it is neither read nor drawn until the
 keypad shows it.
 
-### Website key
+<details><summary><b>Website key</b></summary>
 
 The bottom-right key opens a link of your choice. Create `%USERPROFILE%\.nexus\trinite\site.json`:
 
@@ -89,6 +183,8 @@ how its window title starts (and the name of its app shortcut). Without `titre`,
 opened itself (a second press brings it back or closes it). Without this file, the key shows a spinning globe and
 opens this repository. The file is read when the plugin loads.
 
+</details>
+
 ## Better with the Nexus family, fine on its own
 
 Every part of the Nexus family is optional. Install only the pad, or the whole family: each part adds to the others,
@@ -99,7 +195,7 @@ and when one is missing the pad falls back to something useful instead of an emp
 | NexusKeypad connector (press its unplugged character to set up) | The AI's activity is connected to the pad, with setup and diagnostics under one name | The character offers setup; the app's existing data is not a verified full connection |
 | Local app connection (prepared by the keypad) | Codex and Antigravity conversations, usage views and dictation controls | An already running app without the connection shows a restart arrow; no shortcut editing is needed |
 | [NexusAndroid](https://github.com/pironjulien/NexusAndroid) (phone over adb) | The photo key pastes your phone's latest photo into the AI conversation; Messages badge from the phone | The photo key shows an animated clock and date (or your PC's latest screenshot); Messages counted from its open tab only |
-| Nexus Relay (Claude, Codex and Antigravity talk to each other; not public yet) | Tiny messengers walk between Claude and Codex or Antigravity and give each other an electric shock while they work for Claude | Each agent works on its own; no runner |
+| [NexusRelay](https://github.com/pironjulien/NexusRelay) (Claude, Codex and Antigravity talk to each other) | Tiny messengers walk between Claude and Codex or Antigravity and give each other an electric shock while they work for Claude | Each agent works on its own; no runner |
 | [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (your real Chrome for AI agents) | Gmail unread count even with Gmail closed (read in your own Chrome session, only the number, stays on your PC) | Gmail counted only while it is open in a Chrome window or tab |
 | [NexusWindows](https://julienpiron.fr/nexuswindows/) (desktop apps for AI agents) | Your agents also drive desktop apps in the background | The pad does not depend on it |
 | Codex LB (local Codex load balancer) | Codex quota across all your accounts; a quota key that opens its dashboard | The official Codex app, quota read from its own logs, usage page in the browser |
@@ -124,6 +220,8 @@ flowchart LR
   P -->|open conversation, paste, dictate| Agents
 ```
 
+<details><summary><b>Where each state and quota comes from</b></summary>
+
 - **Claude**: the desktop app's session files (`%LOCALAPPDATA%\Claude-Data\…\claude-code-sessions`) plus the
   NexusKeypad plugin's hooks, which call the shared native `nexuskeypad-hook.exe` and write per-session activity
   under `~/.nexus/trinite/claude`. Quota: the plugin's usage module writes the 5-hour and weekly windows to
@@ -142,133 +240,101 @@ flowchart LR
   changed are sent to the Logi service (each one costs it more than drawing it): busy heads 8 frames per second, the
   rest 4 at most.
 
-## Requirements
+</details>
 
-- Windows 11, a **Logitech MX Creative Console keypad** (MX Keypad) and **Logi Options+** with Logi Plugin Service 6.4
-  or later.
-- From source only: [.NET 10 SDK](https://dotnet.microsoft.com/download). The
-  complete edition (one command, below) and the Marketplace editions need neither.
-- Any of: **Claude Desktop** (Claude Code), **Codex** desktop app, **Antigravity**. A missing app just sleeps on its key.
-  Claude's Code tab must have completed its first setup: the connector uses the official plugin manager bundled
-  with that app. An unavailable plugin manager leaves setup pending instead of reporting a ready connection.
-- Optional: an Android phone with USB or wireless debugging and `adb` on the `PATH` (photo key, Messages badge), and
-  [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (Gmail badge with Gmail closed). See the table above for
-  what each one adds and what replaces it.
-
-## Installation
-
-### Complete edition (both pages, everything)
-
-The complete **NexusKeypad** is everything described above, both pages, as the author runs it, with no administrator
-rights. The simplest way is the **NexusSystem** app from the
-[Microsoft Store](https://apps.microsoft.com/detail/9NSH2P3QLWT1) (or `winget install --id 9NSH2P3QLWT1 --source msstore`),
-which installs and updates the Nexus products.
-
-By hand: download `get.ps1` and `SHA256SUMS.txt` from the latest release, check the script, then run it as a file:
-
-```powershell
-$r = 'https://github.com/pironjulien/NexusKeypad/releases/latest/download'
-Invoke-WebRequest "$r/get.ps1" -OutFile get.ps1
-Invoke-WebRequest "$r/SHA256SUMS.txt" -OutFile SHA256SUMS.txt
-(Get-FileHash get.ps1 -Algorithm SHA256).Hash   # must match the get.ps1 line of SHA256SUMS.txt
-gh attestation verify get.ps1 --repo pironjulien/NexusKeypad   # optional: build provenance
-powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1
-```
-
-It downloads the latest release's `NexusKeypad` package (its hash is checked against the release's `SHA256SUMS.txt`
-before extraction or execution), copies it
-into Logi Options+'s plugin folder (`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\NexusKeypad`), where the Logi Plugin
-Service loads it, and offers to place the 18 keys for you on their own **NexusKeypad** profile, made active (your own
-profile is left as it is: switch back to it in Logi Options+ at any time; the plugin service restarts for a few seconds,
-with the Logi Options+ window closed; otherwise drag **Key 1** to **Key 18** of the *Trinity* group yourself). It then sets up the
-connector of each AI app found (Claude, Codex, Antigravity); an unplugged character on the keypad sets one up again. Run
-it again to update. To remove it (plugin, live states and keys; Logi Options+ is left alone), run the same verified file
-with `-Remove`:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\get.ps1 -Remove
-```
-
-**Updates.** The plugin never updates itself: `get.ps1`, run again by you, the NexusSystem app or an AI, installs
-the latest release. The loaded version is in `~/.nexus/status/keypad.json` (read by the Nexus app).
-
-**Usage journal.** The complete edition also keeps a local usage journal, one line per key press in
-`%USERPROFILE%\.nexus\journal\keypad\<ai>\<YYYY-MM>.jsonl`: which key, which AI app it aimed at, how long it took,
-whether it worked and a short fixed cause when it did not (`not opened`, `paste failed`…). It never holds a
-conversation title, text or path, and never leaves your PC. Set `NEXUS_JOURNAL=0` to turn it off. The Marketplace
-editions have no such journal.
-
-It has its own plugin name, so Logi Options+ never mixes it up with a Marketplace edition: install one or the other.
-The Marketplace editions below are the same code, split and trimmed to Logitech's rules (one function per plugin, no
-default website).
-
-### From the Logitech Marketplace (page 1 only)
-
-The Marketplace edition, **AI Coding Agents**, is the agents page alone (the 9 keys above), without page 2 and without
-the local test pipe. Install it from Logi Options+, then place its keys in one step with its ready profile (see
-[Ready profiles](#ready-profiles-for-the-marketplace-editions)), or drag the actions **Key 1** to **Key 9** of the
-*Trinity* group onto the 9 keys, in order (the plugin decides what each place shows).
+### Connectors and setup
 
 Each AI has the same **NexusKeypad** connector and setup flow. A disconnected plug means setup is needed, a wrench
-means repair, and crossed eyes mean an error. Each character keeps its own face and style.
-Press it and approve setup to install or repair only that AI's
-connector while preserving other settings. Dialogs use English; no text covers the Relay mini characters.
+means repair, and crossed eyes mean an error. Each character keeps its own face and style. Press it and approve setup
+to install or repair only that AI's connector while preserving other settings. Dialogs use English; no text covers the
+Relay mini characters.
 
 A small arrow inside the character indicates an open app without its local keypad connection. Only this situation
 can offer a separate restart, with consent and without forcing an app to close. Work, questions, permissions and
 dictation prevent it. Installing a connector never requires an already connected Codex or Antigravity to restart.
 Claude's character stays ready at idle; the diagnostic separately records whether its first real activity event has
 been observed since setup. Codex's bundled hooks require Codex's own review and trust; its existing log reader keeps
-activity tracking available while review is pending.
-Hidden app windows reopen normally. Ordinary presses remain available with a partial connection and do not repeat
-the restart prompt.
+activity tracking available while review is pending. Hidden app windows reopen normally. Ordinary presses remain
+available with a partial connection and do not repeat the restart prompt.
 
-The normal character returns after configuration and the available running-app connection have been checked;
-real conversation states always take priority. This does not by itself prove microphone access or an authenticated account. The **Live states** action in the
-*Trinity* group provides a separate NexusKeypad enable/disable command for each AI.
+The normal character returns after configuration and the available running-app connection have been checked; real
+conversation states always take priority. This does not by itself prove microphone access or an authenticated account.
+The **Live states** action in the *Trinity* group provides a separate NexusKeypad enable/disable command for each AI.
 
-One engine runs in Logitech Options+. The three connectors package each host's settings and diagnostics; they do
-not add three engines or MCP servers. The keypad prepares the required local app launch options automatically.
+One engine runs in Logitech Options+. The three connectors package each host's settings and diagnostics; they do not
+add three engines or MCP servers. The keypad prepares the required local app launch options automatically.
+
+> [!WARNING]
+> **Debugging ports.** Opening a Codex or Antigravity conversation and dictating into them go through their Chromium
+> debugging port, on `127.0.0.1` only: the keypad starts the official app with its local connection (9223 and 9227
+> respectively). An app already open without it shows a restart arrow; use its key to finish setup, no shortcut needs
+> to be edited. Anything listening on these ports can drive the app: do not enable them on a shared PC.
+
+## Requirements
+
+- Windows 11, a **Logitech MX Creative Console keypad** (MX Keypad) and **Logi Options+** with Logi Plugin Service 6.4
+  or later.
+- From source only: [.NET 10 SDK](https://dotnet.microsoft.com/download). The complete edition and the Marketplace
+  editions need neither.
+- Any of: **Claude Desktop** (Claude Code), **Codex** desktop app, **Antigravity**. A missing app just sleeps on its key.
+  Claude's Code tab must have completed its first setup: the connector uses the official plugin manager bundled
+  with that app. An unavailable plugin manager leaves setup pending instead of reporting a ready connection.
+- Optional: an Android phone with USB or wireless debugging and `adb` on the `PATH` (photo key, Messages badge), and
+  [NexusBrowser](https://github.com/pironjulien/NexusBrowser) (Gmail badge with Gmail closed). See the
+  [table above](#better-with-the-nexus-family-fine-on-its-own) for what each one adds and what replaces it.
+
+## Other editions
+
+<details><summary><b>Logitech Marketplace: AI Coding Agents (page 1 only)</b></summary>
+
+The Marketplace edition, **AI Coding Agents**, is the agents page alone (the 9 keys above), without page 2 and without
+the local test pipe. Install it from Logi Options+, then place its keys in one step with its ready profile (see
+*Ready profiles* below), or drag the actions **Key 1** to **Key 9** of the *Trinity* group onto the 9 keys, in order
+(the plugin decides what each place shows).
 
 Package it yourself with `pwsh -File outils\paquet_marketplace.ps1` (builds the Marketplace edition, packs it and
-checks it with the official Logi Plugin Tool). License terms: [EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA.md);
-data: [Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY.md).
+checks it with the official Logi Plugin Tool). License terms: [EULA](EULA.md); data: [Privacy Policy](PRIVACY.md).
 
-### From the Logitech Marketplace: PC Dashboard (page 2 only)
+</details>
+
+<details><summary><b>Logitech Marketplace: PC Dashboard (page 2 only)</b></summary>
 
 The second Marketplace plugin, **PC Dashboard**, is page 2 alone (volume, mute, Gmail, Calendar, Messages, PC health,
 Store and Windows Update, a website key), without the agents. Install it from Logi Options+, then import its ready
 profile (Key 1 to Key 8 already placed) or drag **Key 1** to **Key 8** of the *PC Dashboard* group onto the keys, in
-order; either way, drag **Website** onto the last one: type the address it
-opens in its settings (no website is set by default; you can add several Website keys, each with its own address).
-Gmail and Messages badges come from their Chrome windows or tabs, then from an Android phone over adb if any.
+order; either way, drag **Website** onto the last one: type the address it opens in its settings (no website is set by
+default; you can add several Website keys, each with its own address). Gmail and Messages badges come from their Chrome
+windows or tabs, then from an Android phone over adb if any.
 
 Package it yourself with `pwsh -File outils\paquet_marketplace.ps1 -Edition Poste`. License terms:
-[EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-PC-DASHBOARD.md); data:
-[Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-PC-DASHBOARD.md).
+[EULA](EULA-PC-DASHBOARD.md); data: [Privacy Policy](PRIVACY-PC-DASHBOARD.md).
 
-### From the Logitech Marketplace: AI Coding Agents + PC (both pages)
+</details>
+
+<details><summary><b>Logitech Marketplace: AI Coding Agents + PC (both pages)</b></summary>
 
 **AI Coding Agents + PC** is both pages in one plugin, like the source build below without the local test pipe:
 install it instead of the two plugins above, then import its ready profile (both pages already placed) or drag **Key 1**
 to **Key 9** of the *Trinity* group onto page 1 and **Key 10** to **Key 17** onto page 2; either way, drag **Website**
-onto the last key: type the address it opens in its settings, as
-in PC Dashboard (no website is set by default). Package it yourself with
-`pwsh -File outils\paquet_marketplace.ps1 -Edition Complete`. Terms:
-[EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-AI-AGENTS-PC.md); data:
-[Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-AI-AGENTS-PC.md).
+onto the last key: type the address it opens in its settings, as in PC Dashboard (no website is set by default).
+Package it yourself with `pwsh -File outils\paquet_marketplace.ps1 -Edition Complete`. Terms:
+[EULA](EULA-AI-AGENTS-PC.md); data: [Privacy Policy](PRIVACY-AI-AGENTS-PC.md).
 
-### Ready profiles for the Marketplace editions
+</details>
+
+<details><summary><b>Ready profiles for the Marketplace editions</b></summary>
 
 Logitech does not let a plugin that works in every app ship a profile of its own (a general profile can hold other
 plugins' actions), so each [release](https://github.com/pironjulien/NexusKeypad/releases/latest) carries one ready
-profile per Marketplace edition, beside the packages: `TrinitePad_X_Y_Z.lp5` (AI Coding Agents), `PcDashboard_X_Y_Z.lp5` (PC Dashboard) and
-`AiAgentsPc_X_Y_Z.lp5` (AI Coding Agents + PC), listed in `SHA256SUMS.txt` and attested like them.
-Install the plugin from the Marketplace first, download its profile, then in Logi Options+ select the keypad, click
-**+** on the profile bar and import the file: a new profile named after the plugin appears with every key in place.
-Your own profiles are left as they are; switch between them in Options+ at any time.
+profile per Marketplace edition, beside the packages: `TrinitePad_X_Y_Z.lp5` (AI Coding Agents),
+`PcDashboard_X_Y_Z.lp5` (PC Dashboard) and `AiAgentsPc_X_Y_Z.lp5` (AI Coding Agents + PC), listed in `SHA256SUMS.txt`
+and attested like them. Install the plugin from the Marketplace first, download its profile, then in Logi Options+
+select the keypad, click **+** on the profile bar and import the file: a new profile named after the plugin appears
+with every key in place. Your own profiles are left as they are; switch between them in Options+ at any time.
 
-### Packages from a GitHub release
+</details>
+
+<details><summary><b>Packages from a GitHub release</b></summary>
 
 Each [release](https://github.com/pironjulien/NexusKeypad/releases) carries the three packages (`.lplug4`), built by
 GitHub Actions from `main` (first published as a development pre-release `vX.Y.Z-dev.N`, then promoted unchanged to the
@@ -278,7 +344,9 @@ from a file (double-clicking it does nothing): install from the Marketplace when
 package with the official Logi Plugin Tool (`dotnet tool install -g LogiPluginTool`, then
 `logiplugintool install <file>`).
 
-### From source (both pages)
+</details>
+
+<details><summary><b>From source (both pages)</b></summary>
 
 ```powershell
 git clone https://github.com/pironjulien/NexusKeypad
@@ -295,20 +363,17 @@ Logi Options+ window closed:
 pwsh -File .\get.ps1 -KeysOnly
 ```
 
-**Debugging ports.** Opening a Codex or Antigravity conversation and dictating into them go through their Chromium
-debugging port, on `127.0.0.1` only:
+</details>
 
-- Codex and Antigravity: the keypad starts the official app with its local connection (9223 and 9227 respectively).
-  An app already open without it shows a restart arrow. Use its key to finish setup; no shortcut needs to be edited.
-
-Anything listening on these ports can drive the app: do not enable them on a shared PC.
-
-## Privacy
+## Privacy & security
 
 NexusKeypad has no analytics or data-collection server. Its activity files, connector receipts and cached images stay
 on the PC. Local app connections use `127.0.0.1`; an attached phone uses adb over USB or the local network. The complete
 edition contacts GitHub only when `get.ps1` installs or updates it. An app or browser opened by a key connects to
-its own service under that app's privacy policy. See the [Privacy Policy](PRIVACY.md) for the detailed local files.
+its own service under that app's privacy policy. See the [Privacy Policy](PRIVACY.md) for the detailed local files and
+[SECURITY.md](SECURITY.md) to report a vulnerability.
+
+<details><summary><b>What is read, written and how to remove it</b></summary>
 
 - **Read**: the agents' local session files and logs, their windows (UI Automation) and pages (debugging ports), the
   Windows audio, CPU and memory state; with a phone, its latest photo and its notification list over adb; the site
@@ -327,6 +392,8 @@ its own service under that app's privacy policy. See the [Privacy Policy](PRIVAC
   the profile backup. Connector caches, quota files and captured images may remain; after disconnection, remove
   `%LOCALAPPDATA%\NexusKeypad` and `~/.nexus/trinite` if you no longer need them. For a Marketplace edition, disconnect
   its AI integrations first with that edition's per-AI NexusKeypad actions, then uninstall it in Logi Options+.
+
+</details>
 
 ## Limitations
 
@@ -358,12 +425,38 @@ live apps) are explicit tests, run only on request: `dotnet test --project tests
 - `pwsh -File outils\pad.ps1 capture|snapshot|etat|--reel appui <1-18>` talks to the running plugin through a local pipe
   reserved to the current user: the 9 keys as sent to the keypad, the cached state, a simulated press (`--reel` only).
 
-## License
+---
 
-[MIT](https://github.com/pironjulien/NexusKeypad/blob/main/LICENSE), with an
-[EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA.md) and a
-[Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY.md) for the Marketplace edition
-(no data collected), and their [EULA](https://github.com/pironjulien/NexusKeypad/blob/main/EULA-PC-DASHBOARD.md)
-and [Privacy Policy](https://github.com/pironjulien/NexusKeypad/blob/main/PRIVACY-PC-DASHBOARD.md) for PC
-Dashboard. Claude, Codex, Antigravity, Gmail, Logitech
-and MX are trademarks of their owners; this project is not affiliated with them.
+<div align="center">
+
+### Part of the Nexus ecosystem
+
+Your AIs (Claude, Codex, Antigravity) at work on your Windows apps, real Chrome and Android phone — in the background.
+
+<table>
+<tr>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusSystem"><img src="https://julienpiron.fr/nexussystem/assets/nexussystem-mark.svg" width="44" alt=""><br><sub><b>NexusSystem</b></sub></a></td>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusWindows"><img src="https://julienpiron.fr/nexuswindows/assets/nexuswindows-mark.svg" width="44" alt=""><br><sub><b>Windows</b></sub></a></td>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusBrowser"><img src="https://julienpiron.fr/nexusbrowser/assets/nexusbrowser-mark.svg" width="44" alt=""><br><sub><b>Browser</b></sub></a></td>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusAndroid"><img src="https://julienpiron.fr/nexusandroid/assets/nexusandroid-mark.svg" width="44" alt=""><br><sub><b>Android</b></sub></a></td>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusRelay"><img src="https://julienpiron.fr/nexusrelay/assets/nexusrelay-mark.svg" width="44" alt=""><br><sub><b>Relay</b></sub></a></td>
+</tr>
+<tr>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusKeypad"><img src="https://julienpiron.fr/nexuskeypad/assets/nexuskeypad-mark.svg" width="44" alt=""><br><sub><b>Keypad</b></sub></a></td>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusAGYmail"><img src="https://julienpiron.fr/nexusagymail/assets/nexusagymail-mark.svg" width="44" alt=""><br><sub><b>AGYmail</b></sub></a></td>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusFree"><img src="https://julienpiron.fr/nexusfree/assets/nexusfree-mark.svg" width="44" alt=""><br><sub><b>Free</b></sub></a></td>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusInDesign"><img src="https://julienpiron.fr/nexusindesign/assets/nexusindesign-mark.svg" width="44" alt=""><br><sub><b>InDesign</b></sub></a></td>
+<td align="center" width="96"><a href="https://github.com/pironjulien/NexusWpp"><img src="https://julienpiron.fr/nexuswpp/assets/nexuswpp-mark.svg" width="44" alt=""><br><sub><b>Wpp</b></sub></a></td>
+</tr>
+</table>
+
+**[Get them all with NexusSystem](https://github.com/pironjulien/NexusSystem)** · [Microsoft Store](https://apps.microsoft.com/detail/9NSH2P3QLWT1) · [julienpiron.fr](https://julienpiron.fr/) · [@julienpironfr](https://x.com/julienpironfr)
+
+<sub>Built in France 🇫🇷 by <a href="https://github.com/pironjulien">Julien Piron</a></sub>
+
+</div>
+
+[MIT](LICENSE), with an [EULA](EULA.md) and a [Privacy Policy](PRIVACY.md) for the Marketplace edition (no data
+collected), and their [EULA](EULA-PC-DASHBOARD.md) and [Privacy Policy](PRIVACY-PC-DASHBOARD.md) for PC Dashboard.
+Claude, Codex, Antigravity, Gmail, Logitech and MX are trademarks of their owners; this project is not affiliated with
+them.
