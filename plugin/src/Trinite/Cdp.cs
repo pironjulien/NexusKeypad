@@ -83,6 +83,7 @@ namespace Loupedeck.TrinitePlugin
             public static Session Ouvrir(Int32 port, String url, Int32 attente)
             {
                 using var liste = JsonDocument.Parse(Http.GetStringAsync($"http://127.0.0.1:{port}/json/list").GetAwaiter().GetResult());
+
                 // Page principale : Codex sert app://-/index.html ; Antigravity garde parfois une page d'attente data:
                 var page = liste.RootElement.EnumerateArray().FirstOrDefault(t =>
                     t.GetProperty("type").GetString() == "page"
