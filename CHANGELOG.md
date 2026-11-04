@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.28] - 2026-11-04
+
+### Changed
+- Claude display name written NexusKeypad, without a space, like the repository, Codex and the NexusSystem catalog.
+
 ## [1.8.27] - 2026-11-04
 
 ### Changed
