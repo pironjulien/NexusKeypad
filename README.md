@@ -52,6 +52,8 @@ doing, how much quota is left, and one press to the conversation that needs you.
 
 <p align="center"><sub>Rendered with the plugin's own drawing code (<code>apercu</code>, see <a href="#development">Development</a>); on the device every key is animated.</sub></p>
 
+<a id="install"></a>
+
 ## Quick start
 
 You need Windows 11, a Logitech MX Creative Keypad and Logi Options+ (see [Requirements](#requirements)).
