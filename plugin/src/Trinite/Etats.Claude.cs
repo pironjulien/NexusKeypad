@@ -89,6 +89,10 @@ namespace Loupedeck.TrinitePlugin
 
                 var hook = cli is not null ? Hook("claude", cli) : null;
                 var etat = hook is { } h ? Traduire(h.Etat, h.Quand, Instant(Champ(meta, "lastTurnEdgeAt"))) : Etat.Repos;
+                if (etat is Etat.Fini or Etat.Attend && cli is not null)
+                {
+                    etat = this.SelonResumeClaude(fichier, ecrit, HookReponse("claude", cli), etat);
+                }
                 var depuis = hook?.Quand ?? activite;
                 var vu = regard > depuis || this.Vu(0, id, depuis);
                 var relais = (cwd is not null && String.Equals(Chemin(cwd), Chemin(Path.Combine(Maison, ".nexus", "relay", "claude-projet")), StringComparison.OrdinalIgnoreCase))
@@ -112,6 +116,68 @@ namespace Loupedeck.TrinitePlugin
                 {
                     yield return conv;
                 }
+            }
+        }
+
+        // Fin de tour classée par l'appli elle-même (postTurnSummary de sa fiche : « blocked » = elle attend l'utilisateur,
+        // « completed » / « review_ready » = fini), seulement quand ce résumé porte sur la réponse notée par le Stop de ce
+        // tour (summarizes_uuid). Absent, ancien ou d'un format inconnu : l'état des hooks reste (05/11).
+        private readonly Dictionary<String, (DateTime Ecrit, String Categorie, String Uuid)> _resumesClaude = [];
+
+        private Etat SelonResumeClaude(String fichier, DateTime ecrit, String reponse, Etat etat)
+        {
+            if (String.IsNullOrEmpty(reponse))
+            {
+                return etat;
+            }
+
+            if (!this._resumesClaude.TryGetValue(fichier, out var resume) || resume.Ecrit != ecrit)
+            {
+                resume = (ecrit, null, null);
+                if (ResumeClaude(Fin(fichier, 96 * 1024)) is { } lu)
+                {
+                    resume = (ecrit, lu.Categorie, lu.Uuid);
+                }
+
+                this._resumesClaude[fichier] = resume;
+            }
+
+            return resume.Uuid != reponse ? etat : resume.Categorie switch
+            {
+                "blocked" => Etat.Attend,
+                "completed" or "review_ready" => Etat.Fini,
+                _ => etat,
+            };
+        }
+
+        internal static (String Categorie, String Uuid)? ResumeClaude(String texte)
+        {
+            var m = Regex.Match(texte ?? "", "\"postTurnSummary\"\\s*:\\s*\\{(?<corps>[^{}]*)\\}");
+            if (!m.Success)
+            {
+                return null;
+            }
+
+            var corps = m.Groups["corps"].Value;
+            var categorie = Regex.Match(corps, "\"status_category\"\\s*:\\s*\"([a-z_]+)\"");
+            var uuid = Regex.Match(corps, "\"summarizes_uuid\"\\s*:\\s*\"([0-9a-fA-F-]+)\"");
+            return categorie.Success && uuid.Success ? (categorie.Groups[1].Value, uuid.Groups[1].Value) : null;
+        }
+
+        private static String Fin(String chemin, Int32 octets)
+        {
+            try
+            {
+                using var flux = new FileStream(chemin, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                var n = (Int32)Math.Min(octets, flux.Length);
+                flux.Seek(-n, SeekOrigin.End);
+                var tampon = new Byte[n];
+                flux.ReadExactly(tampon);
+                return Encoding.UTF8.GetString(tampon);
+            }
+            catch (Exception)
+            {
+                return "";
             }
         }
 

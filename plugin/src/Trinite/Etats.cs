@@ -30,7 +30,132 @@ namespace Loupedeck.TrinitePlugin
         private static readonly TimeSpan Fenetre = TimeSpan.FromDays(3); // au-delà, une conversation n'est plus « active »
         private static readonly System.Net.Http.HttpClient CodexLb = new() { Timeout = TimeSpan.FromSeconds(2) };
 
-        private readonly ConcurrentDictionary<String, DateTime> _vues = new(); // agent:id → dernier regard de l'utilisateur
+        private readonly ConcurrentDictionary<String, DateTime> _vues = ChargerVues(); // agent:id → dernier regard de l'utilisateur
+        private Boolean _vuesChangees;
+        private DateTime _vuesGardees = DateTime.MinValue;
+
+        // Regards gardés sur disque (24 h) : un redémarrage du plugin ou de Logi ne rallume pas une fin déjà vue (05/11).
+        private static String FichierVues => Path.Combine(Local, "NexusKeypad", "vues.json");
+
+        private static ConcurrentDictionary<String, DateTime> ChargerVues()
+        {
+            var vues = new ConcurrentDictionary<String, DateTime>();
+            try
+            {
+                if (File.Exists(FichierVues))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(FichierVues));
+                    foreach (var p in doc.RootElement.EnumerateObject())
+                    {
+                        if (p.Value.TryGetDouble(out var ms))
+                        {
+                            var quand = DateTimeOffset.FromUnixTimeMilliseconds((Int64)ms).UtcDateTime;
+                            if (DateTime.UtcNow - quand < TimeSpan.FromHours(24))
+                            {
+                                vues[p.Name] = quand;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // illisible : on repart des regards de l'appli elle-même
+            }
+
+            return vues;
+        }
+
+        // Non-lus de l'appli Codex (.codex-global-state.json, electron-thread-read-state-v1.unreadByIdentity) : une
+        // conversation qui en sort a été lue dans Codex, même sans son port ; seul ce passage compte (une conversation
+        // jamais marquée non lue garde l'alerte du pad, comme avant). Format absent ou changé : rien n'est déduit.
+        private HashSet<String> _nonLusCodex;
+        private DateTime _nonLusCodexEcrit = DateTime.MinValue;
+
+        private void SuivreNonLusCodex()
+        {
+            var fichier = Path.Combine(DossierCodex, ".codex-global-state.json");
+            try
+            {
+                var ecrit = File.Exists(fichier) ? File.GetLastWriteTimeUtc(fichier) : DateTime.MinValue;
+                if (ecrit == this._nonLusCodexEcrit)
+                {
+                    return;
+                }
+
+                this._nonLusCodexEcrit = ecrit;
+                var nonLus = ecrit == DateTime.MinValue ? null : NonLusCodex(File.ReadAllText(fichier));
+                if (this._nonLusCodex is not null && nonLus is not null)
+                {
+                    foreach (var id in this._nonLusCodex.Where(i => !nonLus.Contains(i)))
+                    {
+                        this.MarquerVu(1, id);
+                    }
+
+                    // « Marquer comme non lu » (Ctrl+Shift+U) : la fin déjà vue se rallume sur le pad.
+                    foreach (var id in nonLus.Where(i => !this._nonLusCodex.Contains(i)))
+                    {
+                        this._vuesChangees |= this._vues.TryRemove($"1:{id}", out _);
+                    }
+                }
+
+                this._nonLusCodex = nonLus;
+            }
+            catch (Exception)
+            {
+                // fichier en cours d'écriture : relu au prochain changement
+                this._nonLusCodexEcrit = DateTime.MinValue;
+            }
+        }
+
+        internal static HashSet<String> NonLusCodex(String json)
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("electron-thread-read-state-v1", out var etat) || etat.ValueKind != JsonValueKind.Object
+                || !etat.TryGetProperty("unreadByIdentity", out var parIdentite) || parIdentite.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            var ids = new HashSet<String>(StringComparer.Ordinal);
+            foreach (var identite in parIdentite.EnumerateObject().Where(i => i.Value.ValueKind == JsonValueKind.Object))
+            {
+                foreach (var hote in identite.Value.EnumerateObject().Where(h => h.Value.ValueKind == JsonValueKind.Array))
+                {
+                    foreach (var id in hote.Value.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String))
+                    {
+                        ids.Add(id.GetString());
+                    }
+                }
+            }
+
+            return ids;
+        }
+
+        private void GarderVues()
+        {
+            if (!this._vuesChangees || DateTime.UtcNow - this._vuesGardees < TimeSpan.FromSeconds(5))
+            {
+                return;
+            }
+
+            try
+            {
+                var limite = DateTime.UtcNow - TimeSpan.FromHours(24);
+                var json = JsonSerializer.Serialize(this._vues.Where(v => v.Value > limite)
+                    .ToDictionary(v => v.Key, v => new DateTimeOffset(v.Value, TimeSpan.Zero).ToUnixTimeMilliseconds()));
+                Directory.CreateDirectory(Path.GetDirectoryName(FichierVues));
+                var temporaire = FichierVues + ".tmp";
+                File.WriteAllText(temporaire, json);
+                File.Move(temporaire, FichierVues, overwrite: true);
+                this._vuesChangees = false;
+                this._vuesGardees = DateTime.UtcNow;
+            }
+            catch (Exception)
+            {
+                // réessayé au tour suivant
+            }
+        }
         private readonly Dictionary<String, (DateTime Ecrit, String Meta)> _cacheClaude = [];
 #endif
         private TimeSpan _delaiEcran = TimeSpan.FromMinutes(10); // relu auprès de Windows (DelaiEcran)
@@ -176,7 +301,11 @@ namespace Loupedeck.TrinitePlugin
         private Boolean SansGesteRecent() => DateTime.UtcNow - this._dernierGeste > TimeSpan.FromSeconds(10);
 
 #if !POSTE
-        public void MarquerVu(Int32 agent, String id) => this._vues[$"{agent}:{id}"] = DateTime.UtcNow;
+        public void MarquerVu(Int32 agent, String id)
+        {
+            this._vues[$"{agent}:{id}"] = DateTime.UtcNow;
+            this._vuesChangees = true;
+        }
 
         public Instantane Lire()
         {
@@ -193,6 +322,7 @@ namespace Loupedeck.TrinitePlugin
                 this.MarquerVu(1, this._selectionCodex);
             }
 
+            this.SuivreNonLusCodex();
             var selAgy = this._selectionAgy;
             if (premier == Processus[2] && selAgy is not null)
             {
@@ -210,6 +340,7 @@ namespace Loupedeck.TrinitePlugin
                 };
             }
 
+            this.GarderVues();
             var conversations = listes.Select(l => l
                 .OrderByDescending(Rang)
                 .ThenByDescending(c => c.Activite)
@@ -341,6 +472,21 @@ namespace Loupedeck.TrinitePlugin
             catch (Exception)
             {
                 return null;
+            }
+        }
+
+        // Uuid de la dernière réponse noté par le Stop de Claude (« reply ») ; vide si aucun.
+        private static String HookReponse(String agent, String session)
+        {
+            try
+            {
+                using var flux = new FileStream(Path.Combine(DossierEtats, agent, session + ".json"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var doc = JsonDocument.Parse(flux);
+                return doc.RootElement.TryGetProperty("reply", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : "";
+            }
+            catch (Exception)
+            {
+                return "";
             }
         }
 

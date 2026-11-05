@@ -69,6 +69,45 @@
         ]
       }
     ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude PermissionRequest } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Elicitation": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude Elicitation } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "ElicitationResult": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "try { & (Join-Path $env:LOCALAPPDATA 'NexusKeypad\\hook\\nexuskeypad-hook.exe') claude ElicitationResult } catch {}",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "SubagentStop": [
       {
         "hooks": [

@@ -72,6 +72,34 @@ public sealed class EtatsTests
     }
 
     [Fact]
+    public void Note_d_Antigravity_titre_archive_et_vue()
+    {
+        var n = Observateur.LireNoteAgy("title:\"Caméra Logitech\"  archived:true  archival_status_timestamp:{seconds:1  nanos:2}  last_user_view_time:{seconds:1793622294  nanos:573000000}");
+        Vrai(n.Titre == "Caméra Logitech" && n.Archivee && n.Vue == DateTimeOffset.FromUnixTimeMilliseconds(1793622294573).UtcDateTime, "titre UTF-8, archivée, vue");
+        Vrai(Observateur.LireNoteAgy("last_user_view_time:{seconds:1}").Titre is null && !Observateur.LireNoteAgy("last_user_view_time:{seconds:1}").Archivee, "sans titre ni archive");
+        Vrai(Observateur.TextePbtxt("Cam\\303\\251ra \\\"x\\\"") == "Caméra \"x\"", "octal et guillemets échappés");
+        Vrai(!Observateur.LireNoteAgy("unarchived:true").Archivee, "un autre champ n'archive pas");
+    }
+
+    [Fact]
+    public void Resume_de_fin_de_tour_de_Claude()
+    {
+        var fiche = "\"x\":1,\"postTurnSummary\":{\"status_category\":\"blocked\",\"status_detail\":\"d\",\"needs_action\":\"Choisir\",\"summarizes_uuid\":\"d8425fa8-1f9b-4e82\"},\"y\":2";
+        Vrai(Observateur.ResumeClaude(fiche) == ("blocked", "d8425fa8-1f9b-4e82"), "catégorie et uuid lus");
+        Vrai(Observateur.ResumeClaude("\"postTurnSummary\":null") is null, "pas de résumé");
+        Vrai(Observateur.ResumeClaude("") is null, "fiche vide");
+    }
+
+    [Fact]
+    public void Non_lus_de_Codex()
+    {
+        var json = """{"electron-thread-read-state-v1":{"version":1,"unreadByIdentity":{"a":{"local:x":[],"durable:y":["t1","t2"]},"b":{"local:x":["t3"]}}}}""";
+        var ids = Observateur.NonLusCodex(json);
+        Vrai(ids is not null && ids.SetEquals(["t1", "t2", "t3"]), "toutes identités et hôtes réunis");
+        Vrai(Observateur.NonLusCodex("{}") is null, "format absent : rien de déduit");
+    }
+
+    [Fact]
     public void Arret_par_echap_repasse_au_repos()
     {
         // Escape sends no hook; the app still moves lastTurnEdgeAt when the turn stops.

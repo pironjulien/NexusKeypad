@@ -38,11 +38,46 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (!vues.Contains(id))
                 {
+                    vues.Add(id);
                     var source = SourcePourSujet(sujet, 0);
                     if (this.ConversationAgy(id, "Relais · " + sujet, DateTime.MinValue, true, source) is { } c)
                     {
                         yield return c;
                     }
+                }
+            }
+
+            // Barre latérale illisible (Antigravity lancé sans son port) : les conversations connues par leurs hooks
+            // depuis moins de 12 h restent suivies (travail, question, fin), titre de sa note. Avec la barre, elle seule
+            // fait foi : une conversation supprimée n'y revient pas.
+            if (!this._barreAgyLue)
+            {
+                foreach (var id in HooksRecents("antigravity", TimeSpan.FromHours(12)).Where(i => !vues.Contains(i)))
+                {
+                    if (this.ConversationAgy(id, NoteAntigravity(id).Titre ?? "Antigravity", DateTime.MinValue, false) is { Etat: not Etat.Repos } c)
+                    {
+                        yield return c;
+                    }
+                }
+            }
+        }
+
+        private Boolean _barreAgyLue;
+
+        // Sessions dont le hook a écrit depuis « age » (nom du fichier d'état).
+        private static IEnumerable<String> HooksRecents(String agent, TimeSpan age)
+        {
+            var dossier = Path.Combine(DossierEtats, agent);
+            if (!Directory.Exists(dossier))
+            {
+                yield break;
+            }
+
+            foreach (var f in new DirectoryInfo(dossier).EnumerateFiles("*.json"))
+            {
+                if (DateTime.UtcNow - f.LastWriteTimeUtc < age)
+                {
+                    yield return Path.GetFileNameWithoutExtension(f.Name);
                 }
             }
         }
@@ -56,9 +91,16 @@ namespace Loupedeck.TrinitePlugin
                 return null;
             }
 
+            var note = NoteAntigravity(id);
+            if (note.Archivee)
+            {
+                return null; // archivée dans Antigravity : ni montrée ni comptée
+            }
+
             var depuis = hook?.Quand ?? activite;
-            var vu = this.Vu(2, id, depuis) || VueParAntigravity(id) > depuis;
-            var regardee = etat == Etat.Fini && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
+            var vu = this.Vu(2, id, depuis) || note.Vue > depuis;
+            var regardee = etat is Etat.Fini or Etat.Erreur && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
+            titre = !relais && note.Titre is { Length: > 0 } renomme ? renomme : titre;
             return new(2, id, titre, regardee ? Etat.Repos : etat, depuis, activite == DateTime.MinValue ? depuis : activite, vu, relais, source);
         }
 
@@ -66,24 +108,68 @@ namespace Loupedeck.TrinitePlugin
         // vue même quand il est lancé sans son port 9227 (raccourci Windows), où le pad ne voit pas la sélection (05/11).
         private static String AnnotationsAgy => Path.Combine(Maison, ".gemini", "antigravity", "annotations");
 
-        private static DateTime VueParAntigravity(String id)
+        // Note entière : dernière vue, titre donné par l'utilisateur (renommage), archivée.
+        private static (DateTime Vue, String Titre, Boolean Archivee) NoteAntigravity(String id)
         {
             try
             {
                 var f = Path.Combine(AnnotationsAgy, id + ".pbtxt");
                 if (!File.Exists(f))
                 {
-                    return DateTime.MinValue;
+                    return (DateTime.MinValue, null, false);
                 }
 
                 using var flux = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using var lecteur = new StreamReader(flux);
-                return DerniereVueAgy(lecteur.ReadToEnd());
+                return LireNoteAgy(lecteur.ReadToEnd());
             }
             catch (Exception)
             {
-                return DateTime.MinValue; // fichier en cours d'écriture : relu au tour suivant
+                return (DateTime.MinValue, null, false); // fichier en cours d'écriture : relu au tour suivant
             }
+        }
+
+        internal static (DateTime Vue, String Titre, Boolean Archivee) LireNoteAgy(String pbtxt)
+        {
+            // Champs sur une ligne (« title:"…" archived:true last_user_view_time:{…} »), texte en UTF-8 brut.
+            var titre = Regex.Match(pbtxt ?? "", "(?<![a-z_])title\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+            var archivee = Regex.IsMatch(pbtxt ?? "", "(?<![a-z_])archived\\s*:\\s*true\\b");
+            return (DerniereVueAgy(pbtxt), titre.Success ? TextePbtxt(titre.Groups[1].Value) : null, archivee);
+        }
+
+        // Échappements du format texte de protobuf : \" \\ \n \t et octets en octal (\303\251), recomposés en UTF-8.
+        internal static String TextePbtxt(String brut)
+        {
+            var octets = new List<Byte>();
+            for (var i = 0; i < brut.Length; i++)
+            {
+                if (brut[i] != '\\' || i + 1 >= brut.Length)
+                {
+                    var paire = Char.IsHighSurrogate(brut[i]) && i + 1 < brut.Length;
+                    octets.AddRange(Encoding.UTF8.GetBytes(brut.Substring(i, paire ? 2 : 1)));
+                    i += paire ? 1 : 0;
+                    continue;
+                }
+
+                var c = brut[++i];
+                if (c is >= '0' and <= '7')
+                {
+                    var n = 0;
+                    var j = 0;
+                    for (; j < 3 && i + j < brut.Length && brut[i + j] is >= '0' and <= '7'; j++)
+                    {
+                        n = (n * 8) + (brut[i + j] - '0');
+                    }
+
+                    octets.Add((Byte)n);
+                    i += j - 1;
+                    continue;
+                }
+
+                octets.AddRange(Encoding.UTF8.GetBytes(c switch { 'n' => "\n", 't' => "\t", 'r' => "\r", _ => c.ToString() }));
+            }
+
+            return Encoding.UTF8.GetString(octets.ToArray());
         }
 
         internal static DateTime DerniereVueAgy(String pbtxt)
@@ -176,6 +262,8 @@ namespace Loupedeck.TrinitePlugin
             {
                 this._selectionAgy = null; // port muet : sélection inconnue, pas l'ancienne
             }
+
+            this._barreAgyLue = agy is { ValueKind: JsonValueKind.Object };
 
             var codex = Connecteurs.EvenementsActifs("codex") ? Cdp.Evaluer(Cdp.PortCodex, Js.SelectionCodex) : null;
             this._selectionCodex = codex is { ValueKind: JsonValueKind.String } s ? s.GetString() : null;

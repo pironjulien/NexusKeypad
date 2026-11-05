@@ -5,6 +5,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.32] - 2026-11-05
+
+### Changed
+- Seen and question states now come from each app's own signals, the guessed ones staying as fallback:
+  - Claude: a finished turn is classified by the app itself (its end-of-turn summary: blocked = waiting for you,
+    completed or review ready = done), matched to that very turn; the Stop hook's official `last_assistant_message`
+    is read before the transcript.
+  - Codex: a conversation leaving the app's unread list counts as seen, and "Mark as unread" lights the alert again.
+  - Antigravity: archived conversations are no longer shown or counted, and renamed ones keep their new title.
+- Seen conversations are kept on disk for 24 hours: restarting the plugin or Logi no longer lights finished turns
+  you already read.
+
+### Added
+- Claude: the official `PermissionRequest` hook shows the padlock as soon as the approval box opens; MCP questions
+  (`Elicitation`, `agent_needs_input` and `elicitation_dialog` notifications) show the question state.
+- Antigravity: a turn ending in error (`terminationReason`, `error`) shows the error face, or the usage-limit face
+  for quota and capacity errors.
+- Antigravity started without its debugging port: conversations known from their hooks in the last 12 hours stay
+  on the keypad (working, question, done).
+
 ## [1.8.31] - 2026-11-05
 
 ### Fixed

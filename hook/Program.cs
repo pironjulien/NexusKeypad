@@ -133,11 +133,15 @@ public static class Program
     // Texte du dernier message de l'assistant dans le journal du tour (fin du fichier seulement). Claude : lignes
     // {"type": "assistant", "message": {...}} ; Antigravity : {"type": "PLANNER_RESPONSE", "content": ...}, son
     // transcriptPath pouvant être un dossier de morceaux (le plus récent fait foi).
-    public static string DerniereReponse(string journal)
+    public static string DerniereReponse(string journal) => DerniereReponseEtId(journal).Texte;
+
+    // Même lecture, avec l'uuid de la ligne (Claude) : le résumé de fin de tour que l'appli écrit ensuite dans sa fiche
+    // (postTurnSummary.summarizes_uuid) se rattache ainsi à ce tour-ci, jamais à un ancien.
+    public static (string Texte, string Id) DerniereReponseEtId(string journal)
     {
         if (string.IsNullOrEmpty(journal))
         {
-            return "";
+            return ("", "");
         }
 
         var chemin = journal;
@@ -147,7 +151,7 @@ public static class Program
                 .OrderBy(f => f.LastWriteTimeUtc).LastOrDefault()?.FullName;
             if (chemin is null)
             {
-                return "";
+                return ("", "");
             }
         }
 
@@ -161,7 +165,7 @@ public static class Program
         }
         catch (Exception)
         {
-            return "";
+            return ("", "");
         }
 
         for (var i = lignes.Length - 1; i >= 0; i--)
@@ -184,7 +188,7 @@ public static class Program
             var type = Texte(entree["type"]);
             if (type == "PLANNER_RESPONSE" && Vrai(entree["content"]))
             {
-                return Texte(entree["content"]).Trim();
+                return (Texte(entree["content"]).Trim(), "");
             }
 
             var message = Objet(entree["message"]);
@@ -200,11 +204,28 @@ public static class Program
                 .ToList();
             if (textes.Count > 0)
             {
-                return textes[^1].Trim();
+                return (textes[^1].Trim(), Texte(entree["uuid"]));
             }
         }
 
-        return "";
+        return ("", "");
+    }
+
+    // Fin de tour d'Antigravity en échec (terminationReason, error du Stop, doc des hooks 2.28) : limite d'usage ou
+    // erreur ; null pour une fin normale.
+    public static string? EchecAntigravity(JsonObject charge)
+    {
+        var raison = Texte(charge["terminationReason"]);
+        var erreur = Texte(charge["error"]);
+        if (erreur.Length == 0 && !raison.Contains("error", StringComparison.OrdinalIgnoreCase)
+            && !raison.Contains("max_steps", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var texte = (raison + " " + erreur).ToLowerInvariant();
+        return new[] { "rate limit", "rate_limit", "quota", "resource_exhausted", "429", "usage limit", "capacity" }
+            .Any(m => texte.Contains(m, StringComparison.Ordinal)) ? "limit" : "error";
     }
 
     // Session Claude lancée par une autre session (sa fiche porte « spawnedFrom ») : elle travaille pour Claude, qui rend
@@ -263,16 +284,32 @@ public static class Program
         return false;
     }
 
-    public static string? EtatPour(string evenement, JsonObject charge, JsonObject precedent)
+    public static string? EtatPour(string evenement, JsonObject charge, JsonObject precedent) =>
+        EtatPour(evenement, charge, precedent, out _);
+
+    // reponse : uuid de la dernière réponse lue au Stop (Claude), sinon vide.
+    public static string? EtatPour(string evenement, JsonObject charge, JsonObject precedent, out string reponse)
     {
+        reponse = "";
         switch (evenement)
         {
             case "Notification":
             {
                 var genre = Texte(charge["notification_type"]);
                 var message = Texte(charge["message"]).ToLowerInvariant();
+                if (genre is "agent_needs_input" or "elicitation_dialog")
+                {
+                    return "wait"; // un agent ou un serveur MCP attend une réponse (types de Claude Code 2.1.30x)
+                }
+
                 return genre == "permission_prompt" || message.Contains("permission", StringComparison.Ordinal) ? "perm" : null;
             }
+            case "PermissionRequest":
+                return "perm"; // la boîte d'autorisation s'affiche (hook officiel, avant toute notification)
+            case "Elicitation":
+                return "wait"; // un serveur MCP pose une question
+            case "ElicitationResult":
+                return "run";
             case "PreToolUse":
             {
                 var outil = Outil(charge);
@@ -315,13 +352,25 @@ public static class Program
                     return "repos";
                 }
 
+                if (EchecAntigravity(charge) is { } echec)
+                {
+                    return echec;
+                }
+
+                var (texte, id) = DerniereReponseEtId(Texte(charge["transcript_path"], charge["transcriptPath"]));
+                reponse = id;
                 if (Texte(precedent["state"]) is "ask" or "wait")
                 {
                     return "wait";
                 }
 
-                var reponse = DerniereReponse(Texte(charge["transcript_path"], charge["transcriptPath"]));
-                return reponse.TrimEnd('*', '_', ' ', ')', '»', '"', '\'').EndsWith('?') ? "wait" : "done";
+                // Claude Code donne la réponse finale au Stop (last_assistant_message, plus sûr qu'un journal en retard).
+                if (Texte(charge["last_assistant_message"]) is { Length: > 0 } finale)
+                {
+                    texte = finale.Trim();
+                }
+
+                return texte.TrimEnd('*', '_', ' ', ')', '»', '"', '\'').EndsWith('?') ? "wait" : "done";
             }
             default:
                 return null;
@@ -540,7 +589,8 @@ public static class Program
             }
             else
             {
-                etat = evenement == "SessionEnd" ? "end" : EtatPour(evenement, charge, precedent);
+                var reponse = "";
+                etat = evenement == "SessionEnd" ? "end" : EtatPour(evenement, charge, precedent, out reponse);
                 if (evenement is "Stop" or "StopFailure" or "UserPromptSubmit" or "SessionEnd")
                 {
                     attend = false; // le tour (re)part ou se termine : la fin attendue est décidée ici
@@ -566,6 +616,10 @@ public static class Program
                 contenu = etat is null
                     ? new JsonObject { ["state"] = precedent["state"]!.DeepClone(), ["at"] = precedent["at"]?.DeepClone(), ["event"] = precedent["event"]?.DeepClone() }
                     : new JsonObject { ["state"] = etat, ["at"] = debut, ["event"] = evenement };
+                if (agent == "claude" && evenement == "Stop" && reponse.Length > 0)
+                {
+                    contenu["reply"] = reponse; // rattache le résumé de fin de tour de l'appli à ce tour-ci
+                }
             }
 
             if (agents.Count > 0)
