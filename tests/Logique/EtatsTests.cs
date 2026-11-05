@@ -61,6 +61,17 @@ public sealed class EtatsTests
     }
 
     [Fact]
+    public void Vue_notee_par_Antigravity_lue_sans_son_port()
+    {
+        // annotations/<id>.pbtxt written by Antigravity when the user opens a conversation.
+        var vue = Observateur.DerniereVueAgy("last_user_view_time:{seconds:1793867358 nanos:753000000}\n");
+        Vrai(vue == DateTimeOffset.FromUnixTimeMilliseconds(1793867358753).UtcDateTime, "vue lue à la milliseconde");
+        Vrai(Observateur.DerniereVueAgy("last_user_view_time: { seconds: 1793867358 }") == DateTimeOffset.FromUnixTimeSeconds(1793867358).UtcDateTime, "vue sans nanos");
+        Vrai(Observateur.DerniereVueAgy("autre:{}") == DateTime.MinValue, "pas de vue → jamais vue");
+        Vrai(Observateur.DerniereVueAgy(null) == DateTime.MinValue, "fichier vide → jamais vue");
+    }
+
+    [Fact]
     public void Arret_par_echap_repasse_au_repos()
     {
         // Escape sends no hook; the app still moves lastTurnEdgeAt when the turn stops.

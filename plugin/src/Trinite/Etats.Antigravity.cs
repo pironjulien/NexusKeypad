@@ -57,9 +57,45 @@ namespace Loupedeck.TrinitePlugin
             }
 
             var depuis = hook?.Quand ?? activite;
-            var vu = this.Vu(2, id, depuis);
+            var vu = this.Vu(2, id, depuis) || VueParAntigravity(id) > depuis;
             var regardee = etat == Etat.Fini && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
             return new(2, id, titre, regardee ? Etat.Repos : etat, depuis, activite == DateTime.MinValue ? depuis : activite, vu, relais, source);
+        }
+
+        // Dernière vue de la conversation notée par Antigravity lui-même (annotations/<id>.pbtxt, last_user_view_time) :
+        // vue même quand il est lancé sans son port 9227 (raccourci Windows), où le pad ne voit pas la sélection (05/11).
+        private static String AnnotationsAgy => Path.Combine(Maison, ".gemini", "antigravity", "annotations");
+
+        private static DateTime VueParAntigravity(String id)
+        {
+            try
+            {
+                var f = Path.Combine(AnnotationsAgy, id + ".pbtxt");
+                if (!File.Exists(f))
+                {
+                    return DateTime.MinValue;
+                }
+
+                using var flux = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var lecteur = new StreamReader(flux);
+                return DerniereVueAgy(lecteur.ReadToEnd());
+            }
+            catch (Exception)
+            {
+                return DateTime.MinValue; // fichier en cours d'écriture : relu au tour suivant
+            }
+        }
+
+        internal static DateTime DerniereVueAgy(String pbtxt)
+        {
+            var m = Regex.Match(pbtxt ?? "", @"last_user_view_time\s*:?\s*\{\s*seconds\s*:\s*(\d+)(?:\s+nanos\s*:\s*(\d+))?");
+            if (!m.Success)
+            {
+                return DateTime.MinValue;
+            }
+
+            var quand = DateTimeOffset.FromUnixTimeSeconds(Int64.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)).UtcDateTime;
+            return m.Groups[2].Success ? quand.AddTicks(Int64.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture) / 100) : quand;
         }
 
         // Conversations d'Antigravity ouvertes par le relais, par sujet : conversation → sujet.

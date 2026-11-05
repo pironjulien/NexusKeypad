@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.31] - 2026-11-05
+
+### Fixed
+- An Antigravity conversation opened by the user no longer keeps its green "done" ring when Antigravity was started
+  without its debugging port (Windows shortcut): the keypad also reads the last view Antigravity records itself
+  (`annotations/<id>.pbtxt`).
+
 ## [1.8.30] - 2026-11-04
 
 ### Added
