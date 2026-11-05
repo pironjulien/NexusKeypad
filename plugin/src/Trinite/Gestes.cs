@@ -367,7 +367,7 @@ namespace Loupedeck.TrinitePlugin
                     var p = Uia.DicterClaude(fenetre);
                     return p is not null && p.Contains("introuvable", StringComparison.Ordinal) ? Raccourci(fenetre, VK_CONTROL, 0x44) : p;
                 }),
-                1 => Saisie(Cdp.PortCodex, Js.Cliquer(Js.MicroCodex)),
+                1 => DicterCodex(fenetre),
                 2 => microAgy && Uia.Cliquer(Observateur.Processus[2], Js.MicroAntigravity) ? null : Raccourci(fenetre, VK_CONTROL, 0x4D),
                 _ => DicteeWindows(),
             };
@@ -407,6 +407,62 @@ namespace Loupedeck.TrinitePlugin
         {
             AttendreClaude();
             return geste();
+        }
+
+        // Codex : sa dictée par simple appui (touche de ~/.codex/keybindings.json, F13 posée par le connecteur), sinon son
+        // bouton micro par le port. La touche partie, jamais de clic en plus : deux micros ne s'ouvrent pas.
+        private static Boolean _dicteeCodexParTouche;
+
+        private static String DicterCodex(IntPtr fenetre)
+        {
+            if (Connecteurs.CleDicteeCodex() is { } cle && Accelerateur(cle) is { } touches)
+            {
+                var probleme = Raccourci(fenetre, touches);
+                _dicteeCodexParTouche = probleme is null;
+                return probleme;
+            }
+
+            _dicteeCodexParTouche = false;
+            return Saisie(Cdp.PortCodex, Js.Cliquer(Js.MicroCodex));
+        }
+
+        // « F13 », « Insert », « Ctrl+Shift+K »… (format de keybindings.json) → touches virtuelles ; null si inconnu.
+        internal static Byte[] Accelerateur(String cle)
+        {
+            var touches = new List<Byte>();
+            var morceaux = cle.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (morceaux.Length == 0) { return null; }
+            foreach (var m in morceaux[..^1])
+            {
+                Byte? mod = m.ToLowerInvariant() switch
+                {
+                    "ctrl" or "control" or "cmdorctrl" or "commandorcontrol" or "mod" => VK_CONTROL,
+                    "shift" => 0x10,
+                    "alt" or "option" => VK_MENU,
+                    "win" or "meta" or "super" => VK_LWIN,
+                    _ => null,
+                };
+                if (mod is null) { return null; }
+                touches.Add(mod.Value);
+            }
+
+            var t = morceaux[^1];
+            Byte? touche = t.ToLowerInvariant() switch
+            {
+                "insert" => 0x2D,
+                "delete" => 0x2E,
+                "home" => 0x24,
+                "end" => 0x23,
+                "pageup" => 0x21,
+                "pagedown" => 0x22,
+                "space" => 0x20,
+                var f when f.Length is 2 or 3 && f[0] == 'f' && Int32.TryParse(f[1..], out var n) && n is >= 1 and <= 24 => (Byte)(0x70 + n - 1),
+                var c when c.Length == 1 && Char.IsAsciiLetterOrDigit(c[0]) => (Byte)Char.ToUpperInvariant(c[0]),
+                _ => null,
+            };
+            if (touche is null) { return null; }
+            touches.Add(touche.Value);
+            return touches.ToArray();
         }
 
         // Raccourci officiel de l'appli, seulement si sa fenêtre est encore devant ; null si parti, sinon la raison.
@@ -489,6 +545,15 @@ namespace Loupedeck.TrinitePlugin
                 if (resultat != "ok") { return false; }
                 return Uia.ConfirmerEtat(() => DicteeObservee(1), false) ? true : null;
             }
+            // Dictée de Codex lancée par sa touche globale : la même touche l'arrête, où que soit l'utilisateur.
+            if (_dicteeCodexParTouche && Lancee(1) && DicteeObservee(1) != false
+                && Connecteurs.CleDicteeCodex() is { } cle && Accelerateur(cle) is { } touches)
+            {
+                Touches(touches);
+                _dicteeCodexParTouche = false;
+                return Uia.ConfirmerEtat(() => DicteeObservee(1), false) ? true : null;
+            }
+
             Boolean? codex = !Lancee(1) ? false
                 : Cdp.PageOuverte(Cdp.PortCodex, Cdp.BulleVocaleCodex) switch
                 {

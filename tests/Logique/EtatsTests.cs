@@ -91,6 +91,23 @@ public sealed class EtatsTests
     }
 
     [Fact]
+    public void Dictee_de_Codex_par_simple_appui()
+    {
+        var tienne = System.Text.Json.Nodes.JsonNode.Parse("""[{"command":"globalDictationHold","key":"Insert"}]""")!.AsArray();
+        var pose = Connecteurs.ToucheDicteeCodex(tienne, actif: true)!;
+        Vrai(pose.Count == 2 && pose[1]!["key"]!.GetValue<String>() == "F13" && pose[0]!["key"]!.GetValue<String>() == "Insert", "F13 ajoutée, Insert gardé");
+        Vrai(Connecteurs.ToucheDicteeCodex(pose, actif: true) is null, "déjà posée : rien ne change");
+        var retire = Connecteurs.ToucheDicteeCodex(pose, actif: false)!;
+        Vrai(retire.Count == 1 && retire[0]!["command"]!.GetValue<String>() == "globalDictationHold", "retrait : seule notre F13 part");
+        var sienne = System.Text.Json.Nodes.JsonNode.Parse("""[{"command":"globalDictationSingleTap","key":"Ctrl+M"}]""")!.AsArray();
+        Vrai(Connecteurs.ToucheDicteeCodex(sienne, actif: true) is null && Connecteurs.ToucheDicteeCodex(sienne, actif: false) is null, "la touche de l'utilisateur n'est jamais touchée");
+        Vrai(Gestes.Accelerateur("F13")!.SequenceEqual(new Byte[] { 0x7C }), "F13");
+        Vrai(Gestes.Accelerateur("Ctrl+Shift+K")!.SequenceEqual(new Byte[] { 0x11, 0x10, 0x4B }), "combinaison");
+        Vrai(Gestes.Accelerateur("Insert")!.SequenceEqual(new Byte[] { 0x2D }), "Insert");
+        Vrai(Gestes.Accelerateur("Hyper+K") is null && Gestes.Accelerateur("Ctrl+Fn") is null, "inconnu : bouton micro");
+    }
+
+    [Fact]
     public void Non_lus_de_Codex()
     {
         var json = """{"electron-thread-read-state-v1":{"version":1,"unreadByIdentity":{"a":{"local:x":[],"durable:y":["t1","t2"]},"b":{"local:x":["t3"]}}}}""";

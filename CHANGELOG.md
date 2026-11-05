@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.34] - 2026-11-05
+
+### Added
+- Codex dictation without reading the screen: setting up the Codex connector adds a single-press dictation key
+  (`globalDictationSingleTap` on F13, a key no keyboard has) to `~/.codex/keybindings.json` when the user has none;
+  the keypad presses it to start and again to stop. A key the user chose, and the hold-to-dictate key, are never
+  changed; removing the connector removes only that F13. Without a single-press key, the microphone button is used as
+  before.
+
 ## [1.8.33] - 2026-11-05
 
 ### Added

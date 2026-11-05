@@ -36,7 +36,7 @@ namespace Loupedeck.TrinitePlugin
     {
         public const String Nom = "nexus-keypad";
         // The product's version: the connector folder is also NexusSystem's catalog plugin, pinned at the release tag.
-        public const String Version = "1.8.33";
+        public const String Version = "1.8.34";
         private const String ProgrammeHook = "__NEXUS_KEYPAD_HOOK__";
         private static readonly String[] Agents = ["claude", "codex", "antigravity"];
         private static readonly Object Verrou = new();
@@ -72,6 +72,57 @@ namespace Loupedeck.TrinitePlugin
         private static void AgentValide(Int32 agent)
         {
             if (agent < 0 || agent >= Agents.Length) { throw new ArgumentOutOfRangeException(nameof(agent)); }
+        }
+
+        // Dictée de Codex par simple appui : ses raccourcis vivent dans ~/.codex/keybindings.json (liste {command, key}).
+        // Sans touche « globalDictationSingleTap » à l'utilisateur, le connecteur pose F13 (absente des claviers, jamais
+        // prise à une autre commande) ; retiré, il ne retire que cette F13-là. Une touche choisie par l'utilisateur, et
+        // sa dictée à maintenir (globalDictationHold), ne sont jamais touchées (05/11).
+        public const String CommandeDicteeCodex = "globalDictationSingleTap";
+        public const String ToucheDicteePad = "F13";
+
+        private static String RaccourcisCodex => Path.Combine(Codex, "keybindings.json");
+
+        private static JsonArray LireRaccourcisCodex()
+        {
+            if (!File.Exists(RaccourcisCodex)) { return []; }
+            var texte = File.ReadAllText(RaccourcisCodex, Encoding.UTF8).TrimStart('﻿');
+            return String.IsNullOrWhiteSpace(texte) ? [] : JsonNode.Parse(texte) as JsonArray
+                ?? throw new InvalidDataException("keybindings.json de Codex doit contenir une liste.");
+        }
+
+        // Touche de dictée par simple appui de Codex telle qu'il la lit (la sienne ou F13), ou null.
+        public static String CleDicteeCodex()
+        {
+            try
+            {
+                return LireRaccourcisCodex().OfType<JsonObject>()
+                    .Where(o => o["command"]?.GetValue<String>() == CommandeDicteeCodex)
+                    .Select(o => o["key"]?.GetValue<String>()).FirstOrDefault(k => !String.IsNullOrWhiteSpace(k));
+            }
+            catch (Exception)
+            {
+                return null; // fichier illisible : le bouton micro, comme avant
+            }
+        }
+
+        // Liste à écrire, ou null si rien ne change.
+        internal static JsonArray ToucheDicteeCodex(JsonArray raccourcis, Boolean actif)
+        {
+            Boolean Dictee(JsonNode n) => n is JsonObject o && o["command"]?.GetValue<String>() == CommandeDicteeCodex;
+            var notre = raccourcis.FirstOrDefault(n => Dictee(n) && n!["key"]?.GetValue<String>() == ToucheDicteePad);
+            if (actif)
+            {
+                if (raccourcis.Any(Dictee)) { return null; } // la sienne, ou la nôtre déjà posée
+                var copie = raccourcis.DeepClone().AsArray();
+                copie.Add((JsonNode)new JsonObject { ["command"] = CommandeDicteeCodex, ["key"] = ToucheDicteePad });
+                return copie;
+            }
+
+            if (notre is null) { return null; }
+            var reste = raccourcis.DeepClone().AsArray();
+            reste.RemoveAt(raccourcis.IndexOf(notre));
+            return reste;
         }
 
         private static JsonObject LireJson(String chemin) => File.Exists(chemin)
@@ -933,6 +984,11 @@ namespace Loupedeck.TrinitePlugin
                         }
 
                         transaction.Poser(configuration, Utf8(texte));
+                        if (ToucheDicteeCodex(LireRaccourcisCodex(), actif) is { } raccourcis)
+                        {
+                            transaction.Poser(RaccourcisCodex, Utf8(raccourcis.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n"));
+                        }
+
                         if (actif && nexus is { Dossier: { } installe })
                         {
                             // Codex's manager owns that copy: the receipt attests its installed files, never rewrites them.
