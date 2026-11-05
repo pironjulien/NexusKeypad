@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.33] - 2026-11-05
+
+### Added
+- Official app shortcuts as fallback when the screen cannot be read:
+  - Dictation: Claude's own dictation shortcut (Ctrl+D by default) when its microphone button is not found, and
+    Antigravity's Toggle Voice Recording (Ctrl+M by default) when its button is not found; Antigravity's recording is
+    also confirmed through UI Automation when its debugging port is closed.
+  - Paste (screenshot, phone photo) without a debugging port: Codex's "focus main chat" (Alt+L) and Antigravity's
+    Focus Input (Ctrl+L) put the cursor in the message box first.
+  - Opening a Codex conversation that is waiting for you, when neither its link nor its port answers: Codex's "next
+    chat needing your attention" (Ctrl+Alt+A).
+
+### Changed
+- Keys sent by the keypad carry the key's physical code, like a real keyboard, so shortcuts read by key position also
+  work with AZERTY and other layouts.
+
 ## [1.8.32] - 2026-11-05
 
 ### Changed

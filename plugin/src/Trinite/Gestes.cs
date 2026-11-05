@@ -74,8 +74,17 @@ namespace Loupedeck.TrinitePlugin
                     Lancer("codex://threads/" + Uri.EscapeDataString(c.Id));
                     Premier(agent);
                     if (Attendre(Affichee, 2000)) { return true; }
-                    return Cdp.Evaluer(Cdp.PortCodex, Js.OuvrirCodex(c.Id)) is { ValueKind: System.Text.Json.JsonValueKind.True }
-                        && Attendre(Affichee, 2000);
+                    if (Cdp.Evaluer(Cdp.PortCodex, Js.OuvrirCodex(c.Id)) is { ValueKind: System.Text.Json.JsonValueKind.True }
+                        && Attendre(Affichee, 2000)) { return true; }
+
+                    // Ni lien ni port : pour une conversation qui t'attend, le raccourci officiel « Chat suivant requérant
+                    // votre attention » (Ctrl+Alt+A), qui va aux non-lues et aux questions comme le pad (05/11, lot B).
+                    if (c.Alerte && Uia.FenetrePrincipale(Observateur.Processus[1]) is var codex && codex != IntPtr.Zero && GetForegroundWindow() == codex)
+                    {
+                        Touches(VK_CONTROL, VK_MENU, 0x41);
+                    }
+
+                    return false;
                 default:
                     // Fenêtre fermée (dans la zone de notification) : pas de page sur le port tant qu'elle n'est pas rouverte. Sa
                     // page est attendue passivement avant le clic unique sur sa ligne ou sa route.
@@ -345,18 +354,21 @@ namespace Loupedeck.TrinitePlugin
             var fenetre = GetForegroundWindow();
             var agent = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan());
             if (agent >= 0 && !Connecteurs.EvenementsActifs(Observateur.Agents[agent])) { return -1; }
-            if (agent == 2 && !Uia.ConfirmerEtat(() => GetForegroundWindow() == fenetre
-                && Uia.BoutonActif(fenetre, Js.MicroAntigravity), true, 3000))
-            {
-                PluginLog.Warning("Dictée : le micro de l'application n'est pas encore disponible, aucun clic envoyé.");
-                return -1;
-            }
+            // Antigravity : son bouton micro (clic natif) ; introuvable, son raccourci officiel Toggle Voice Recording
+            // (Ctrl+M par défaut, Settings › Shortcuts). Claude : son bouton ; introuvable, son raccourci de dictée officiel
+            // (Ctrl+D par défaut, réglage « Dictation shortcut ») — 05/11, lot B.
+            var microAgy = agent == 2 && Uia.ConfirmerEtat(() => GetForegroundWindow() == fenetre
+                && Uia.BoutonActif(fenetre, Js.MicroAntigravity), true, 3000);
             if (agent >= 0 && GetForegroundWindow() != fenetre) { return -1; }
             var probleme = agent switch
             {
-                0 => AttendreEt(() => Uia.DicterClaude(fenetre)),
+                0 => AttendreEt(() =>
+                {
+                    var p = Uia.DicterClaude(fenetre);
+                    return p is not null && p.Contains("introuvable", StringComparison.Ordinal) ? Raccourci(fenetre, VK_CONTROL, 0x44) : p;
+                }),
                 1 => Saisie(Cdp.PortCodex, Js.Cliquer(Js.MicroCodex)),
-                2 => Uia.Cliquer(Observateur.Processus[2], Js.MicroAntigravity) ? null : "bouton de dictée d'Antigravity introuvable",
+                2 => microAgy && Uia.Cliquer(Observateur.Processus[2], Js.MicroAntigravity) ? null : Raccourci(fenetre, VK_CONTROL, 0x4D),
                 _ => DicteeWindows(),
             };
             if (probleme is not null)
@@ -397,6 +409,19 @@ namespace Loupedeck.TrinitePlugin
             return geste();
         }
 
+        // Raccourci officiel de l'appli, seulement si sa fenêtre est encore devant ; null si parti, sinon la raison.
+        private static String Raccourci(IntPtr fenetre, params Byte[] touches)
+        {
+            Thread.Sleep(80);
+            if (GetForegroundWindow() != fenetre)
+            {
+                return "la fenêtre a changé, raccourci non envoyé";
+            }
+
+            Touches(touches);
+            return null;
+        }
+
         private static String DicteeWindows()
         {
             Thread.Sleep(80);
@@ -412,11 +437,20 @@ namespace Loupedeck.TrinitePlugin
             var fenetre = GetForegroundWindow();
             var agent = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan(fenetre));
             if (agent >= 0 && !Connecteurs.EvenementsActifs(Observateur.Agents[agent])) { return null; }
+            // Port muet (appli lancée sans lui) : le raccourci officiel qui met le curseur dans la saisie — Codex « Placer le
+            // curseur dans le chat principal » (Alt+L), Antigravity « Focus Input » (Ctrl+L) — pour un ajout seulement
+            // (vider le champ demande le port).
+            String Port(Int32 port, Byte[] raccourci)
+            {
+                var p = Saisie(port, Js.PreparerSaisie(vide));
+                return p == PortMuet && !vide ? Raccourci(fenetre, raccourci) : p;
+            }
+
             var probleme = agent != cible ? "l'appli devant n'est plus l'IA visée" : agent switch
             {
                 0 => AttendreEt(() => Uia.PreparerSaisieClaude(fenetre, vide)),
-                1 => Saisie(Cdp.PortCodex, Js.PreparerSaisie(vide)),
-                2 => Saisie(Cdp.PortAntigravity, Js.PreparerSaisie(vide)),
+                1 => Port(Cdp.PortCodex, [VK_MENU, 0x4C]),
+                2 => Port(Cdp.PortAntigravity, [VK_CONTROL, 0x4C]),
                 _ => "aucune appli d'IA au premier plan",
             };
             if (probleme is null)
@@ -497,7 +531,12 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 if (agent == 0) { return Uia.DicteeClaudeObservee(); }
-                if (agent == 2) { return Lire(Cdp.PortAntigravity); }
+                if (agent == 2)
+                {
+                    // Port muet : son bouton d'arrêt relu par UI Automation (enregistrement en cours).
+                    return Lire(Cdp.PortAntigravity) ?? (Uia.FenetrePrincipale(Observateur.Processus[2]) is var f && f != IntPtr.Zero
+                        ? Uia.BoutonActif(f, Js.Arrets) : null);
+                }
                 if (agent != 1) { return null; }
                 var principale = Lire(Cdp.PortCodex);
                 var bulle = Cdp.PageOuverte(Cdp.PortCodex, Cdp.BulleVocaleCodex) switch
@@ -516,10 +555,12 @@ namespace Loupedeck.TrinitePlugin
             catch (Exception) { return null; }
         }
 
+        private const String PortMuet = "port de débogage muet";
+
         private static String Saisie(Int32 port, String js, String url = null)
         {
             var r = Cdp.Evaluer(port, js, url);
-            return r?.GetString() is "ok" ? null : r?.GetString() ?? "port de débogage muet";
+            return r?.GetString() is "ok" ? null : r?.GetString() ?? PortMuet;
         }
 
         // Met l'appli au premier plan, en plein écran, ou la lance si elle est fermée.
@@ -879,14 +920,18 @@ namespace Loupedeck.TrinitePlugin
 
         private static void Touches(params Byte[] touches)
         {
+            // Code physique de la touche (disposition active) joint à chaque frappe, comme un vrai clavier : une appli qui
+            // lit KeyboardEvent.code (raccourcis Ctrl+M, Alt+L…) la reconnaît aussi en AZERTY (05/11, lot B).
+            // Touches étendues (Windows, flèches, pages…) : préfixe E0, sinon le code physique désignerait une autre touche.
+            static UInt32 Etendue(Byte k) => k is 0x5B or 0x5C or (>= 0x21 and <= 0x2E) ? 1u : 0u;
             foreach (var k in touches)
             {
-                keybd_event(k, 0, 0, UIntPtr.Zero);
+                keybd_event(k, (Byte)MapVirtualKey(k, 0), Etendue(k), UIntPtr.Zero);
             }
 
             foreach (var k in touches.Reverse())
             {
-                keybd_event(k, 0, 2, UIntPtr.Zero);
+                keybd_event(k, (Byte)MapVirtualKey(k, 0), Etendue(k) | 2, UIntPtr.Zero);
             }
         }
 
@@ -907,6 +952,7 @@ namespace Loupedeck.TrinitePlugin
         private const Byte VK_F24 = 0x87;
         private const Byte VK_RETURN = 0x0D;
         private const Byte VK_CONTROL = 0x11;
+        private const Byte VK_MENU = 0x12; // Alt
         private const UInt32 KEYEVENTF_KEYUP = 0x0002;
         private const UInt32 KEYEVENTF_UNICODE = 0x0004;
 
@@ -936,6 +982,9 @@ namespace Loupedeck.TrinitePlugin
 
         [DllImport("user32.dll")]
         private static extern void keybd_event(Byte bVk, Byte bScan, UInt32 dwFlags, UIntPtr dwExtraInfo);
+
+        [DllImport("user32.dll")]
+        private static extern UInt32 MapVirtualKey(UInt32 uCode, UInt32 uMapType);
 
         [DllImport("user32.dll")]
         private static extern Boolean SetForegroundWindow(IntPtr hWnd);
