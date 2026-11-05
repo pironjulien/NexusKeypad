@@ -892,6 +892,55 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+        // Touche horloge (sans téléphone) : ouvre le centre de notifications de Windows ; un deuxième appui le referme par
+        // Échap, comme au clavier (il restait devant, et les touches suivantes visaient alors la mauvaise fenêtre, 05/11).
+        // Le panneau est reconnu à sa fenêtre (CoreWindow de ShellExperienceHost) gardée au premier appui, pas à son
+        // titre, traduit selon la langue de Windows.
+        public static void CentreDeNotifications()
+        {
+            var devant = GetForegroundWindow();
+            if (devant != IntPtr.Zero && devant == _centreNotifications)
+            {
+                Touches(VK_ESCAPE);
+                return;
+            }
+
+            Lancer("ms-actioncenter:");
+            Attendre(() => EstPanneauShell(GetForegroundWindow()), 2000);
+            if (EstPanneauShell(GetForegroundWindow()))
+            {
+                _centreNotifications = GetForegroundWindow();
+            }
+        }
+
+        private static IntPtr _centreNotifications;
+
+        private static Boolean EstPanneauShell(IntPtr fenetre)
+        {
+            var classe = new System.Text.StringBuilder(64);
+            if (fenetre == IntPtr.Zero || GetClassName(fenetre, classe, classe.Capacity) == 0
+                || classe.ToString() != "Windows.UI.Core.CoreWindow" || ProcessusDeFenetre(fenetre, out var pid) == 0)
+            {
+                return false;
+            }
+
+            try
+            {
+                using var processus = Process.GetProcessById((Int32)pid);
+                return processus.ProcessName.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (ArgumentException)
+            {
+                return false; // processus terminé entre-temps
+            }
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern Int32 GetClassName(IntPtr h, System.Text.StringBuilder classe, Int32 max);
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")]
+        private static extern UInt32 ProcessusDeFenetre(IntPtr hWnd, out UInt32 pid);
+
         public static void Devant(IntPtr fenetre)
         {
             // Restaurée ou relancée, l'appli reprenait parfois une petite fenêtre (Codex, 24/10) : toujours agrandie.
@@ -1015,6 +1064,7 @@ namespace Loupedeck.TrinitePlugin
 
         private const Byte VK_LWIN = 0x5B;
         private const Byte VK_F24 = 0x87;
+        private const Byte VK_ESCAPE = 0x1B;
         private const Byte VK_RETURN = 0x0D;
         private const Byte VK_CONTROL = 0x11;
         private const Byte VK_MENU = 0x12; // Alt

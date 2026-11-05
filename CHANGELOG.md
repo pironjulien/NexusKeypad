@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.35] - 2026-11-05
+
+### Fixed
+- Clock key (Photo without a phone): a second press now closes the Windows notification centre with Escape, as on a
+  keyboard. The panel stayed in front, so the next keys (Gmail, Calendar, Messages) no longer recognised their own
+  window as the one in front. The panel is recognised by its window, not by its title, which depends on the language.
+
 ## [1.8.34] - 2026-11-05
 
 ### Added

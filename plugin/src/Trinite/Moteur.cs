@@ -454,8 +454,9 @@ namespace Loupedeck.TrinitePlugin
                                 () => this._captureCollee = this._horloge.Elapsed.TotalSeconds);
                             break;
                         case Photo when this._observateur.Telephone.Derniere is null:
-                            // Sans téléphone, la touche est une horloge : notifications et calendrier de Windows (Win+N).
-                            Gestes.Lancer("ms-actioncenter:");
+                            // Sans téléphone, la touche est une horloge : notifications et calendrier de Windows (Win+N) ;
+                            // un deuxième appui les referme.
+                            Gestes.CentreDeNotifications();
                             break;
                         case Photo:
                             geste = "photo";
