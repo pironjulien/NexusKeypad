@@ -235,7 +235,8 @@ flowchart LR
   [codex-lb](https://github.com/Soju06/codex-lb) when one runs on port 2455. Conversations are opened through the
   app's debugging port 9223.
 - **Antigravity**: its sidebar read through the debugging port 9227, plus its NexusKeypad plugin's hooks
-  (`PreInvocation`, `PreToolUse`, `PostToolUse`, `Stop`). Quota: the visible *View Usage* panel is read without clicking;
+  (`PreInvocation`, `PreToolUse`, `PostToolUse`, `Stop`); a finished turn counts as seen from the last view Antigravity
+  records itself (`~/.gemini/antigravity/annotations`), even without the port. Quota: the visible *View Usage* panel is read without clicking;
   otherwise its own *Settings › Models* page is opened briefly at most every 15 minutes when idle conditions allow it.
   There is no call to its internal language server or reuse of its token.
 - **Drawing**: pixel art computed from the clock, so a late frame still shows the right instant. Only key images that
