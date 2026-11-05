@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.36] - 2026-11-05
+
+### Fixed
+- Clock key: the third press opens the notification centre again. Once closed, the panel stays the foreground window
+  but hidden (cloaked), so 1.8.35 sent Escape to it instead of reopening it; only a visible panel is closed now.
+
 ## [1.8.35] - 2026-11-05
 
 ### Fixed

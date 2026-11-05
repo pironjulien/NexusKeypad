@@ -898,8 +898,10 @@ namespace Loupedeck.TrinitePlugin
         // titre, traduit selon la langue de Windows.
         public static void CentreDeNotifications()
         {
+            // Refermé, il reste au premier plan mais masqué (cloaked) : seul un panneau visible se referme.
             var devant = GetForegroundWindow();
-            if (devant != IntPtr.Zero && devant == _centreNotifications)
+            if (devant != IntPtr.Zero && devant == _centreNotifications
+                && Masquage(devant, 14, out var masque, sizeof(Int32)) == 0 && masque == 0) // DWMWA_CLOAKED
             {
                 Touches(VK_ESCAPE);
                 return;
@@ -937,6 +939,9 @@ namespace Loupedeck.TrinitePlugin
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern Int32 GetClassName(IntPtr h, System.Text.StringBuilder classe, Int32 max);
+
+        [DllImport("dwmapi.dll", EntryPoint = "DwmGetWindowAttribute")]
+        private static extern Int32 Masquage(IntPtr h, Int32 attribut, out Int32 valeur, Int32 taille);
 
         [DllImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")]
         private static extern UInt32 ProcessusDeFenetre(IntPtr hWnd, out UInt32 pid);
