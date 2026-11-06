@@ -101,6 +101,8 @@ namespace Loupedeck.TrinitePlugin
                     return issue.Wait(TimeSpan.FromSeconds(20)) ? issue.Result : "en cours depuis plus de 20 s";
                 case "etat":
                     return this._moteur.Resume ?? "";
+                case "cadence" when mots.Length <= 2:
+                    return this._moteur.Cadence(mots.Length == 2 && Int32.TryParse(mots[1], out var ips) && ips is >= 1 and <= 60 ? ips : 0);
 #if !POSTE
                 case "snapshot":
                     return this._moteur.Snapshot();
@@ -114,7 +116,7 @@ namespace Loupedeck.TrinitePlugin
                     return "Utiliser la touche de l’IA pour l’activer, ou l’action NexusKeypad de cette IA dans Options+.";
 #endif
                 default:
-                    return "commandes : capture | appui <1-18> | etat | snapshot | connexions | releve | etats-en-direct";
+                    return "commandes : capture | appui <1-18> | etat | cadence [1-60] | snapshot | connexions | releve | etats-en-direct";
             }
         }
 

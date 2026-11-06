@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.39] - 2026-11-06
+
+### Changed
+- The heads of working agents (or of an agent calling the user) animate at 8 frames per second again; every other key
+  stays at 4. An idle head does not change, so its rate costs nothing. Bench of 2026-11-06 (Logi plugin service, its
+  extension and the Options+ agent, share of one core): 4 frames per second on every key about 58 %, 8 on every key
+  about 97 %, saturation near 20 (about 65 images per second, 157 %); the GPU is never used.
+
+### Added
+- `outils\pad.ps1 cadence [1-60]`: changes the animation rate of the running plugin for a bench, without restarting
+  the Logi service, and reports the number of images sent so far. A restarted plugin returns to its shipped rate.
+
 ## [1.8.38] - 2026-11-06
 
 ### Fixed

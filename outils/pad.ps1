@@ -5,6 +5,7 @@
 #   outils\pad.ps1 --reel appui <1-18>  -> simulated press (pad places: 1 Codex, 2 Claude, 3 Antigravity, 4-6 their quotas,
 #                                          7 Capture, 8 Photo, 9 Dictation; 10-18: page 2)
 #   outils\pad.ps1 etat                 -> summary of the last reading
+#   outils\pad.ps1 cadence [1-60]       -> animation rate (images per second) for a bench, and images sent so far
 #   outils\pad.ps1 snapshot             -> dated JSON cache, without titles or any extra UI reading
 #   outils\pad.ps1 --reel releve        -> forced reading of Antigravity's quota (its Settings > Models page)
 #   outils\pad.ps1 etats-en-direct      -> the "Live states" action's question (set or remove the hooks)

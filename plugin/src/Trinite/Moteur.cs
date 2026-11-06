@@ -36,7 +36,7 @@ namespace Loupedeck.TrinitePlugin
     }
 
     // Lit l'état chaque seconde (le téléphone toutes les 3 s, et dès qu'il prévient) et redessine les touches animées
-    // 4 fois par seconde, en n'envoyant au pad que les images qui ont changé.
+    // jusqu'à 8 fois par seconde, en n'envoyant au pad que les images qui ont changé.
     public sealed class Moteur : IDisposable
     {
         public const Int32 Capture = 6;
@@ -312,6 +312,7 @@ namespace Loupedeck.TrinitePlugin
                 this._images[touche] = image;
             }
 
+            Interlocked.Increment(ref this._envois);
             this._redessiner(touche);
         }
 
@@ -724,12 +725,29 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        // Une seule cadence pour toutes les touches animées : 4 images par seconde. Chaque image envoyée est dessinée,
-        // encodée et poussée au pad par le service Logi, qui en paie l'essentiel (profil du 06/11/2026 : ~50 % d'un cœur
-        // en continu avec les têtes à 8 images par seconde). Les animations suivent le temps réel (Scene.Temps), pas le
-        // nombre de tours : leur vitesse ne change pas avec la cadence.
-        internal const Int32 AnimationMs = 250;
-        private const Int32 ToursParSeconde = 1000 / AnimationMs;
+        // Têtes des IA qui travaillent ou appellent l'utilisateur : 8 images par seconde, à chaque tour ; tout le reste un
+        // tour sur deux, 4 images par seconde. Chaque image envoyée est dessinée, encodée et poussée au pad par le service
+        // Logi, qui en paie l'essentiel : banc du 06/11/2026 (service, extension et agent Options+, en % d'un cœur) à 4 i/s
+        // partout ~58 %, 8 i/s partout ~97 %, saturation vers 20 i/s (~65 images/s, 157 %) ; GPU jamais utilisé. Une tête au
+        // repos ne change pas d'image : la cadence ne lui coûte rien. Les animations suivent le temps réel (Scene.Temps),
+        // pas le nombre de tours : leur vitesse ne change pas avec la cadence.
+        internal const Int32 AnimationMs = 125;
+        private Int32 _animationMs = AnimationMs;
+        private Int32 ToursParSeconde => Math.Max(1, 1000 / Volatile.Read(ref this._animationMs));
+        private Int64 _envois;
+
+        // Banc (outils\pad.ps1 cadence <i/s>) : change la cadence du plugin en marche, sans relancer le service Logi ; le
+        // plugin relancé repart à la cadence livrée. Renvoie la cadence et les images envoyées au service depuis le départ.
+        internal String Cadence(Int32 imagesParSeconde)
+        {
+            if (imagesParSeconde > 0)
+            {
+                Volatile.Write(ref this._animationMs, Math.Max(1, 1000 / imagesParSeconde));
+                this._animation?.Change(0, Volatile.Read(ref this._animationMs));
+            }
+
+            return $"cadence {1000.0 / Volatile.Read(ref this._animationMs):0.#} i/s, {Interlocked.Read(ref this._envois)} images envoyées";
+        }
 
         private void Animer()
         {
@@ -741,25 +759,28 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 this._tic++;
-                // Écran éteint, pad gardé allumé : ciel de nuit sur la page affichée, les IA à chaque tour, le ciel un tour
-                // sur deux (scintillement lent, peu d'images au pad).
+                // Écran éteint, pad gardé allumé : ciel de nuit sur la page affichée, les IA 4 fois par seconde, le ciel 2 fois
+                // (scintillement lent, peu d'images au pad).
                 if (this._instantane.Eteint)
                 {
-                    var page2 = this._page == 2;
-                    for (var t = page2 ? VolumeMoins : 0; t < (page2 ? Touches : 9); t++)
+                    if (this._tic % 2 == 0)
                     {
-                        if (t < 3 || this._tic % 2 == 0)
+                        var page2 = this._page == 2;
+                        for (var t = page2 ? VolumeMoins : 0; t < (page2 ? Touches : 9); t++)
                         {
-                            this.Envoyer(t);
+                            if (t < 3 || this._tic % 4 == 0)
+                            {
+                                this.Envoyer(t);
+                            }
                         }
                     }
 
                     return;
                 }
 
-                // Seule la page affichée est relue et dessinée, toutes ses touches à chaque tour (sauf la photo ; sans
-                // téléphone, la touche est une horloge animée). Page 2 : le poste relu à chaque tour (quelques appels
-                // locaux). Seules les images qui ont changé partent au pad.
+                // Seule la page affichée est relue et dessinée. Page 1 : têtes qui travaillent ou appellent l'utilisateur 8 fois
+                // par seconde, le reste 4 fois (sauf la photo ; sans téléphone, la touche est une horloge animée). Page 2 :
+                // relue et dessinée 4 fois par seconde. Seules les images qui ont changé partent au pad.
                 if (this._page == 2)
                 {
                     // Édition PC Dashboard : ses touches peuvent n'être sur aucune page affichée du pad, et le service ne dit
@@ -769,7 +790,7 @@ namespace Loupedeck.TrinitePlugin
                     // processeur, mémoire ; ni Chrome ni le téléphone) : une image qui change part au service, qui la
                     // redemande si sa page est affichée, et tout reprend.
                     var sansDemande = Premiere >= 9 && this._horloge.Elapsed.TotalSeconds - this._demande > 3;
-                    if (sansDemande && this._tic % ToursParSeconde != 0)
+                    if (this._tic % 2 != 0 || (sansDemande && this._tic % ToursParSeconde != 0))
                     {
                         return;
                     }
@@ -792,10 +813,17 @@ namespace Loupedeck.TrinitePlugin
                     return;
                 }
 
+                var i = this._instantane;
                 var horloge = this._observateur.Telephone.Derniere is null;
                 for (var t = 0; t < 9; t++)
                 {
-                    if (t != Photo || horloge)
+#if POSTE
+                    var vive = false; // aucune IA sur PC Dashboard
+#else
+                    var vive = t < 3 && (i.EtatIA(t) is not (Etat.Repos or Etat.Ferme or Etat.Fini) || i.Premiere(t)?.Alerte == true
+                        || i.LiaisonsRelais().Count > 0 || i.DicteeIa == t || Gestes.LanceIlYA(t) < 15);
+#endif
+                    if ((t != Photo || horloge) && (vive || this._tic % 2 == 0))
                     {
                         this.Envoyer(t);
                     }
