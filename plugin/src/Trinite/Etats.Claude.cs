@@ -289,8 +289,33 @@ namespace Loupedeck.TrinitePlugin
 
         // Quota tenu sur disque par Claude de bureau (plan-usage-history.json) : historique officiel des deux
         // fenêtres exactes (5 h et semaine), tenu par l'application elle-même sans réseau ni interface.
-        public static Quota QuotaHistoriqueClaude(String json, DateTime maintenantUtc, String org = null)
+        public static Quota QuotaHistoriqueClaude(String json, DateTime maintenantUtc, String org = null) =>
+            QuotaHistoriqueClaude(json, maintenantUtc, org, out _);
+
+        // L'application n'écrit son historique que tous les quarts d'heure (une heure parfois, vu le 06/11/2026) : retenu
+        // avant la lecture en direct, il ramenait la jauge à une mesure ancienne une lecture sur deux (35 % puis 51 %).
+        // Plus vieux que FraicheurHistoriqueClaude, il cède la place au bouton Utilisation quand Claude est ouvert, et ne
+        // reste qu'en secours. La publication du plugin Nexus Pad, quand elle est acceptée, garde la priorité.
+        internal static readonly TimeSpan FraicheurHistoriqueClaude = TimeSpan.FromMinutes(2);
+
+        internal static Quota ChoisirQuotaClaude(Quota publie, Quota historique, DateTime? dateHistorique, DateTime maintenantUtc, Func<Quota> direct)
         {
+            if (publie is not null)
+            {
+                return publie;
+            }
+
+            if (historique is not null && dateHistorique is { } d && maintenantUtc - d <= FraicheurHistoriqueClaude)
+            {
+                return historique;
+            }
+
+            return direct?.Invoke() ?? historique;
+        }
+
+        internal static Quota QuotaHistoriqueClaude(String json, DateTime maintenantUtc, String org, out DateTime? dateEchantillon)
+        {
+            dateEchantillon = null;
             if (String.IsNullOrWhiteSpace(json))
             {
                 return null;
@@ -331,6 +356,7 @@ namespace Loupedeck.TrinitePlugin
                 var quand = ech.TryGetProperty("t", out var t) && t.TryGetInt64(out var ms)
                     ? DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime
                     : DateTime.MinValue;
+                dateEchantillon = quand == DateTime.MinValue ? null : quand;
 
                 Double? Fenetre(String nom, TimeSpan duree)
                 {
@@ -357,8 +383,9 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private Quota QuotaClaudeHistorique()
+        private Quota QuotaClaudeHistorique(out DateTime? dateEchantillon)
         {
+            dateEchantillon = null;
             try
             {
                 var dossier = DossierHistoriqueClaude();
@@ -367,7 +394,7 @@ namespace Loupedeck.TrinitePlugin
                     return null;
                 }
 
-                return QuotaHistoriqueClaudeCompte(dossier, this._compteClaude.Compte, DateTime.UtcNow, this._sessionClaudeAffiche);
+                return QuotaHistoriqueClaudeCompte(dossier, this._compteClaude.Compte, DateTime.UtcNow, out dateEchantillon, this._sessionClaudeAffiche);
             }
             catch (Exception)
             {
@@ -432,14 +459,18 @@ namespace Loupedeck.TrinitePlugin
 
         // L'historique mélange les organisations de l'application. L'ID exact affiché et sa fiche du compte courant
         // prouvent l'organisation ; sans cette preuve, le lecteur courant UIA reste le secours.
-        internal static Quota QuotaHistoriqueClaudeCompte(String dossier, String compte, DateTime maintenantUtc, String sessionAffichee = null)
+        internal static Quota QuotaHistoriqueClaudeCompte(String dossier, String compte, DateTime maintenantUtc, String sessionAffichee = null) =>
+            QuotaHistoriqueClaudeCompte(dossier, compte, maintenantUtc, out _, sessionAffichee);
+
+        internal static Quota QuotaHistoriqueClaudeCompte(String dossier, String compte, DateTime maintenantUtc, out DateTime? dateEchantillon, String sessionAffichee = null)
         {
+            dateEchantillon = null;
             try
             {
                 var org = OrganisationHistoriqueClaude(dossier, compte, sessionAffichee);
                 if (org is null) { return null; }
                 var fichier = Path.Combine(dossier, "plan-usage-history.json");
-                return QuotaHistoriqueClaude(File.ReadAllText(fichier), maintenantUtc, org);
+                return QuotaHistoriqueClaude(File.ReadAllText(fichier), maintenantUtc, org, out dateEchantillon);
             }
             catch (Exception)
             {

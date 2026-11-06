@@ -376,9 +376,9 @@ namespace Loupedeck.TrinitePlugin
                     this._quotas[0] = FusionnerQuotaClaude(this._quotas[0], null, this._perimetreQuotaClaude, perimetre);
                     this._perimetreQuotaClaude = perimetre;
                     var publie = this.QuotaClaudePlugin(out var valable);
-                    var lu = (perimetre is not null && valable ? publie : null)
-                        ?? this.QuotaClaudeHistorique()
-                        ?? (ouverte[0] ? Uia.QuotaClaude(this._sessionClaudeAffiche) : null);
+                    var historique = this.QuotaClaudeHistorique(out var dateHistorique);
+                    var lu = ChoisirQuotaClaude(perimetre is not null && valable ? publie : null, historique, dateHistorique, DateTime.UtcNow,
+                        ouverte[0] ? () => Uia.QuotaClaude(this._sessionClaudeAffiche) : null);
                     this._quotas[0] = FusionnerQuotaClaude(this._quotas[0], lu, perimetre, perimetre);
                 }
                 catch (Exception e)

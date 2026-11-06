@@ -274,6 +274,31 @@ public sealed class QuotaTests
     }
 
     [Fact]
+    public void Quota_Claude_historique_ancien_cede_a_la_lecture_en_direct()
+    {
+        // 06/11/2026 : l'historique de l'appli datait de 11 h 43 (35 %) quand le bouton Utilisation disait 51 % ; le pad
+        // alternait entre les deux une lecture sur deux.
+        var maintenant = MaintenantClaude;
+        var historique = new Quota(.35, .20);
+        var direct = new Quota(.51, .22);
+        var lectures = 0;
+        Quota Direct() { lectures++; return direct; }
+        Vrai(Observateur.QuotaHistoriqueClaude(Historique(Echantillon("org", 35, 20, maintenant.AddMinutes(-20))), maintenant, "org", out var date) is not null
+            && date == maintenant.AddMinutes(-20), "L'historique donne la date de son échantillon.");
+        Vrai(Observateur.ChoisirQuotaClaude(null, historique, maintenant.AddMinutes(-20), maintenant, Direct) == direct,
+            "Un historique vieux de 20 min cède la place à la lecture en direct.");
+        Vrai(Observateur.ChoisirQuotaClaude(null, historique, maintenant.AddSeconds(-30), maintenant, Direct) == historique && lectures == 1,
+            "Un historique récent suffit : pas de lecture en direct.");
+        Vrai(Observateur.ChoisirQuotaClaude(null, historique, maintenant.AddMinutes(-20), maintenant, null) == historique,
+            "Claude fermé : l'historique, même ancien, reste le secours.");
+        Vrai(Observateur.ChoisirQuotaClaude(null, historique, maintenant.AddMinutes(-20), maintenant, () => null) == historique,
+            "Lecture en direct impossible : l'historique reste le secours.");
+        var publie = new Quota(.58, .23);
+        Vrai(Observateur.ChoisirQuotaClaude(publie, historique, maintenant, maintenant, Direct) == publie && lectures == 1,
+            "La publication acceptée du plugin Nexus Pad garde la priorité.");
+    }
+
+    [Fact]
     public void Quota_Claude_publie_par_toute_session_du_compte_et_de_l_organisation()
     {
         // Recent sessions of the connected account (cliSessionId → organisation folder); another account's sessions are

@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.38] - 2026-11-06
+
+### Fixed
+- Claude quota: the 5-hour gauge no longer swings between two values from one reading to the next (35 % then 51 %
+  on 2026-11-06). Claude for Windows writes its usage history only every quarter of an hour, sometimes every hour, and
+  that history came before the live Usage button. A history sample older than 2 minutes now gives way to the live
+  reading while Claude is open; it stays the fallback when Claude is closed or the button cannot be read. An accepted
+  Nexus Pad plugin publication keeps priority.
+
 ## [1.8.37] - 2026-11-06
 
 ### Changed
