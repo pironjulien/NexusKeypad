@@ -597,7 +597,7 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 var resume = String.Join(" | ", Enumerable.Range(0, 3).Select(i =>
-                    $"{Observateur.Agents[i]} {this._instantane.Ouvertes[i]} conv. : {(!this._instantane.Ouverte[i] ? "Fermé" : this._instantane.Premiere(i)?.Etat.ToString() ?? "—")}{(this._instantane.Premiere(i)?.Alerte == true ? "·alerte" : "")}" +
+                    $"{Observateur.Agents[i]} {this._instantane.Ouvertes[i]} conv. : {(!this._instantane.Ouverte[i] ? "Fermé" : this._instantane.Premiere(i)?.Etat.ToString() ?? "—")}{(this._instantane.Alerte(i) is not null ? "·alerte" : "")}" +
                     $" ; quota 5 h {this._instantane.Quotas[i]?.Cinq * 100:0} % semaine {this._instantane.Quotas[i]?.Semaine * 100:0} %"));
                 if (resume != this._resume)
                 {
@@ -822,7 +822,7 @@ namespace Loupedeck.TrinitePlugin
 #if POSTE
                     var vive = false; // aucune IA sur PC Dashboard
 #else
-                    var vive = t < 3 && (i.EtatIA(t) is not (Etat.Repos or Etat.Ferme or Etat.Fini) || i.Premiere(t)?.Alerte == true
+                    var vive = t < 3 && (i.EtatIA(t) is not (Etat.Repos or Etat.Ferme or Etat.Fini) || i.Alerte(t) is not null
                         || i.LiaisonsRelais().Count > 0 || i.DicteeIa == t || Gestes.LanceIlYA(t) < 15);
 #endif
                     if ((t != Photo || horloge) && (vive || this._tic % ToursLents == 0))

@@ -49,6 +49,19 @@ public sealed class RenduTests
     }
 
     [Fact]
+    public void Claude_ferme_sans_anneau_meme_avec_une_fin_non_vue()
+    {
+        // Boot on 06/11: yesterday's unseen finish stays in Claude's session files; app closed, the key showed a cyan ring.
+        var fini = EtatsTests.Instantane() with { Conversations = [[EtatsTests.C(0, Etat.Fini)], [], []], Ouverte = [false, true, false] };
+        var vide = fini with { Conversations = [[], [], []] };
+        Vrai(fini.Alerte(0) is null, "appli fermée : aucune alerte");
+        Vrai(Rendu.Image(0, S(0.3, fini)).Pixels.AsSpan().SequenceEqual(Rendu.Image(0, S(0.3, vide)).Pixels), "appli fermée : touche sans anneau");
+        var ouverte = fini with { Ouverte = [true, true, false] };
+        Vrai(ouverte.Alerte(0) is not null, "appli ouverte : la fin non vue appelle");
+        Vrai(!Rendu.Image(0, S(0.3, ouverte)).Pixels.AsSpan().SequenceEqual(Rendu.Image(0, S(0.3, ouverte with { Conversations = [[], [], []] })).Pixels), "appli ouverte : anneau");
+    }
+
+    [Fact]
     public void Planches_de_l_apercu()
     {
         // apercu (built with these tests) compiles the same sources and draws the 9 keys in every situation.

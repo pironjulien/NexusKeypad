@@ -92,7 +92,7 @@ namespace Loupedeck.TrinitePlugin
             {
                 try
                 {
-                    if (!Auxiliaire(p.Id) && (aine is null || p.StartTime < aine.StartTime))
+                    if (!Auxiliaire(p.Id) && (agent != 0 || AppliClaude(CheminExecutable(p.Id), File.Exists)) && (aine is null || p.StartTime < aine.StartTime))
                     {
                         (aine, var lache) = (p, aine);
                         lache?.Dispose();
@@ -119,6 +119,39 @@ namespace Loupedeck.TrinitePlugin
             var ligne = LigneDeCommande(pid);
             return ligne.Contains(" --type=", StringComparison.Ordinal) || ligne.Contains(" --import=", StringComparison.Ordinal);
         }
+
+        // « claude.exe » est aussi le nom du moteur Claude Code (claude-code\<version>\claude.exe, ~\.local\bin\claude.exe),
+        // lancé hors de l'appli : maintenance NexusSystem à l'ouverture de session (« claude plugin update »), terminal,
+        // autre outil. Pris pour l'appli, il allumait la tête et le quota de Claude au démarrage du PC, appli pas encore
+        // lancée (06/11). L'appli de bureau est une appli Electron : son exécutable a resources\app.asar à côté de lui.
+        // Chemin illisible : pas l'appli (son processus principal tourne sous le compte de l'utilisateur, toujours lisible).
+        internal static Boolean AppliClaude(String executable, Func<String, Boolean> existe) =>
+            !String.IsNullOrEmpty(executable) && Path.GetDirectoryName(executable) is { Length: > 0 } dossier
+                && existe(Path.Combine(dossier, "resources", "app.asar"));
+
+        // Chemin complet de l'exécutable d'un processus, lu par Windows ; null si illisible.
+        private static String CheminExecutable(Int32 pid)
+        {
+            var processus = OpenProcess(0x1000, false, (UInt32)pid); // PROCESS_QUERY_LIMITED_INFORMATION
+            if (processus == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            try
+            {
+                var tampon = new StringBuilder(1024);
+                var taille = (UInt32)tampon.Capacity;
+                return QueryFullProcessImageName(processus, 0, tampon, ref taille) ? tampon.ToString(0, (Int32)taille) : null;
+            }
+            finally
+            {
+                CloseHandle(processus);
+            }
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "QueryFullProcessImageNameW")]
+        private static extern Boolean QueryFullProcessImageName(IntPtr processus, UInt32 format, StringBuilder chemin, ref UInt32 taille);
 
         // Ligne de commande d'un processus, lue par Windows (sans WMI) ; "" si illisible.
         private static String LigneDeCommande(Int32 pid)

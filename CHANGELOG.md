@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.47] - 2026-11-07
+
+### Fixed
+- At PC start-up, with the Claude app not launched yet, Claude's key could light up (head awake, quota shown): the
+  Claude Code engine, also named `claude.exe`, run outside the app (NexusSystem's logon maintenance updating plugins, a
+  terminal, another tool), was taken for the app. Only the Claude desktop app now counts as Claude being open.
+- Claude's key no longer shows its "finished" ring while the app is closed: an unseen finish left in Claude's session
+  files from the day before ringed the key at start-up. The ring comes back as soon as the app is running.
+
 ## [1.8.46] - 2026-11-06
 
 ### Changed

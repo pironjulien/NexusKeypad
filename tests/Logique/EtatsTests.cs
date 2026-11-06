@@ -30,6 +30,20 @@ public sealed class EtatsTests
         Assert.Equal(attendu, Observateur.TitreDuRelais(titre));
     }
 
+    [Theory]
+    [InlineData(@"C:\Program Files\WindowsApps\AnthropicPBC.Claude_4.23118.0.0_x64__fnn82j28hfe8t\app\Claude.exe", true)]
+    [InlineData(@"C:\Users\u\AppData\Local\AnthropicClaude\app-1.0.0\claude.exe", true)]
+    [InlineData(@"C:\Users\u\AppData\Local\Claude-Data\anthropicpbc.claude_x\claude-code\2.1.317\a33aa5518497\claude.exe", false)]
+    [InlineData(@"C:\Users\u\.local\bin\claude.exe", false)]
+    [InlineData(null, false)]
+    public void Seule_l_appli_de_bureau_rend_Claude_lance(String executable, Boolean attendu)
+    {
+        // Boot on 06/11: NexusSystem's logon maintenance ran the Claude Code engine (claude.exe plugin update): the pad lit
+        // Claude's head and quota, app not launched yet. Only the Electron app (resources\app.asar beside it) counts.
+        var electron = new[] { @"\app\resources\app.asar", @"\app-1.0.0\resources\app.asar" };
+        Assert.Equal(attendu, Observateur.AppliClaude(executable, f => electron.Any(e => f.EndsWith(e, StringComparison.OrdinalIgnoreCase))));
+    }
+
     [Fact]
     public void Disponibilite_et_premiere_observation_de_Claude_sont_distinctes()
     {

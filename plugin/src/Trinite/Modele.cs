@@ -62,6 +62,11 @@ namespace Loupedeck.TrinitePlugin
 
         public Conversation Premiere(Int32 agent) => this.Conversations[agent].Length > 0 ? this.Conversations[agent][0] : null;
 
+        // Conversation qui appelle l'utilisateur sur la touche de l'IA (anneau, cadence vive) : aucune appli fermée. Les
+        // fiches de session restent sur disque après la fermeture : une fin non regardée la veille entourait Claude
+        // d'un anneau au démarrage du PC, appli pas encore lancée (06/11).
+        public Conversation Alerte(Int32 agent) => this.Ouverte[agent] && this.Premiere(agent) is { Alerte: true } c ? c : null;
+
 #if !POSTE
         // Couples (source, ouvrier) où un ouvrier travaille pour une source par le relais.
         public System.Collections.Generic.IReadOnlyList<(Int32 Source, Int32 Ouvrier)> LiaisonsRelais()

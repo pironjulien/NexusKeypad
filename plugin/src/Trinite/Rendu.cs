@@ -130,7 +130,7 @@ namespace Loupedeck.TrinitePlugin
 #if !POSTE
                 if (touche < 3)
                 {
-                    Signal(b, touche, scene.Instantane.Premiere(touche), scene.Temps, rayon);
+                    Signal(b, touche, scene.Instantane.Alerte(touche), scene.Temps, rayon);
                 }
 #endif
 
