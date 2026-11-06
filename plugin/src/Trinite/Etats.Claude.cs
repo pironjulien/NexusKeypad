@@ -95,7 +95,8 @@ namespace Loupedeck.TrinitePlugin
                 }
                 var depuis = hook?.Quand ?? activite;
                 var vu = regard > depuis || this.Vu(0, id, depuis);
-                var relais = (cwd is not null && String.Equals(Chemin(cwd), Chemin(Path.Combine(Maison, ".nexus", "relay", "claude-projet")), StringComparison.OrdinalIgnoreCase))
+                // Session du relais : son dossier (« NexusRelay » depuis NexusRelay 1.12, « claude-projet » avant) ou le titre du réveil.
+                var relais = (cwd is not null && new[] { "NexusRelay", "claude-projet" }.Any(d => String.Equals(Chemin(cwd), Chemin(Path.Combine(Maison, ".nexus", "relay", d)), StringComparison.OrdinalIgnoreCase)))
                     || TitreDuRelais(titre) || titre.StartsWith("Relais · ", StringComparison.Ordinal);
                 var source = relais ? SourcePourSujet(titre.StartsWith("Relais · ", StringComparison.Ordinal) ? titre["Relais · ".Length..] : "NexusRelay", 1) : -1;
                 // Regardée : sa question, sa fin ou son erreur retourne au repos (le « ? » s'efface dès l'arrivée, 29/10).

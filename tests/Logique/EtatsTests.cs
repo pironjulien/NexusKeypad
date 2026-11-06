@@ -21,6 +21,8 @@ public sealed class EtatsTests
     [InlineData("NexusRelay : message d'un pair pour toi, antigravity.", true)]
     [InlineData("Nexus Relay: message from a peer for you, codex.", true)]
     [InlineData("Relais du jour", false)]
+    [InlineData("NexusRelay : sujet Codex bloqué par un gros journal", false)]
+    [InlineData("NexusRelay", false)]
     [InlineData("Ma conversation", false)]
     public void Les_conversations_du_relais_sont_reconnues_sous_ses_deux_noms(String titre, Boolean attendu)
     {

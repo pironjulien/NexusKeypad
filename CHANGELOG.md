@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.44] - 2026-11-06
+
+### Fixed
+- A Claude session whose title only begins with "NexusRelay" (work on the product, such as "NexusRelay : sujet Codex bloqué…") was shown as a relay exchange with Codex and animated the pad while no relay was running. A Claude conversation now counts as the relay's when it lives in the relay's folder (`.nexus\relay\NexusRelay`, or `claude-projet` before) or its title is the start of the relay's wake message.
+
 ## [1.8.43] - 2026-11-06
 
 ### Changed

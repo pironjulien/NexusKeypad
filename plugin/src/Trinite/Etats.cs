@@ -521,9 +521,16 @@ namespace Loupedeck.TrinitePlugin
             return -1;
         }
 
-        // Conversation ouverte par le relais : « NexusRelay » depuis NexusRelay 1.13.2, « Nexus Relay » avant.
+        // Conversation ouverte par le relais : son titre est le début du message de réveil (« NexusRelay » depuis
+        // NexusRelay 1.13.2, « Nexus Relay » avant). Le seul nom ne suffit pas : une session de travail sur le produit,
+        // « NexusRelay : sujet Codex bloqué… », passait pour un échange du relais et animait le pad (06/11).
+        private static readonly String[] DebutsDuReveil =
+        [
+            "NexusRelay: message from a peer", "NexusRelay : message d'un pair",
+            "Nexus Relay: message from a peer", "Nexus Relay : message d'un pair",
+        ];
         public static Boolean TitreDuRelais(String titre) =>
-            titre.StartsWith("NexusRelay", StringComparison.Ordinal) || titre.StartsWith("Nexus Relay", StringComparison.Ordinal);
+            DebutsDuReveil.Any(debut => titre.StartsWith(debut, StringComparison.Ordinal));
 
         // Relu chaque seconde par conversation du relais : le résultat est gardé tant que le dossier des messages n'a pas
         // changé (un message ajouté change sa date), 30 s au plus. Avant, chaque relevé énumérait et datait tous les
