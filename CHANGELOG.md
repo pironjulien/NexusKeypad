@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.46] - 2026-11-06
+
+### Changed
+- The night sky while the PC screen is off, and the keypad kept lit, are back. Removing them in 1.8.45 did not stop a
+  monitor on the processor's graphics from waking up with "No signal": the cause lies elsewhere.
+
 ## [1.8.45] - 2026-11-06
 
 ### Removed
