@@ -229,7 +229,7 @@ namespace Loupedeck.TrinitePlugin
             return reduite is not null && this.Publier(reduite, "Photo");
         }
 
-        // Copie réduite pour l'IA (ImageIa : WebP, ≤ 2000 px, ≤ 500 Ko), toujours dans le cache (lisible des applis du
+        // Copie réduite pour l'IA (ImageIa : WebP, ≤ 2000 px, ≤ 3 Mo), toujours dans le cache (lisible des applis du
         // Store), jamais à côté d'une image du PC de l'utilisateur. L'original reste sur le téléphone. Null : illisible.
         private String Preparer(Photo photo)
         {

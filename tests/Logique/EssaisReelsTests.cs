@@ -75,7 +75,7 @@ public sealed class EssaisReelsTests
 
                 var fichiers = System.Windows.Forms.Clipboard.GetFileDropList();
                 if (fichiers.Count != 1 || !String.Equals(fichiers[0], Path.Combine(dossier, "prepared.webp"), StringComparison.OrdinalIgnoreCase)
-                    || new FileInfo(fichiers[0]).Length is <= 0 or > 512000)
+                    || new FileInfo(fichiers[0]).Length is <= 0 or > ImageIa.PoidsMax)
                 {
                     throw new InvalidOperationException("Le WebP publié est absent, inattendu ou trop lourd.");
                 }

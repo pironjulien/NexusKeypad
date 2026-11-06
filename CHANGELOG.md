@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.43] - 2026-11-06
+
+### Changed
+- Images pasted into an agent (screen capture, phone photo) follow the shared Nexus ceiling raised to 3 MB (was 500 KB):
+  measured on 2026-11-06, none of the three AI apps refuses an image of 6.8 MB. Still at most 2000 px and 2.56 Mpx,
+  lossless WebP while it fits; above 3 MB, lossless WebP with 2, then 3 low bits per colour dropped, and only then lossy
+  WebP at quality 90, 80, 70. A phone photo (JPEG) is now sent lossless too: reduced, it fits 3 MB.
+
 ## [1.8.42] - 2026-11-06
 
 ### Changed
