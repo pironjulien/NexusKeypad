@@ -302,8 +302,8 @@ namespace Loupedeck.TrinitePlugin
         {
             lock (this._envoi)
             {
-                var (image, pixels) = Rendu.Image(touche, this.Scene);
-                if (this._pixels[touche] is { } avant && avant.AsSpan().SequenceEqual(pixels))
+                var pixels = Rendu.Image(touche, this.Scene, this._pixels[touche], out var image);
+                if (image is null)
                 {
                     return;
                 }

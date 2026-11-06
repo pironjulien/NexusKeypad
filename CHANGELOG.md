@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.41] - 2026-11-06
+
+### Changed
+- A key image is encoded only when its pixels changed. Every animation tick drew each key, then encoded it for the Logi
+  service even when nothing moved, and the encoding cost as much as the drawing. Measured on 2026-11-06 over 40 s at the
+  same 27.7 images per second sent to the pad: the Logi service, its extension and the Options+ agent went from 74.5 %
+  to 63 % of one core. The images already had the pad's own size (116 px).
+
 ## [1.8.40] - 2026-11-06
 
 ### Changed
