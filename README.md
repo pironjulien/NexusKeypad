@@ -405,9 +405,7 @@ its own service under that app's privacy policy. See the [Privacy Policy](PRIVAC
   dictation), English for Antigravity, taken from the apps' own language files. With another app language these
   presses do nothing; the states, alerts, Codex and Antigravity quotas, capture and page 2 do not depend on it.
 - The agents' apps change often; a new version can move a button the plugin relies on.
-- While the PC screen is off, Logi Options+ puts the keypad to sleep. The NexusKeypad edition keeps it lit (it restarts
-  the plugin service with Logi's official tool, which keeps the keypad on without waking the screen) and shows a night
-  sky; the Marketplace editions leave the keypad to Logi, so it turns off with the screen.
+- While the PC screen is off, Logi Options+ puts the keypad to sleep: it turns off with the screen.
 - Code comments and identifiers are in French.
 
 ## Development

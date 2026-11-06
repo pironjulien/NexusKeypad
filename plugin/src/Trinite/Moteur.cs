@@ -176,10 +176,6 @@ namespace Loupedeck.TrinitePlugin
         private Int32 _telephoneOccupe;
         private Int32 _telephoneEncore;
         private Int32 _lectureOccupee;
-#if NEXUS || DEBUG
-        private Boolean _ecranLu; // l'état de l'écran a déjà été lu une fois par ce plugin
-        private Double _garde = -99; // dernière relance de Logi pour garder le pad allumé
-#endif
         private Int32 _animationOccupee;
         private Pilote _pilote;
         private readonly System.Collections.Concurrent.BlockingCollection<(Double Quand, Int32 Touche, Action Geste, TaskCompletionSource<String> Issue)> _gestes = [];
@@ -607,22 +603,9 @@ namespace Loupedeck.TrinitePlugin
 #endif
                 if (avant.Eteint != this._instantane.Eteint)
                 {
-                    PluginLog.Info(this._instantane.Eteint ? "écran éteint : ciel de nuit" : "écran rallumé : le pad est redessiné");
-#if NEXUS || DEBUG
-                    // Vu s'éteindre par ce plugin (pas déjà éteint à son chargement, sinon le service vient d'être relancé).
-                    // Édition NexusKeypad seulement : les éditions du Marketplace ne relancent pas le service de l'utilisateur.
-                    if (this._instantane.Eteint && this._ecranLu)
-                    {
-                        this.GarderAllume();
-                    }
-#endif
-
+                    PluginLog.Info(this._instantane.Eteint ? "écran éteint : le pad n'est plus dessiné" : "écran rallumé : le pad est redessiné");
                     this.Tout();
                 }
-
-#if NEXUS || DEBUG
-                this._ecranLu = true;
-#endif
             }
             catch (Exception e)
             {
@@ -633,61 +616,6 @@ namespace Loupedeck.TrinitePlugin
                 Volatile.Write(ref this._lectureOccupee, 0);
             }
         }
-
-#if NEXUS || DEBUG
-        // Logi endort le pad quand l'écran s'éteint (ordre GoToSleep de l'agent Options+), sans réglage pour l'en empêcher ;
-        // un service de plugins relancé après ne le reçoit pas et rallume le pad, sans rallumer l'écran (vu le 28/10 et le
-        // 02/11). Son réveil direct (WakeUp) rallume l'écran, lui. Le service est donc relancé par son outil officiel,
-        // 3 s après l'extinction (l'ordre est passé), au plus une fois par minute ; l'agent clavier/souris n'est pas
-        // touché. Le relanceur passe par WMI : enfant du service, il mourrait avec lui.
-        private void GarderAllume()
-        {
-            var temps = this._horloge.Elapsed.TotalSeconds;
-            if (temps - this._garde < 60)
-            {
-                return;
-            }
-
-            this._garde = temps;
-            try
-            {
-                var outil = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Logi\LogiPluginService\LogiPluginServiceTool.exe");
-                if (!File.Exists(outil))
-                {
-                    PluginLog.Warning("écran éteint : outil officiel de Logi introuvable, pad laissé à Logi");
-                    return;
-                }
-
-                // Arrêt coopératif, attente de la fin des processus, puis redémarrage s'il n'a pas déjà été fait par l'agent.
-                var relance = $$"""
-                    Start-Sleep -Seconds 3
-                    $outil = '{{outil}}'
-                    $avant = @(Get-Process LogiPluginService, LogiPluginServiceExt -ErrorAction SilentlyContinue).Id
-                    & $outil stop | Out-Null
-                    $fin = (Get-Date).AddSeconds(30)
-                    while ((Get-Process -Id $avant -ErrorAction SilentlyContinue) -and (Get-Date) -lt $fin) { Start-Sleep -Milliseconds 100 }
-                    Start-Sleep -Seconds 4
-                    if (-not (Get-Process LogiPluginService -ErrorAction SilentlyContinue)) { & $outil start | Out-Null }
-                    """;
-                var console = Path.Combine(Environment.SystemDirectory, "conhost.exe");
-                var powershell = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
-                var ligne = $"\"{console}\" --headless \"{powershell}\" -NoProfile -NonInteractive -EncodedCommand {Code(relance)}";
-                var wmi = $"$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{ CommandLine = '{ligne}' }}; exit $r.ReturnValue";
-                using var lanceur = Process.Start(new ProcessStartInfo(powershell, $"-NoProfile -NonInteractive -EncodedCommand {Code(wmi)}")
-                {
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                });
-                PluginLog.Info("écran éteint : service Logi relancé pour garder le pad allumé");
-            }
-            catch (Exception e)
-            {
-                PluginLog.Error(e, "pad gardé allumé");
-            }
-
-            static String Code(String script) => Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
-        }
-#endif
 
         // Une lecture à la fois : le rapatriement d'une photo par le Wi-Fi peut dépasser les 3 s entre deux tours. Une
         // demande arrivée pendant une lecture (le téléphone vient d'écrire une image) en relance une juste après.
@@ -761,22 +689,11 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 this._tic++;
-                // Écran éteint, pad gardé allumé : ciel de nuit sur la page affichée, les IA 4 fois par seconde, le ciel 2 fois
-                // (scintillement lent, peu d'images au pad).
+                // Écran éteint : Logi endort le pad avec lui, rien à dessiner. Le service de plugins n'est jamais relancé pour
+                // le garder allumé (mode nuit retiré le 06/11/2026 : l'écran sur la sortie Intel se réveillait en boucle,
+                // « Aucun signal », et le pad redémarrait avec lui).
                 if (this._instantane.Eteint)
                 {
-                    if (this._tic % ToursLents == 0)
-                    {
-                        var page2 = this._page == 2;
-                        for (var t = page2 ? VolumeMoins : 0; t < (page2 ? Touches : 9); t++)
-                        {
-                            if (t < 3 || this._tic % (2 * ToursLents) == 0)
-                            {
-                                this.Envoyer(t);
-                            }
-                        }
-                    }
-
                     return;
                 }
 

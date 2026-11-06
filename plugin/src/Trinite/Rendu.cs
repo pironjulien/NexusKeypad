@@ -119,11 +119,6 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 b.FillRectangle(0, 0, T, T, Fond);
-                var nuit = scene.Instantane.Eteint;
-                if (nuit)
-                {
-                    CielDeNuit(b, touche, scene.Temps);
-                }
 
                 // Les touches du haut à gauche et à droite ont un coin très arrondi : anneau plus rond pour elles.
                 var rayon = CoinsDe(touche);
@@ -137,12 +132,6 @@ namespace Loupedeck.TrinitePlugin
                 if (scene.Appui(touche))
                 {
                     Rond(b, 0, 0, T, T, rayon, new BitmapColor(70, 70, 76));
-                }
-
-                // La nuit, seules les IA restent sur leur touche ; les autres ne montrent que le ciel.
-                if (nuit && touche >= 3)
-                {
-                    return b;
                 }
 
                 // La photo remplit toute la touche, sans marge (une image ne suit pas l'échelle du dessin).
@@ -161,7 +150,6 @@ namespace Loupedeck.TrinitePlugin
                     case Moteur.Capture: ToucheCapture(b, scene); break;
                     case Moteur.Dictee: ToucheDictee(b, scene); break;
 #if !POSTE
-                    case < 3 when nuit: NuitIA(b, touche, scene); break;
                     case < 3: ToucheIA(b, touche, scene); break;
 #endif
                     case >= Moteur.VolumeMoins: TouchePage2(b, touche, scene); break;

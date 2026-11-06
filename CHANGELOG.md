@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.45] - 2026-11-06
+
+### Removed
+- Night sky while the PC screen is off, and the restart of the Logi plugin service that kept the keypad lit. With a
+  monitor on the processor's graphics (DisplayPort), the screen kept waking up with "No signal" and the keypad
+  restarted with it. The keypad now turns off with the screen, as Logi Options+ does.
+
 ## [1.8.44] - 2026-11-06
 
 ### Fixed
