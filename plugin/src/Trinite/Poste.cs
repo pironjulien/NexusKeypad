@@ -23,7 +23,7 @@ namespace Loupedeck.TrinitePlugin
         private static Double _processeur;
         private static Int64 _lu;
 
-        // Points audio (volume et crête) de la sortie par défaut, gardés : relus 8 fois par seconde, ils ne sont recréés
+        // Points audio (volume et crête) de la sortie par défaut, gardés : relus 4 fois par seconde, ils ne sont recréés
         // que toutes les 2 s (le périphérique par défaut peut changer). Une case par flux ; seul le son (0) sert depuis
         // que la touche du micro est retirée de la page 2.
         private static readonly (IAudioEndpointVolume Volume, IAudioMeterInformation Crete)?[] Points = new (IAudioEndpointVolume, IAudioMeterInformation)?[1];

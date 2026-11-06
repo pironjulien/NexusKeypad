@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.37] - 2026-11-06
+
+### Changed
+- One animation rate for every key: 4 frames per second. The heads of working agents ran at 8 frames per second and
+  the other keys at 4; the volume key and the page 2 readings at 8. Animations follow real time, so their speed is
+  unchanged. Every image sent to the pad is drawn, cropped and encoded by the Logi plugin service, which pays most of
+  its cost: on 2026-11-06 the service, its extension and the Options+ agent went from 65.5 % to 58 % of one core over
+  60 s with an agent at work (CPU profile: about a quarter of the service's time draws and encodes pad images, a tenth
+  renders the keys in this plugin).
+
 ## [1.8.36] - 2026-11-05
 
 ### Fixed

@@ -36,7 +36,7 @@ namespace Loupedeck.TrinitePlugin
     }
 
     // Lit l'état chaque seconde (le téléphone toutes les 3 s, et dès qu'il prévient) et redessine les touches animées
-    // jusqu'à 8 fois par seconde, en n'envoyant au pad que les images qui ont changé.
+    // 4 fois par seconde, en n'envoyant au pad que les images qui ont changé.
     public sealed class Moteur : IDisposable
     {
         public const Int32 Capture = 6;
@@ -371,7 +371,7 @@ namespace Loupedeck.TrinitePlugin
             this._pilote = new Pilote(this);
             this._pilote.Demarrer();
             this._lecture = new Timer(_ => this.Lire(), null, 0, 1000);
-            this._animation = new Timer(_ => this.Animer(), null, 500, 125);
+            this._animation = new Timer(_ => this.Animer(), null, 500, AnimationMs);
 #if !POSTE
             // Photo du téléphone (page 1) : l'édition PC Dashboard ne lit du téléphone que ses notifications.
             this._telephone = new Timer(_ => this.Telephone(), null, 1000, 3000);
@@ -724,6 +724,13 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+        // Une seule cadence pour toutes les touches animées : 4 images par seconde. Chaque image envoyée est dessinée,
+        // encodée et poussée au pad par le service Logi, qui en paie l'essentiel (profil du 06/11/2026 : ~50 % d'un cœur
+        // en continu avec les têtes à 8 images par seconde). Les animations suivent le temps réel (Scene.Temps), pas le
+        // nombre de tours : leur vitesse ne change pas avec la cadence.
+        internal const Int32 AnimationMs = 250;
+        private const Int32 ToursParSeconde = 1000 / AnimationMs;
+
         private void Animer()
         {
             if (this._arret || Interlocked.Exchange(ref this._animationOccupee, 1) == 1)
@@ -734,29 +741,25 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 this._tic++;
-                // Écran éteint, pad gardé allumé : ciel de nuit sur la page affichée, les IA 4 fois par seconde, le ciel 2 fois
-                // (scintillement lent, peu d'images au pad).
+                // Écran éteint, pad gardé allumé : ciel de nuit sur la page affichée, les IA à chaque tour, le ciel un tour
+                // sur deux (scintillement lent, peu d'images au pad).
                 if (this._instantane.Eteint)
                 {
-                    if (this._tic % 2 == 0)
+                    var page2 = this._page == 2;
+                    for (var t = page2 ? VolumeMoins : 0; t < (page2 ? Touches : 9); t++)
                     {
-                        var page2 = this._page == 2;
-                        for (var t = page2 ? VolumeMoins : 0; t < (page2 ? Touches : 9); t++)
+                        if (t < 3 || this._tic % 2 == 0)
                         {
-                            if (t < 3 || this._tic % 4 == 0)
-                            {
-                                this.Envoyer(t);
-                            }
+                            this.Envoyer(t);
                         }
                     }
 
                     return;
                 }
 
-                // Seule la page affichée est relue et dessinée. Page 1 : têtes qui travaillent ou appellent l'utilisateur 8 fois
-                // par seconde, le reste 4 fois (sauf la photo ; sans téléphone, la touche est une horloge animée). Page 2 :
-                // le poste relu 8 fois par seconde (quelques appels locaux), le son à chaque tour, le reste 4 fois. Seules les
-                // images qui ont changé partent au pad, chacune coûte cher au service Logi.
+                // Seule la page affichée est relue et dessinée, toutes ses touches à chaque tour (sauf la photo ; sans
+                // téléphone, la touche est une horloge animée). Page 2 : le poste relu à chaque tour (quelques appels
+                // locaux). Seules les images qui ont changé partent au pad.
                 if (this._page == 2)
                 {
                     // Édition PC Dashboard : ses touches peuvent n'être sur aucune page affichée du pad, et le service ne dit
@@ -766,7 +769,7 @@ namespace Loupedeck.TrinitePlugin
                     // processeur, mémoire ; ni Chrome ni le téléphone) : une image qui change part au service, qui la
                     // redemande si sa page est affichée, et tout reprend.
                     var sansDemande = Premiere >= 9 && this._horloge.Elapsed.TotalSeconds - this._demande > 3;
-                    if (sansDemande && this._tic % 8 != 0)
+                    if (sansDemande && this._tic % ToursParSeconde != 0)
                     {
                         return;
                     }
@@ -783,26 +786,16 @@ namespace Loupedeck.TrinitePlugin
 
                     for (var t = VolumeMoins; t < Touches; t++)
                     {
-                        if (t == Muet || this._tic % 2 == 0)
-                        {
-                            this.Envoyer(t);
-                        }
+                        this.Envoyer(t);
                     }
 
                     return;
                 }
 
-                var i = this._instantane;
                 var horloge = this._observateur.Telephone.Derniere is null;
                 for (var t = 0; t < 9; t++)
                 {
-#if POSTE
-                    var vive = false; // aucune IA sur PC Dashboard
-#else
-                    var vive = t < 3 && (i.EtatIA(t) is not (Etat.Repos or Etat.Ferme or Etat.Fini) || i.Premiere(t)?.Alerte == true
-                        || i.LiaisonsRelais().Count > 0 || i.DicteeIa == t || Gestes.LanceIlYA(t) < 15);
-#endif
-                    if ((t != Photo || horloge) && (vive || this._tic % 2 == 0))
+                    if (t != Photo || horloge)
                     {
                         this.Envoyer(t);
                     }
@@ -810,7 +803,7 @@ namespace Loupedeck.TrinitePlugin
 
                 // La photo ne bouge pas : redessinée chaque seconde, ou juste après un appui (coche).
                 var temps = this._horloge.Elapsed.TotalSeconds;
-                if (this._tic % 8 == 0 || temps - this._photoCopiee < 2 || temps - this._appuis[Photo] < 0.4)
+                if (this._tic % ToursParSeconde == 0 || temps - this._photoCopiee < 2 || temps - this._appuis[Photo] < 0.4)
                 {
                     this.Envoyer(Photo);
                 }
