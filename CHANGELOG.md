@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.40] - 2026-11-06
+
+### Changed
+- The heads of working agents (or of an agent calling the user) animate at 12 frames per second, the rate of NexusWpp;
+  every other key stays at 4. A working head costs about 10 more points of one core than at 8; an idle head nothing.
+
 ## [1.8.39] - 2026-11-06
 
 ### Changed

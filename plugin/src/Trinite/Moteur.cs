@@ -36,7 +36,7 @@ namespace Loupedeck.TrinitePlugin
     }
 
     // Lit l'état chaque seconde (le téléphone toutes les 3 s, et dès qu'il prévient) et redessine les touches animées
-    // jusqu'à 8 fois par seconde, en n'envoyant au pad que les images qui ont changé.
+    // jusqu'à 12 fois par seconde, en n'envoyant au pad que les images qui ont changé.
     public sealed class Moteur : IDisposable
     {
         public const Int32 Capture = 6;
@@ -725,13 +725,15 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        // Têtes des IA qui travaillent ou appellent l'utilisateur : 8 images par seconde, à chaque tour ; tout le reste un
-        // tour sur deux, 4 images par seconde. Chaque image envoyée est dessinée, encodée et poussée au pad par le service
-        // Logi, qui en paie l'essentiel : banc du 06/11/2026 (service, extension et agent Options+, en % d'un cœur) à 4 i/s
-        // partout ~58 %, 8 i/s partout ~97 %, saturation vers 20 i/s (~65 images/s, 157 %) ; GPU jamais utilisé. Une tête au
-        // repos ne change pas d'image : la cadence ne lui coûte rien. Les animations suivent le temps réel (Scene.Temps),
-        // pas le nombre de tours : leur vitesse ne change pas avec la cadence.
-        internal const Int32 AnimationMs = 125;
+        // Têtes des IA qui travaillent ou appellent l'utilisateur : 12 images par seconde, à chaque tour (même cadence que
+        // NexusWpp) ; tout le reste un tour sur trois, 4 images par seconde. Chaque image envoyée est dessinée, encodée et
+        // poussée au pad par le service Logi, qui en paie l'essentiel : banc du 06/11/2026 (service, extension et agent
+        // Options+, en % d'un cœur) à 4 i/s partout ~58 %, 8 i/s partout ~97 %, saturation vers 20 i/s (~65 images/s,
+        // 157 %) ; GPU jamais utilisé. Une tête au repos ne change pas d'image : la cadence ne lui coûte rien ; une tête
+        // active à 12 au lieu de 8 coûte ~10 points d'un cœur. Les animations suivent le temps réel (Scene.Temps), pas le
+        // nombre de tours : leur vitesse ne change pas avec la cadence.
+        internal const Int32 AnimationMs = 83;
+        private const Int32 ToursLents = 3; // un tour sur trois : 4 images par seconde
         private Int32 _animationMs = AnimationMs;
         private Int32 ToursParSeconde => Math.Max(1, 1000 / Volatile.Read(ref this._animationMs));
         private Int64 _envois;
@@ -763,12 +765,12 @@ namespace Loupedeck.TrinitePlugin
                 // (scintillement lent, peu d'images au pad).
                 if (this._instantane.Eteint)
                 {
-                    if (this._tic % 2 == 0)
+                    if (this._tic % ToursLents == 0)
                     {
                         var page2 = this._page == 2;
                         for (var t = page2 ? VolumeMoins : 0; t < (page2 ? Touches : 9); t++)
                         {
-                            if (t < 3 || this._tic % 4 == 0)
+                            if (t < 3 || this._tic % (2 * ToursLents) == 0)
                             {
                                 this.Envoyer(t);
                             }
@@ -778,7 +780,7 @@ namespace Loupedeck.TrinitePlugin
                     return;
                 }
 
-                // Seule la page affichée est relue et dessinée. Page 1 : têtes qui travaillent ou appellent l'utilisateur 8 fois
+                // Seule la page affichée est relue et dessinée. Page 1 : têtes qui travaillent ou appellent l'utilisateur 12 fois
                 // par seconde, le reste 4 fois (sauf la photo ; sans téléphone, la touche est une horloge animée). Page 2 :
                 // relue et dessinée 4 fois par seconde. Seules les images qui ont changé partent au pad.
                 if (this._page == 2)
@@ -790,7 +792,7 @@ namespace Loupedeck.TrinitePlugin
                     // processeur, mémoire ; ni Chrome ni le téléphone) : une image qui change part au service, qui la
                     // redemande si sa page est affichée, et tout reprend.
                     var sansDemande = Premiere >= 9 && this._horloge.Elapsed.TotalSeconds - this._demande > 3;
-                    if (this._tic % 2 != 0 || (sansDemande && this._tic % ToursParSeconde != 0))
+                    if (this._tic % ToursLents != 0 || (sansDemande && this._tic % ToursParSeconde != 0))
                     {
                         return;
                     }
@@ -823,7 +825,7 @@ namespace Loupedeck.TrinitePlugin
                     var vive = t < 3 && (i.EtatIA(t) is not (Etat.Repos or Etat.Ferme or Etat.Fini) || i.Premiere(t)?.Alerte == true
                         || i.LiaisonsRelais().Count > 0 || i.DicteeIa == t || Gestes.LanceIlYA(t) < 15);
 #endif
-                    if ((t != Photo || horloge) && (vive || this._tic % 2 == 0))
+                    if ((t != Photo || horloge) && (vive || this._tic % ToursLents == 0))
                     {
                         this.Envoyer(t);
                     }
