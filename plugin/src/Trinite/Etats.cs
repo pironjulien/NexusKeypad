@@ -525,6 +525,11 @@ namespace Loupedeck.TrinitePlugin
         public static Boolean TitreDuRelais(String titre) =>
             titre.StartsWith("NexusRelay", StringComparison.Ordinal) || titre.StartsWith("Nexus Relay", StringComparison.Ordinal);
 
+        // Relu chaque seconde par conversation du relais : le résultat est gardé tant que le dossier des messages n'a pas
+        // changé (un message ajouté change sa date), 30 s au plus. Avant, chaque relevé énumérait et datait tous les
+        // messages (profil du 06/11/2026).
+        private static readonly Dictionary<String, (DateTime Dossier, DateTime Lu, Int32 Source)> SourcesLues = new();
+
         public static Int32 SourcePourSujet(String sujet, Int32 defaut = 0)
         {
             try
@@ -535,17 +540,28 @@ namespace Loupedeck.TrinitePlugin
                     return defaut;
                 }
 
+                var dossier = Directory.GetLastWriteTimeUtc(messages);
+                var maintenant = DateTime.UtcNow;
+                lock (SourcesLues)
+                {
+                    if (SourcesLues.TryGetValue(sujet, out var lu) && lu.Dossier == dossier && maintenant - lu.Lu < TimeSpan.FromSeconds(30))
+                    {
+                        return lu.Source >= 0 ? lu.Source : defaut;
+                    }
+                }
+
                 var dernier = Directory.EnumerateFiles(messages, $"*.*.*.{sujet}.json")
                     .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
                     .FirstOrDefault();
-
-                if (dernier is not null)
+                var src = dernier is null ? -1 : SourceDuNomDeFichier(Path.GetFileNameWithoutExtension(dernier));
+                lock (SourcesLues)
                 {
-                    var src = SourceDuNomDeFichier(Path.GetFileNameWithoutExtension(dernier));
-                    if (src >= 0)
-                    {
-                        return src;
-                    }
+                    SourcesLues[sujet] = (dossier, maintenant, src);
+                }
+
+                if (src >= 0)
+                {
+                    return src;
                 }
             }
             catch (Exception)

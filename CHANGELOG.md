@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.42] - 2026-11-06
+
+### Changed
+- Which agent opened a NexusRelay conversation is read again only when a relay message is added (30 s at most). Every
+  reading, once per second, listed and dated every relay message for each relay conversation (about 2 points of one
+  core on 2026-11-06).
+
 ## [1.8.41] - 2026-11-06
 
 ### Changed
