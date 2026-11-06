@@ -14,7 +14,27 @@ public sealed class ImageIaTests : IDisposable
 
     public ImageIaTests() => Directory.CreateDirectory(this._dossier);
 
-    public void Dispose() => Directory.Delete(this._dossier, recursive: true);
+    // The antivirus of the CI runner may still be scanning the files just written ("used by another process", while the
+    // same binaries release them at once here): a few tries, then the folder is left to the temp folder.
+    public void Dispose()
+    {
+        for (var essai = 0; ; essai++)
+        {
+            try
+            {
+                Directory.Delete(this._dossier, recursive: true);
+                return;
+            }
+            catch (IOException) when (essai < 30)
+            {
+                Thread.Sleep(100);
+            }
+            catch (IOException)
+            {
+                return;
+            }
+        }
+    }
 
     [Fact]
     public void Plafond_de_3_Mo() => Assert.Equal(3 * 1024 * 1024, ImageIa.PoidsMax);
