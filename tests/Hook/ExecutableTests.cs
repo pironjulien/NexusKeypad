@@ -272,6 +272,50 @@ public sealed class ExecutableTests : IDisposable
         Assert.Equal("Pret", Json(Connecteur("status").Stdout)["state"]!.GetValue<String>());
     }
 
+    [Fact]
+    public async Task Mise_a_jour_sous_un_hook_en_cours_ne_le_casse_pas()
+    {
+        // NexusFree 1.3.3's failure (a single-file .NET program re-reading its own file after an update renamed it and put
+        // the new version in its place) must not exist here: the hook is Native AOT, its code mapped once by Windows. A
+        // real hook is started and held in the middle of its work (stdin open), then both update moves are tried on its
+        // file: an in-place overwrite (robocopy, File.Move overwrite) is refused while it runs, and a rename followed by a
+        // different file at its path leaves the running hook working to the end.
+        var bin = Path.Combine(this._d, "Plugins", "NexusKeypad", "bin");
+        Directory.CreateDirectory(bin);
+        var exe = Path.Combine(bin, "nexuskeypad-hook.exe");
+        File.Copy(Entree.Hook, exe);
+        var nouvelle = Path.Combine(this._d, "nouvelle.exe");
+        File.WriteAllBytes(nouvelle, Enumerable.Repeat((Byte)0xCC, 64 * 1024).ToArray()); // any read of it would fail
+        var info = new ProcessStartInfo(exe)
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true,
+            RedirectStandardError = true, StandardInputEncoding = new UTF8Encoding(false), StandardOutputEncoding = Encoding.UTF8,
+        };
+        foreach (var a in new[] { "claude", "Stop" }) { info.ArgumentList.Add(a); }
+        info.Environment["USERPROFILE"] = this._d;
+        info.Environment["LOCALAPPDATA"] = Path.Combine(this._d, "local");
+        info.Environment.Remove("CLAUDE_CONFIG_DIR");
+        var annulation = TestContext.Current.CancellationToken;
+        using var processus = Process.Start(info)!;
+        var stdout = processus.StandardOutput.ReadToEndAsync(annulation);
+        var stderr = processus.StandardError.ReadToEndAsync(annulation);
+        await Task.Delay(500, annulation); // started, waiting for its input
+        Assert.False(processus.HasExited, "the hook should wait for its input");
+
+        Assert.ThrowsAny<Exception>(() => File.Copy(nouvelle, exe, overwrite: true));
+        Assert.ThrowsAny<Exception>(() => File.Move(nouvelle, exe, overwrite: true));
+        File.Move(exe, exe + ".old");
+        File.Copy(nouvelle, exe);
+
+        processus.StandardInput.Write(JsonSerializer.Serialize(new { session_id = "s1", last_assistant_message = "C'est fait." }));
+        processus.StandardInput.Close();
+        Assert.True(processus.WaitForExit(30000), "the running hook hung after its file was replaced");
+        Assert.Equal(0, processus.ExitCode);
+        Assert.Equal("{}", (await stdout).Trim());
+        Assert.Equal("", await stderr);
+        Assert.Equal("done", Json(File.ReadAllText(Path.Combine(this.Trinite("claude"), "s1.json")))["state"]!.GetValue<String>());
+    }
+
     // --- Passive Codex contract: outputs never decide, incomplete input creates no state, disabling stops observation.
 
     private Sortie Codex(String evenement, String charge)
