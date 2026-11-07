@@ -36,9 +36,8 @@ namespace Loupedeck.TrinitePlugin
 
             foreach (var (id, sujet) in sujets)
             {
-                if (!vues.Contains(id))
+                if (vues.Add(id))
                 {
-                    vues.Add(id);
                     var source = SourcePourSujet(sujet, 0);
                     if (this.ConversationAgy(id, "Relais · " + sujet, DateTime.MinValue, true, source) is { } c)
                     {
@@ -99,7 +98,7 @@ namespace Loupedeck.TrinitePlugin
 
             var depuis = hook?.Quand ?? activite;
             var vu = this.Vu(2, id, depuis) || note.Vue > depuis;
-            var regardee = etat is Etat.Fini or Etat.Erreur && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
+            var regardee = (etat is Etat.Fini or Etat.Erreur && (vu || relais)) || (etat == Etat.Attend && vu); // question vue : « ? » effacé
             titre = !relais && note.Titre is { Length: > 0 } renomme ? renomme : titre;
             return new(2, id, titre, regardee ? Etat.Repos : etat, depuis, activite == DateTime.MinValue ? depuis : activite, vu, relais, source);
         }
@@ -158,7 +157,7 @@ namespace Loupedeck.TrinitePlugin
                     var j = 0;
                     for (; j < 3 && i + j < brut.Length && brut[i + j] is >= '0' and <= '7'; j++)
                     {
-                        n = (n * 8) + (brut[i + j] - '0');
+                        n = n * 8 + (brut[i + j] - '0');
                     }
 
                     octets.Add((Byte)n);

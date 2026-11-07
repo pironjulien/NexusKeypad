@@ -160,18 +160,22 @@ namespace Loupedeck.TrinitePlugin
         private readonly Byte[][] _pixels = new Byte[Touches][];
         private Timer _lecture;
         private Timer _animation;
-#if POSTE
-        private readonly Timer _telephone = null; // pas de photo du téléphone dans l'édition PC Dashboard
-#else
-        private Timer _telephone;
+#if !POSTE
+        private Timer _telephone; // pas de photo du téléphone dans l'édition PC Dashboard
 #endif
         private Instantane _instantane = Instantane.Vide;
 #if !POSTE
         // Objet entier publié après une lecture normale du moteur. Le pilote ne déclenche aucune nouvelle lecture.
         private volatile Tuple<Instantane, DateTime> _diagnostic = Tuple.Create(Instantane.Vide, DateTime.MinValue);
 #endif
+#if POSTE
+        private readonly Double _photoCopiee = -9; // ni photo ni capture dans l'édition PC Dashboard
+        private readonly Double _captureCollee = -9;
+#else
         private Double _photoCopiee = -9;
-        private String _resume = ""; // reste vide dans l'édition PC Dashboard (aucun agent lu)
+        private Double _captureCollee = -9;
+        private Int32 _derniereIa = -1; // dernière IA vue au premier plan : la capture y va quand aucune IA n'est devant
+#endif
         private Int64 _tic;
         private Int32 _telephoneOccupe;
         private Int32 _telephoneEncore;
@@ -185,8 +189,6 @@ namespace Loupedeck.TrinitePlugin
         private readonly System.Collections.Concurrent.BlockingCollection<(Double Quand, Int32 Touche, Action Geste, TaskCompletionSource<String> Issue)> _gestes = [];
         private Thread _filGestes;
         private volatile Boolean _arret;
-        private Double _captureCollee = -9;
-        private Int32 _derniereIa = -1; // dernière IA vue au premier plan : la capture y va quand aucune IA n'est devant
         private Double _teteRatee = -9; // instant où une tête n'a pas amené son appli devant en 3 s
         private readonly String[] _ouverte = new String[3]; // dernière conversation ouverte par chaque tête
         private Int32 _appuiFenetre; // numéro du dernier appui qui amène une fenêtre devant (têtes, page 2)
@@ -217,7 +219,7 @@ namespace Loupedeck.TrinitePlugin
 #endif
 
         // Résumé de la dernière lecture (journal et pilote).
-        public String Resume => this._resume;
+        public String Resume { get; private set; } = "";
 
 #if !POSTE
         // Lecture du cache seulement : ni Observateur, ni CDP/UIA, ni vérification de connexion supplémentaire.
@@ -284,13 +286,13 @@ namespace Loupedeck.TrinitePlugin
             }
 
             const Int32 Ecart = 12;
-            using var b = new BitmapBuilder((3 * Rendu.T) + (4 * Ecart), (3 * Rendu.T) + (4 * Ecart));
+            using var b = new BitmapBuilder(3 * Rendu.T + 4 * Ecart, 3 * Rendu.T + 4 * Ecart);
             b.Clear(new BitmapColor(200, 198, 192));
             for (var t = 0; t < 9; t++)
             {
-                var touche = Disposition[((page - 1) * 9) + t];
+                var touche = Disposition[(page - 1) * 9 + t];
                 var image = page == 2 ? Rendu.Image(touche, this.Scene).Image : this._images[touche] ?? Rendu.Image(touche, this.Scene).Image;
-                b.DrawImage(image, Ecart + (t % 3 * (Rendu.T + Ecart)), Ecart + (t / 3 * (Rendu.T + Ecart)), Rendu.T, Rendu.T, BitmapRotation.None);
+                b.DrawImage(image, Ecart + t % 3 * (Rendu.T + Ecart), Ecart + t / 3 * (Rendu.T + Ecart), Rendu.T, Rendu.T, BitmapRotation.None);
             }
 
             return b.ToArray(BitmapImageFormat.Png);
@@ -428,8 +430,10 @@ namespace Loupedeck.TrinitePlugin
             {
                 // Journal commun (Journal.cs) : IA visée, nom fixe de la touche, issue et cause courte ; rien hors des IA.
                 var chrono = Stopwatch.StartNew();
+#if !POSTE
                 var cible = -1;
                 var geste = "?";
+#endif
                 var reussi = "✓";
                 String cause = null;
                 try
@@ -599,9 +603,9 @@ namespace Loupedeck.TrinitePlugin
                 var resume = String.Join(" | ", Enumerable.Range(0, 3).Select(i =>
                     $"{Observateur.Agents[i]} {this._instantane.Ouvertes[i]} conv. : {(!this._instantane.Ouverte[i] ? "Fermé" : this._instantane.Premiere(i)?.Etat.ToString() ?? "—")}{(this._instantane.Alerte(i) is not null ? "·alerte" : "")}" +
                     $" ; quota 5 h {this._instantane.Quotas[i]?.Cinq * 100:0} % semaine {this._instantane.Quotas[i]?.Semaine * 100:0} %"));
-                if (resume != this._resume)
+                if (resume != this.Resume)
                 {
-                    this._resume = resume;
+                    this.Resume = resume;
                     PluginLog.Info($"conversations : {resume}");
                 }
 #endif
@@ -792,7 +796,7 @@ namespace Loupedeck.TrinitePlugin
                     // processeur, mémoire ; ni Chrome ni le téléphone) : une image qui change part au service, qui la
                     // redemande si sa page est affichée, et tout reprend.
                     var sansDemande = Premiere >= 9 && this._horloge.Elapsed.TotalSeconds - this._demande > 3;
-                    if (this._tic % ToursLents != 0 || (sansDemande && this._tic % ToursParSeconde != 0))
+                    if (this._tic % ToursLents != 0 || (sansDemande && this._tic % this.ToursParSeconde != 0))
                     {
                         return;
                     }
@@ -833,7 +837,7 @@ namespace Loupedeck.TrinitePlugin
 
                 // La photo ne bouge pas : redessinée chaque seconde, ou juste après un appui (coche).
                 var temps = this._horloge.Elapsed.TotalSeconds;
-                if (this._tic % ToursParSeconde == 0 || temps - this._photoCopiee < 2 || temps - this._appuis[Photo] < 0.4)
+                if (this._tic % this.ToursParSeconde == 0 || temps - this._photoCopiee < 2 || temps - this._appuis[Photo] < 0.4)
                 {
                     this.Envoyer(Photo);
                 }
@@ -1100,7 +1104,11 @@ namespace Loupedeck.TrinitePlugin
             this._gestes.CompleteAdding();
             this._filGestes?.Join(2000);
             this._pilote?.Dispose();
+#if POSTE
+            foreach (var minuteur in new[] { this._lecture, this._animation })
+#else
             foreach (var minuteur in new[] { this._lecture, this._animation, this._telephone })
+#endif
             {
                 // Attend le tour en cours (une lecture peut ouvrir la page Models d'Antigravity) : 5 s au plus. L'événement
                 // n'est détruit que signalé : détruit avant, le minuteur le signalerait ensuite et ferait tomber le service.

@@ -10,6 +10,10 @@
     <RootNamespace>NexusKeypad.Hook</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>annotations</Nullable>
+    <!-- Recommended .NET analyzers and the build-time code-style rules of .editorconfig, all errors (as the plugin). -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <PublishAot>true</PublishAot>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <InvariantGlobalization>true</InvariantGlobalization>
@@ -26,7 +30,7 @@
     <EmbeddedResource Include="assets\claude.wav" LogicalName="NexusKeypad.Hook.claude.wav" />
     <Compile Include="..\plugin\src\Trinite\EtatsEnDirect.cs" />
     <Compile Include="..\plugin\src\Trinite\Connecteurs.cs" />
-    <PackageReference Include="Tomlyn" Version="2.10.1" />
+    <PackageReference Include="Tomlyn" Version="2.10.2" />
   </ItemGroup>
 
 </Project>

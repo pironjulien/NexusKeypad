@@ -67,8 +67,7 @@ namespace Loupedeck.TrinitePlugin
             var champ = champs.GetElement(0);
             if (vide)
             {
-                var texte = champ.GetCurrentPropertyValue(ValeurPropriete) as String;
-                if (texte is null)
+                if (champ.GetCurrentPropertyValue(ValeurPropriete) is not String texte)
                 {
                     return "contenu du champ de Claude illisible";
                 }
@@ -167,8 +166,9 @@ namespace Loupedeck.TrinitePlugin
         // Titre d'une fenêtre (vide si elle n'en a pas).
         public static String Titre(IntPtr h)
         {
-            var texte = new System.Text.StringBuilder(GetWindowTextLength(h) + 1);
-            return GetWindowText(h, texte, texte.Capacity) > 0 ? texte.ToString() : "";
+            var texte = new Char[GetWindowTextLength(h) + 1];
+            var longueur = GetWindowText(h, texte, texte.Length);
+            return longueur > 0 ? new String(texte, 0, longueur) : "";
         }
 
         // Fenêtres visibles d'un processus (toutes, pas seulement « MainWindowHandle » : chez Antigravity, c'est une fenêtre
@@ -209,7 +209,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        private static extern Int32 GetWindowText(IntPtr h, System.Text.StringBuilder texte, Int32 max);
+        private static extern Int32 GetWindowText(IntPtr h, [Out] Char[] texte, Int32 max);
 
         public static System.Collections.Generic.List<IntPtr> Fenetres(String processus)
         {
@@ -217,8 +217,7 @@ namespace Loupedeck.TrinitePlugin
             var fenetres = new System.Collections.Generic.List<IntPtr>();
             EnumWindows((h, _) =>
             {
-                GetWindowThreadProcessId(h, out var pid);
-                if (pids.Contains(pid) && IsWindowVisible(h) && GetWindowTextLength(h) > 0)
+                if (GetWindowThreadProcessId(h, out var pid) != 0 && pids.Contains(pid) && IsWindowVisible(h) && GetWindowTextLength(h) > 0)
                 {
                     fenetres.Add(h);
                 }

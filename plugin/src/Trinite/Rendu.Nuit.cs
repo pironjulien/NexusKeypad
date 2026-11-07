@@ -1,3 +1,4 @@
+#nullable enable
 namespace Loupedeck.TrinitePlugin
 {
     using System;
@@ -16,20 +17,20 @@ namespace Loupedeck.TrinitePlugin
             var rangee = place / 3;
             for (var y = 0; y < T; y++)
             {
-                b.FillRectangle(0, y, T, 1, Melange(Zenith, Nuit, ((rangee * T) + y) / (3.0 * T)));
+                b.FillRectangle(0, y, T, 1, Melange(Zenith, Nuit, (rangee * T + y) / (3.0 * T)));
             }
 
             // Positions tirées une fois pour toutes par place (même ciel à chaque image), sans Random partagé.
             var graine = (UInt32)(place + 1) * 2654435761u;
-            UInt32 Tirage() => graine = (graine * 1664525u) + 1013904223u;
+            UInt32 Tirage() => graine = graine * 1664525u + 1013904223u;
             for (var i = 0; i < 7; i++)
             {
                 var x = 6 + (Int32)(Tirage() % (T - 12));
                 var y = 6 + (Int32)(Tirage() % (T - 12));
                 var phase = Tirage() % 628 / 100.0;
-                var vitesse = 0.6 + (Tirage() % 100 / 100.0);
+                var vitesse = 0.6 + Tirage() % 100 / 100.0;
                 var grande = i < 2;
-                var eclat = 0.25 + (0.75 * (0.5 + (0.5 * Math.Sin((t * vitesse) + phase))));
+                var eclat = 0.25 + 0.75 * (0.5 + 0.5 * Math.Sin(t * vitesse + phase));
                 var c = Melange(Nuit, grande ? Lune : Texte, eclat);
                 b.FillRectangle(x, y, 2, 2, c);
                 if (grande && eclat > 0.8)

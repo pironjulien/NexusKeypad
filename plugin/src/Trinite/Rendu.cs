@@ -153,7 +153,7 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 // Marge autour du contenu, un peu plus en haut : le cadre du pad mord sur le haut de l'écran.
-                const Int32 Cote = T - (2 * Marge) - Bas; // contenu carré, centré en largeur
+                const Int32 Cote = T - 2 * Marge - Bas; // contenu carré, centré en largeur
                 b.Translate((T - Cote) / 2, Marge + Bas);
                 b.Scale(Cote / (Single)T, Cote / (Single)T);
                 switch (touche)
@@ -185,7 +185,7 @@ namespace Loupedeck.TrinitePlugin
             for (var y = 0; y < r; y++)
             {
                 var dy = r - y - 0.5;
-                var hors = (Int32)Math.Ceiling(r - Math.Sqrt(Math.Max(0, (r * r) - (dy * dy)))); // pixels hors du cercle sur cette ligne
+                var hors = (Int32)Math.Ceiling(r - Math.Sqrt(Math.Max(0, r * r - dy * dy))); // pixels hors du cercle sur cette ligne
                 if (hors > 0)
                 {
                     b.FillRectangle(x, y, hors, 1, BitmapColor.Black);
@@ -200,9 +200,9 @@ namespace Loupedeck.TrinitePlugin
         private static void Rond(BitmapBuilder b, Int32 x, Int32 y, Int32 l, Int32 h, Int32 r, BitmapColor c)
         {
             r = Math.Min(r, Math.Min(l, h) / 2);
-            b.FillRectangle(x + r, y, l - (2 * r), h, c);
-            b.FillRectangle(x, y + r, r, h - (2 * r), c);
-            b.FillRectangle(x + l - r, y + r, r, h - (2 * r), c);
+            b.FillRectangle(x + r, y, l - 2 * r, h, c);
+            b.FillRectangle(x, y + r, r, h - 2 * r, c);
+            b.FillRectangle(x + l - r, y + r, r, h - 2 * r, c);
             foreach (var (cx, cy) in new[] { (x + r, y + r), (x + l - r - 1, y + r), (x + r, y + h - r - 1), (x + l - r - 1, y + h - r - 1) })
             {
                 b.FillCircle(cx, cy, r, c);
@@ -235,7 +235,7 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 var dy = rayon - i - 0.5;
-                return (Int32)Math.Round(rayon - Math.Sqrt((rayon * rayon) - (dy * dy)));
+                return (Int32)Math.Round(rayon - Math.Sqrt(rayon * rayon - dy * dy));
             }
 
             for (var i = 0; i < h; i++)
@@ -254,8 +254,8 @@ namespace Loupedeck.TrinitePlugin
         {
             b.FillRectangle(0, 0, T, e, c);
             b.FillRectangle(0, T - e, T, e, c);
-            b.FillRectangle(0, e, e, T - (2 * e), c);
-            b.FillRectangle(T - e, e, e, T - (2 * e), c);
+            b.FillRectangle(0, e, e, T - 2 * e, c);
+            b.FillRectangle(T - e, e, e, T - 2 * e, c);
         }
 
         private static void Carte(BitmapBuilder b, String[] carte, Int32 x0, Int32 y0, Int32 p, BitmapColor c)
@@ -266,7 +266,7 @@ namespace Loupedeck.TrinitePlugin
                 {
                     if (carte[y][x] != '.')
                     {
-                        b.FillRectangle(x0 + (x * p), y0 + (y * p), p, p, c);
+                        b.FillRectangle(x0 + x * p, y0 + y * p, p, p, c);
                     }
                 }
             }
@@ -281,13 +281,13 @@ namespace Loupedeck.TrinitePlugin
                     var ch = carte[y][x];
                     if (ch != '.' && palette(ch, x, y) is BitmapColor c)
                     {
-                        b.FillRectangle(x0 + (x * p), y0 + (y * p), p, p, c);
+                        b.FillRectangle(x0 + x * p, y0 + y * p, p, p, c);
                     }
                 }
             }
         }
 
         private static BitmapColor Melange(BitmapColor a, BitmapColor z, Double k) =>
-            new((Int32)(a.R + ((z.R - a.R) * k)), (Int32)(a.G + ((z.G - a.G) * k)), (Int32)(a.B + ((z.B - a.B) * k)));
+            new((Int32)(a.R + (z.R - a.R) * k), (Int32)(a.G + (z.G - a.G) * k), (Int32)(a.B + (z.B - a.B) * k));
     }
 }

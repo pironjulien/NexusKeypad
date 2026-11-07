@@ -9,7 +9,11 @@
     <RootNamespace>Loupedeck.TrinitePlugin</RootNamespace>
 
     <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+    <!-- Recommended .NET analyzers and the build-time code-style rules of .editorconfig, all errors (as NexusWpp).
+         Nullable reference types are enabled file by file (#nullable enable), starting with the shared core. -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <NoWarn>$(NoWarn);SA0001;SA1136;SA1300;SA1307;SA1310;SA1402;SA1407;SA1414;SA1502;SA1649</NoWarn>
 
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -72,7 +76,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(Edition)' != 'Poste'">
-    <PackageReference Include="Tomlyn" Version="2.10.1" />
+    <PackageReference Include="Tomlyn" Version="2.10.2" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Edition)' == 'Complete'">
@@ -100,10 +104,16 @@
     <Reference Include="SkiaSharp" HintPath="$(LogiService)SkiaSharp.dll" Private="false" />
   </ItemGroup>
 
-  <!-- Sans service Logi (intégration continue) : l'API publiée par Logitech, pour compiler seulement. -->
+  <!-- Sans service Logi (intégration continue) : l'API publiée par Logitech, pour compiler seulement, sans les analyseurs
+       StyleCop qu'elle tire par dépendance (absents en local) : la même barrière d'analyse en local et en CI. -->
   <ItemGroup Condition="!Exists('$(LogiService)PluginApi.dll')">
     <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
+  <Target Name="SansStyleCop" AfterTargets="ResolveLockFileAnalyzers">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="'%(Analyzer.NuGetPackageId)' == 'StyleCop.Analyzers'" />
+    </ItemGroup>
+  </Target>
 
   <Target Name="CopyPackage" AfterTargets="PostBuildEvent">
     <ItemGroup>

@@ -1,3 +1,4 @@
+#nullable enable
 #if !POSTE
 namespace Loupedeck.TrinitePlugin
 {
@@ -22,7 +23,7 @@ namespace Loupedeck.TrinitePlugin
             Personnage(b, agent, x0, y0, p, connexion.Etat == EtatConnexion.Absent ? Etat.Ferme : Etat.Repos,
                 s.Temps, dort: true, signe: false);
             VisageConnexion(b, agent, x0, y0, p, connexion.Etat);
-            var cx = x0 + (8 * p);
+            var cx = x0 + 8 * p;
             const Int32 Cy = 65;
             switch (connexion.Etat)
             {
@@ -70,7 +71,7 @@ namespace Loupedeck.TrinitePlugin
         {
             if (etat == EtatConnexion.Absent) { return; } // endormi, gris, sans objet : absence bien distincte
             var colonnes = agent == 2 ? new[] { 5, 9 } : new[] { 4, 10 };
-            var y = y0 + ((agent == 1 ? 3 : 2) * p);
+            var y = y0 + (agent == 1 ? 3 : 2) * p;
             var encre = agent == 0 ? Encre : Texte;
             BitmapColor Peau(Int32 ex) => agent switch
             {
@@ -81,16 +82,16 @@ namespace Loupedeck.TrinitePlugin
             for (var i = 0; i < colonnes.Length; i++)
             {
                 var ex = colonnes[i];
-                var x = x0 + (ex * p);
+                var x = x0 + ex * p;
                 b.FillRectangle(x, y, 2 * p, 2 * p, Peau(ex));
                 if (etat == EtatConnexion.Erreur)
                 {
                     Croix(b, x, y, 2 * p, agent == 0 ? new BitmapColor(255, 192, 178) : Texte);
-                    b.FillRectangle(x - 2, y + (2 * p) + 1, 5, 3, Rouge); // joues fiévreuses
+                    b.FillRectangle(x - 2, y + 2 * p + 1, 5, 3, Rouge); // joues fiévreuses
                     continue;
                 }
 
-                b.FillRectangle(x, y + 1, 2 * p, (2 * p) - 1, encre);
+                b.FillRectangle(x, y + 1, 2 * p, 2 * p - 1, encre);
                 if (agent != 0)
                 {
                     b.FillRectangle(x + (i == 0 ? p : 0), y + p, p, p,
@@ -101,18 +102,18 @@ namespace Loupedeck.TrinitePlugin
                     // Sourcils soucieux : leurs coins intérieurs se lèvent, sans déplacer les yeux.
                     for (var k = 0; k < 3; k++)
                     {
-                        b.FillRectangle(x + (k * 3), y - 2 - (i == 0 ? k : 2 - k), 3, 2, encre);
+                        b.FillRectangle(x + k * 3, y - 2 - (i == 0 ? k : 2 - k), 3, 2, encre);
                     }
                 }
             }
 
             if (etat == EtatConnexion.Erreur)
             {
-                var mx = x0 + (7 * p);
-                var my = y0 + ((agent == 0 ? 5 : agent == 1 ? 6 : 5) * p);
+                var mx = x0 + 7 * p;
+                var my = y0 + (agent == 0 ? 5 : agent == 1 ? 6 : 5) * p;
                 for (var k = 0; k < 5; k++)
                 {
-                    b.FillRectangle(mx + (k * 3), my + (k % 2 * 2), 3, 2, new BitmapColor(255, 192, 178));
+                    b.FillRectangle(mx + k * 3, my + k % 2 * 2, 3, 2, new BitmapColor(255, 192, 178));
                 }
             }
         }
@@ -162,7 +163,7 @@ namespace Loupedeck.TrinitePlugin
             for (var k = 0; k < 5; k++)
             {
                 var retard = (tete - k + 5) % 5;
-                b.FillRectangle(cx - 15 + (k * 6), cy - 3, 4, 6,
+                b.FillRectangle(cx - 15 + k * 6, cy - 3, 4, 6,
                     retard == 0 ? Texte : retard < 3 ? Cyan : new BitmapColor(17, 67, 78));
             }
         }

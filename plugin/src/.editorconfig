@@ -12,7 +12,7 @@ indent_style = space
 tab_width = 4
 
 # New line preferences
-end_of_line = crlf
+end_of_line = lf
 insert_final_newline = false
 
 #### .NET Coding Conventions ####
@@ -52,7 +52,7 @@ dotnet_style_object_initializer = false:suggestion
 dotnet_style_prefer_auto_properties = true:warning
 dotnet_style_prefer_compound_assignment = true:warning
 dotnet_style_prefer_conditional_expression_over_assignment = true:warning
-dotnet_style_prefer_conditional_expression_over_return = true:warning
+dotnet_style_prefer_conditional_expression_over_return = true:suggestion
 dotnet_style_prefer_inferred_anonymous_type_member_names = true:suggestion
 dotnet_style_prefer_inferred_tuple_names = true:suggestion
 dotnet_style_prefer_is_null_check_over_reference_equality_method = true:warning

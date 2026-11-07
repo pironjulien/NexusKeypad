@@ -1,3 +1,4 @@
+#nullable enable
 namespace Loupedeck.TrinitePlugin
 {
     using System;
@@ -46,14 +47,14 @@ namespace Loupedeck.TrinitePlugin
                 Carte(b, BulleVide, 22, 80, 2, Eteint);
                 for (var k = 0; k < 3; k++)
                 {
-                    b.FillRectangle(22 + ((3 + (k * 4)) * 2), 86, 4, 4, Eteint);
+                    b.FillRectangle(22 + (3 + k * 4) * 2, 86, 4, 4, Eteint);
                 }
 
                 return;
             }
 
             var q = s.Instantane.Quotas[agent];
-            var t = s.Temps + (agent * 0.7); // chaque IA à son rythme
+            var t = s.Temps + agent * 0.7; // chaque IA à son rythme
             // Chaque jauge centrée sur son icône (horloge de 11 à 35 ; calendrier de 43 à 65, anneaux compris) : elles
             // étaient 1 à 2 px plus haut.
             HorlogeVivante(b, 4, 11, q?.Cinq is null ? null : t);
@@ -65,8 +66,8 @@ namespace Loupedeck.TrinitePlugin
             var travaille = s.Instantane.EtatIA(agent) == Etat.Travaille;
             for (var k = 0; k < 3; k++)
             {
-                var leve = travaille && Math.Sin((s.Temps * 7) - (k * 1.1)) > 0.4 ? 2 : 0;
-                b.FillRectangle(22 + ((3 + (k * 4)) * 2), 86 - leve, 4, 4, travaille ? Texte : Gris);
+                var leve = travaille && Math.Sin(s.Temps * 7 - k * 1.1) > 0.4 ? 2 : 0;
+                b.FillRectangle(22 + (3 + k * 4) * 2, 86 - leve, 4, 4, travaille ? Texte : Gris);
             }
 
             b.DrawText(s.Instantane.Ouvertes[agent].ToString(System.Globalization.CultureInfo.InvariantCulture), 58, 74, 50, 34, Texte, 24);
@@ -94,7 +95,7 @@ namespace Loupedeck.TrinitePlugin
             var jour = t is Double v ? (Int32)v % Cases.Length : -1;
             for (var k = 0; k < Cases.Length; k++)
             {
-                b.FillRectangle(x0 + (Cases[k].X * 2), y0 + (Cases[k].Y * 2), 4, 2, k == jour ? Texte : c);
+                b.FillRectangle(x0 + Cases[k].X * 2, y0 + Cases[k].Y * 2, 4, 2, k == jour ? Texte : c);
             }
         }
 
@@ -118,7 +119,7 @@ namespace Loupedeck.TrinitePlugin
             if (largeur > 24 && t % 4 < 1)
             {
                 // Reflet : une bande plus claire qui glisse de gauche à droite, dans la barre.
-                var x = 32 + 6 + (Int32)(((t % 4 * 1.4) - 0.2) * (largeur - 12));
+                var x = 32 + 6 + (Int32)((t % 4 * 1.4 - 0.2) * (largeur - 12));
                 Int32 debut = Math.Max(x, 38), fin = Math.Min(x + 8, 32 + largeur - 6);
                 if (fin > debut)
                 {
@@ -144,15 +145,15 @@ namespace Loupedeck.TrinitePlugin
                 var r = s.Temps / 2.2 % 1; // reflet en biais
                 for (var i = 0; i < 6; i++)
                 {
-                    var x = X0 + P + (Int32)(r * 70) - (i * 2) - 8;
-                    if (x >= X0 + P && x + 4 <= X0 + (11 * P))
+                    var x = X0 + P + (Int32)(r * 70) - i * 2 - 8;
+                    if (x >= X0 + P && x + 4 <= X0 + 11 * P)
                     {
-                        b.FillRectangle(x, Y0 + P + (i * P), 4, P, new BitmapColor(Cyan, 110));
+                        b.FillRectangle(x, Y0 + P + i * P, 4, P, new BitmapColor(Cyan, 110));
                     }
                 }
             }
 
-            var objectif = Melange(Bleu, Cyan, 0.5 + (0.5 * Math.Sin(s.Temps * 3))); // l'objectif respire
+            var objectif = Melange(Bleu, Cyan, 0.5 + 0.5 * Math.Sin(s.Temps * 3)); // l'objectif respire
             Pixels(b, Appareil, CX, CY, Q, (ch, _, _) => ch switch
             {
                 'b' => new BitmapColor(75, 85, 99),
@@ -165,13 +166,13 @@ namespace Loupedeck.TrinitePlugin
             if (declenche)
             {
                 // Rayons du flash autour de l'ampoule (case 9, rangée 0 de l'appareil).
-                var fx = CX + (9 * Q) + (Q / 2);
-                var fy = CY + (Q / 2);
+                var fx = CX + 9 * Q + Q / 2;
+                var fy = CY + Q / 2;
                 foreach (var (dx, dy) in new[] { (0, -1), (1, -1), (1, 0), (-1, -1) })
                 {
                     for (var d = 2; d < 5; d++)
                     {
-                        b.FillRectangle(fx + (dx * d * 3) - 1, fy + (dy * d * 3) - 1, 3, 3, BitmapColor.White);
+                        b.FillRectangle(fx + dx * d * 3 - 1, fy + dy * d * 3 - 1, 3, 3, BitmapColor.White);
                     }
                 }
             }
@@ -201,7 +202,7 @@ namespace Loupedeck.TrinitePlugin
             if (s.Temps - s.PhotoCopiee < 1.8)
             {
                 b.FillCircle(T / 2, T / 2, 26, new BitmapColor(0, 0, 0, 170));
-                Carte(b, Coche, (T / 2) - 18, (T / 2) - 14, 3, Vert);
+                Carte(b, Coche, T / 2 - 18, T / 2 - 14, 3, Vert);
             }
         }
 
@@ -213,12 +214,12 @@ namespace Loupedeck.TrinitePlugin
             const Double R = 50;
             for (var i = 0; i < 60; i++)
             {
-                var a = (i / 60.0 * Math.PI * 2) - (Math.PI / 2);
-                Int32 x = (T / 2) + (Int32)Math.Round(Math.Cos(a) * R), y = (T / 2) + (Int32)Math.Round(Math.Sin(a) * R);
-                var teinte = ArcEnCiel((i / 60.0) + (s.Temps / 12));
+                var a = i / 60.0 * Math.PI * 2 - Math.PI / 2;
+                Int32 x = T / 2 + (Int32)Math.Round(Math.Cos(a) * R), y = T / 2 + (Int32)Math.Round(Math.Sin(a) * R);
+                var teinte = ArcEnCiel(i / 60.0 + s.Temps / 12);
                 var c = i == m.Second ? BitmapColor.White : i < m.Second ? teinte : Melange(EteintSombre, teinte, 0.25);
                 var cote = i == m.Second ? 6 : i % 5 == 0 ? 4 : 3;
-                b.FillRectangle(x - (cote / 2), y - (cote / 2), cote, cote, c);
+                b.FillRectangle(x - cote / 2, y - cote / 2, cote, cote, c);
             }
 
             var deuxPoints = s.Temps % 1 < 0.5 ? ":" : " ";
@@ -233,7 +234,7 @@ namespace Loupedeck.TrinitePlugin
         {
             h = (h % 1 + 1) % 1 * 6;
             var f = h - Math.Floor(h);
-            Int32 V(Double k) => (Int32)Math.Round(70 + (185 * k));
+            Int32 V(Double k) => (Int32)Math.Round(70 + 185 * k);
             return (Int32)h switch
             {
                 0 => new BitmapColor(V(1), V(f), V(0)),
@@ -255,13 +256,13 @@ namespace Loupedeck.TrinitePlugin
             Carte(b, Micro, X0, Y0, 4, teinte);
             for (var i = 0; i < 2; i++)
             {
-                var force = Math.Round(Math.Max(0, Math.Sin((s.Temps * (enCours ? 9 : 4)) - (i * 1.3))) * 3) / 3; // 4 intensités
+                var force = Math.Round(Math.Max(0, Math.Sin(s.Temps * (enCours ? 9 : 4) - i * 1.3)) * 3) / 3; // 4 intensités
                 var c = new BitmapColor(teinte, (Int32)(255 * force));
-                var d = 4 + (i * 8); // distance au micro (ses bras touchent les bords de son dessin)
+                var d = 4 + i * 8; // distance au micro (ses bras touchent les bords de son dessin)
                 foreach (var (x, sens) in new[] { (X0 - d - 3, -1), (X0 + 48 + d, 1) })
                 {
                     b.FillRectangle(x, Milieu - 8, 3, 4, c);
-                    b.FillRectangle(x + (sens * 2), Milieu - 4, 3, 8, c);
+                    b.FillRectangle(x + sens * 2, Milieu - 4, 3, 8, c);
                     b.FillRectangle(x, Milieu + 4, 3, 4, c);
                 }
             }

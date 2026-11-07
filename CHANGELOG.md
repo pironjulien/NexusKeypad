@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- The Logi plugin and the native hook build with the recommended .NET analyzers and the build-time code style, every
+  warning an error (as NexusWpp). The same gate runs locally and in CI: the StyleCop analyzers pulled in by the
+  LogiPluginApi package (CI only, thousands of ignored warnings) are left out. Nullable reference types are enabled
+  file by file, starting with the key drawings, the clipboard, the scripts and the package lookup.
+- Win32 text reads (window titles and classes, short paths, process image and package names) use character buffers
+  instead of StringBuilder.
+- Tomlyn 2.10.2.
+- The release workflow uses NexusSystem's shared release workflows at v1.6.54.
+
 ## [1.8.47] - 2026-11-07
 
 ### Fixed

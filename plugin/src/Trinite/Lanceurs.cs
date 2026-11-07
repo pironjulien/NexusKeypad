@@ -4,6 +4,7 @@ namespace Loupedeck.TrinitePlugin
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Globalization;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -131,8 +132,7 @@ namespace Loupedeck.TrinitePlugin
                         var fenetres = new List<IntPtr>();
                         EnumWindows((fenetre, _) =>
                         {
-                            GetWindowThreadProcessId(fenetre, out var id);
-                            if (ids.Contains((Int32)id) && IsWindowVisible(fenetre) && GetWindowTextLength(fenetre) > 0)
+                            if (GetWindowThreadProcessId(fenetre, out var id) != 0 && ids.Contains((Int32)id) && IsWindowVisible(fenetre) && GetWindowTextLength(fenetre) > 0)
                             {
                                 fenetres.Add(fenetre);
                             }
@@ -338,8 +338,8 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
-                lien = shell.GetType().InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [chemin]);
-                return lien.GetType().InvokeMember("TargetPath", BindingFlags.GetProperty, null, lien, null) as String;
+                lien = shell.GetType().InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [chemin], CultureInfo.InvariantCulture);
+                return lien.GetType().InvokeMember("TargetPath", BindingFlags.GetProperty, null, lien, null, CultureInfo.InvariantCulture) as String;
             }
             catch (Exception)
             {
@@ -422,8 +422,7 @@ namespace Loupedeck.TrinitePlugin
             var trouvee = false;
             EnumWindows((fenetre, _) =>
             {
-                GetWindowThreadProcessId(fenetre, out var id);
-                if (processus.Contains((Int32)id) && IsWindowVisible(fenetre) && GetWindowTextLength(fenetre) > 0)
+                if (GetWindowThreadProcessId(fenetre, out var id) != 0 && processus.Contains((Int32)id) && IsWindowVisible(fenetre) && GetWindowTextLength(fenetre) > 0)
                 {
                     trouvee = true;
                     return false;
@@ -527,7 +526,7 @@ namespace Loupedeck.TrinitePlugin
                 var nombre = Marshal.ReadInt32(memoire);
                 for (var i = 0; i < nombre; i++)
                 {
-                    var ligne = IntPtr.Add(memoire, 4 + (i * 24));
+                    var ligne = IntPtr.Add(memoire, 4 + i * 24);
                     var numero = (UInt16)IPAddress.NetworkToHostOrder((Int16)Marshal.ReadInt32(ligne, 8));
                     if (numero == port && (UInt32)Marshal.ReadInt32(ligne, 4) == 0x0100007f)
                     {

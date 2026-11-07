@@ -26,16 +26,19 @@ static unsafe class UserApplication
     [DllImport("user32.dll")] static extern nint GetShellWindow();
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(nint hwnd, out uint pid);
     static nint* Table(nint value) => *(nint**)value;
-    static void Check(int result) { if (result < 0) Marshal.ThrowExceptionForHR(result); }
-    static void Release(nint value) { if (value != 0) Marshal.Release(value); }
-    static void Release(object? value) { if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value); }
+    static void Check(int result) { if (result < 0) { Marshal.ThrowExceptionForHR(result); } }
+    static void Release(nint value) { if (value != 0) { Marshal.Release(value); } }
+    static void Release(object? value) { if (value != null && Marshal.IsComObject(value)) { Marshal.ReleaseComObject(value); } }
 
     // Startup preparation performs no launch. Callers set their unknown-outcome marker only at `started`.
     public static void Start(ProcessStartInfo info, Action started, int show = 1 /* SW_SHOWNORMAL */)
     {
-        if (string.IsNullOrWhiteSpace(info.FileName)) throw new UserApplicationUnavailableException("An application target is required; nothing was launched");
+        if (string.IsNullOrWhiteSpace(info.FileName)) { throw new UserApplicationUnavailableException("An application target is required; nothing was launched"); }
         if (info.ArgumentList.Count != 0 || info.RedirectStandardInput || info.RedirectStandardOutput || info.RedirectStandardError)
+        {
             throw new UserApplicationUnavailableException("The user-application broker takes an argument string and no redirected protocol handles; nothing was launched");
+        }
+
         object? application;
         try { application = DesktopApplication(); }
         catch (Exception error) { throw new UserApplicationUnavailableException("The interactive Explorer launch broker is unavailable; nothing was launched", error); }
@@ -55,13 +58,19 @@ static unsafe class UserApplication
         {
             var shell = GetShellWindow();
             if (shell == 0 || GetWindowThreadProcessId(shell, out var shellPid) == 0 || shellPid == 0)
+            {
                 throw new InvalidOperationException("There is no interactive desktop shell");
+            }
+
             var type = Type.GetTypeFromCLSID(new Guid("9BA05972-F6A8-11CF-A442-00A0C90A8F39"), throwOnError: true)!;
             windows = Activator.CreateInstance(type) ?? throw new InvalidOperationException("ShellWindows is unavailable");
             object location = 0 /* CSIDL_DESKTOP */, unused = Type.Missing;
             desktop = ((dynamic)windows).FindWindowSW(ref location, ref unused, 8 /* SWC_DESKTOP */, out int desktopHwnd, 1 /* SWFO_NEEDDISPATCH */);
             if (desktop == null || GetWindowThreadProcessId((nint)(uint)desktopHwnd, out var desktopPid) == 0 || desktopPid != shellPid)
+            {
                 throw new InvalidOperationException("The desktop automation object is not owned by the interactive shell");
+            }
+
             unknown = Marshal.GetIUnknownForObject(desktop);
             var serviceProvider = new Guid("6D5140C1-7436-11CE-8034-00AA006009FA");
             Check(Marshal.QueryInterface(unknown, in serviceProvider, out provider));

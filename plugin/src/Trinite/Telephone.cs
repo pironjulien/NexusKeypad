@@ -12,6 +12,9 @@ namespace Loupedeck.TrinitePlugin
     // (pas d'adb, aucun appareil) : pas de photo, la touche montre l'heure et la date.
     public sealed class Telephone : IDisposable
     {
+        // Drapeaux d'une notification permanente ou d'un résumé de groupe : jamais comptée comme un vrai message.
+        private static readonly String[] DrapeauxPermanents = ["GROUP_SUMMARY", "ONGOING_EVENT", "FOREGROUND_SERVICE", "NO_CLEAR"];
+
         private static readonly String Local = Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "";
         // Hors d'AppData : les applis du Store (Codex) ne voient pas AppData\Local d'un autre programme ; le fichier collé
         // leur arrivait vide (0 octet) et la photo n'était pas jointe. Le profil (~\.nexus) leur est lisible.
@@ -66,7 +69,7 @@ namespace Loupedeck.TrinitePlugin
             {
                 var drapeaux = System.Text.RegularExpressions.Regex.Match(l, @"flags=(\S*)").Groups[1].Value;
                 return l.Contains($"category={categorie}", StringComparison.Ordinal)
-                    && !new[] { "GROUP_SUMMARY", "ONGOING_EVENT", "FOREGROUND_SERVICE", "NO_CLEAR" }.Any(drapeaux.Contains);
+                    && !DrapeauxPermanents.Any(drapeaux.Contains);
             }
 
             var lignes = sortie.Split('\n');
@@ -116,7 +119,11 @@ namespace Loupedeck.TrinitePlugin
             }
 
             // Les 5 dernières, et toujours celle de la touche (peut-être encore dans le presse-papiers).
+#if POSTE
+            var garde = new[] { this.Derniere?.Fichier, local };
+#else
             var garde = new[] { this.Derniere?.Fichier, this._copiee, local };
+#endif
             foreach (var vieux in new DirectoryInfo(Cache).EnumerateFiles().Where(f => f.Extension != ".part" && !garde.Contains(f.FullName))
                 .OrderByDescending(f => f.LastWriteTimeUtc).Skip(5))
             {
@@ -136,7 +143,7 @@ namespace Loupedeck.TrinitePlugin
 #if !POSTE
             if (Preparee(local) is null)
             {
-                this.Preparer(photo);
+                Preparer(photo);
             }
 #endif
         }
@@ -212,10 +219,10 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+#if !POSTE
         // Image et fichier dans le presse-papiers (PressePapiers : API Win32, sans processus).
         private String _copiee; // fichier publié dans le presse-papiers : jamais élagué
 
-#if !POSTE
         public Boolean Copier()
         {
             var photo = this.Derniere;
@@ -225,13 +232,13 @@ namespace Loupedeck.TrinitePlugin
             }
 
             // Préparée dès l'arrivée sur la touche (Rafraichir) : l'appui ne fait plus que la poser dans le presse-papiers.
-            var reduite = Preparee(photo.Fichier) ?? this.Preparer(photo);
+            var reduite = Preparee(photo.Fichier) ?? Preparer(photo);
             return reduite is not null && this.Publier(reduite, "Photo");
         }
 
         // Copie réduite pour l'IA (ImageIa : WebP, ≤ 2000 px, ≤ 3 Mo), toujours dans le cache (lisible des applis du
         // Store), jamais à côté d'une image du PC de l'utilisateur. L'original reste sur le téléphone. Null : illisible.
-        private String Preparer(Photo photo)
+        private static String Preparer(Photo photo)
         {
             try
             {
@@ -345,7 +352,7 @@ namespace Loupedeck.TrinitePlugin
                 var n = Lire16(ifd);
                 for (var e = 0; e < n; e++)
                 {
-                    var entree = ifd + 2 + (e * 12);
+                    var entree = ifd + 2 + e * 12;
                     if (Lire16(entree) == 0x0112)
                     {
                         return Lire16(entree + 8);

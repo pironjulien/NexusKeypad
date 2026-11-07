@@ -10,14 +10,15 @@ namespace Loupedeck.TrinitePlugin
     using System.Security.Cryptography;
     using System.Text;
     using System.Text.Json.Nodes;
+
     using Tomlyn;
     using Tomlyn.Model;
     using Tomlyn.Parsing;
-    using Tomlyn.Syntax;
     using Tomlyn.Serialization;
+    using Tomlyn.Syntax;
 
     [TomlSerializable(typeof(TomlTable))]
-    internal partial class ConnecteurTomlContext : TomlSerializerContext
+    internal sealed partial class ConnecteurTomlContext : TomlSerializerContext
     {
     }
 
@@ -42,11 +43,10 @@ namespace Loupedeck.TrinitePlugin
         private static readonly Object Verrou = new();
         private static String _exePaquet;
         private static String _maison;
-        private static String _local;
         private static Func<String[], (Int32 Code, String Sortie)> _commandeClaudeEssai;
 
         private static String Maison => _maison ?? Environment.GetEnvironmentVariable("USERPROFILE") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        private static String Local => _local ?? Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        private static String Local { get => field ?? Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData); set; }
         private static String Racine => Path.Combine(Local, "NexusKeypad", "connecteurs");
         private static String Executable => Path.Combine(Local, "NexusKeypad", "hook", EtatsEnDirect.NomExe);
         private static String Source => Path.Combine(Path.GetDirectoryName(_exePaquet ?? "") ?? "", "connecteurs");
@@ -63,7 +63,7 @@ namespace Loupedeck.TrinitePlugin
         internal static void DossiersEssai(String maison, String local, String exePaquet)
         {
             _maison = Path.GetFullPath(maison);
-            _local = Path.GetFullPath(local);
+            Local = Path.GetFullPath(local);
             Initialiser(exePaquet);
         }
 
@@ -718,9 +718,11 @@ namespace Loupedeck.TrinitePlugin
             // The existing Antigravity hook command parser does not accept a quoted executable. Use the Windows short
             // path only when required, and refuse when the volume cannot provide one; never invent a command.
             if (!chemin.Contains(' ')) { return chemin; }
-            var tampon = new StringBuilder(32768);
-            return GetShortPathNameW(chemin, tampon, tampon.Capacity) > 0 && !tampon.ToString().Contains(' ')
-                ? tampon.ToString() : throw new IOException("Le chemin du programme Antigravity n’a pas de forme prise en charge.");
+            var tampon = new Char[32768];
+            var longueur = GetShortPathNameW(chemin, tampon, tampon.Length);
+            var court = longueur > 0 && longueur < tampon.Length ? new String(tampon, 0, (Int32)longueur) : null;
+            return court is not null && !court.Contains(' ')
+                ? court : throw new IOException("Le chemin du programme Antigravity n’a pas de forme prise en charge.");
         }
 
         private static Boolean Autorise(String chemin)
@@ -790,7 +792,7 @@ namespace Loupedeck.TrinitePlugin
                     foreach (var item in this._avant)
                     {
                         var actuel = File.Exists(item.Key) ? File.ReadAllBytes(item.Key) : null;
-                        if ((actuel is null) != (item.Value is null) || actuel is not null && !actuel.AsSpan().SequenceEqual(item.Value))
+                        if ((actuel is null) != (item.Value is null) || (actuel is not null && !actuel.AsSpan().SequenceEqual(item.Value)))
                         {
                             throw new IOException("Le profil a changé pendant la préparation. Réessayer après cette opération.");
                         }
@@ -1074,7 +1076,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-        private static extern UInt32 GetShortPathNameW(String longPath, StringBuilder shortPath, Int32 capacity);
+        private static extern UInt32 GetShortPathNameW(String longPath, [System.Runtime.InteropServices.Out] Char[] shortPath, Int32 capacity);
     }
 }
 #endif

@@ -1,3 +1,4 @@
+#nullable enable
 namespace Loupedeck.TrinitePlugin
 {
     using System;
@@ -110,7 +111,7 @@ namespace Loupedeck.TrinitePlugin
             using var bgra = image.Copy(SKColorType.Bgra8888);
             var (largeur, hauteur) = (bgra.Width, bgra.Height);
             var ligne = largeur * 4;
-            var dib = new Byte[40 + (ligne * hauteur)];
+            var dib = new Byte[40 + ligne * hauteur];
             BitConverter.GetBytes(40).CopyTo(dib, 0);
             BitConverter.GetBytes(largeur).CopyTo(dib, 4);
             BitConverter.GetBytes(hauteur).CopyTo(dib, 8);
@@ -120,7 +121,7 @@ namespace Loupedeck.TrinitePlugin
             var pixels = bgra.Bytes;
             for (var y = 0; y < hauteur; y++)
             {
-                Buffer.BlockCopy(pixels, y * bgra.RowBytes, dib, 40 + ((hauteur - 1 - y) * ligne), ligne);
+                Buffer.BlockCopy(pixels, y * bgra.RowBytes, dib, 40 + (hauteur - 1 - y) * ligne, ligne);
             }
 
             return dib;

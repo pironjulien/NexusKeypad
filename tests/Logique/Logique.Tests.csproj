@@ -16,7 +16,7 @@
     <Compile Include="..\..\plugin\src\Trinite\*.cs" Link="Plugin\%(Filename)%(Extension)" />
     <Compile Include="..\..\plugin\src\Helpers\PluginLog.cs" Link="Plugin\PluginLog.cs" />
     <PackageReference Include="FsCheck" Version="3.4.0" />
-    <PackageReference Include="Tomlyn" Version="2.10.1" />
+    <PackageReference Include="Tomlyn" Version="2.10.2" />
     <!-- The key previews (planches) are drawn by apercu, built with these tests and run by them. -->
     <ProjectReference Include="..\..\apercu\apercu.csproj" ReferenceOutputAssembly="false" />
     <AssemblyMetadata Include="NexusKeypad.Apercu" Value="$(USERPROFILE)\.nexus\build\nexuskeypad\apercu\bin\$(Configuration)\net10.0\apercu.exe" />

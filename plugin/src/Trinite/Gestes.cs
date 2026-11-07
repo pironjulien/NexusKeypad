@@ -245,7 +245,9 @@ namespace Loupedeck.TrinitePlugin
                 && IsWindowVisible(f) && GetForegroundWindow() == f, 4000);
         }
 
-        private static Boolean UsageOfficielCodexDevant() => new[] { "chrome", "msedge", "firefox" }
+        private static readonly String[] Navigateurs = ["chrome", "msedge", "firefox"];
+
+        private static Boolean UsageOfficielCodexDevant() => Navigateurs
             .SelectMany(Uia.Fenetres).Any(f => f == GetForegroundWindow()
                 && Uri.TryCreate(Uia.AdresseDocument(f), UriKind.Absolute, out var u)
                 && u.Scheme == Uri.UriSchemeHttps && u.Host.Equals("chatgpt.com", StringComparison.OrdinalIgnoreCase)
@@ -554,7 +556,7 @@ namespace Loupedeck.TrinitePlugin
                 return Uia.ConfirmerEtat(() => DicteeObservee(1), false) ? true : null;
             }
 
-            Boolean? codex = !Lancee(1) ? false
+            var codex = !Lancee(1) ? false
                 : Cdp.PageOuverte(Cdp.PortCodex, Cdp.BulleVocaleCodex) switch
                 {
                     null => null,
@@ -671,7 +673,7 @@ namespace Loupedeck.TrinitePlugin
             Devant(fenetre);
         }
 #else
-        public static Double LanceIlYA(Int32 agent) => 99; // aucun agent lancé dans PC Dashboard
+        public static Double LanceIlYA(Int32 _) => 99; // aucun agent lancé dans PC Dashboard
 #endif
 
         // Fenêtre posée sur une moitié de l'écran où travaille l'utilisateur (gauche ou droite de sa zone de travail),
@@ -749,7 +751,7 @@ namespace Loupedeck.TrinitePlugin
                 if (!IsZoomed(fenetre) && !IsIconic(fenetre) && DwmGetWindowAttribute(fenetre, 9, out var vu, Marshal.SizeOf<RECT>()) == 0)
                 {
                     static Boolean Pres(Int32 a, Int32 b) => Math.Abs(a - b) <= 8;
-                    if (Pres(vu.Haut, travail.Haut) && Pres(vu.Bas, travail.Bas) && (Pres(vu.Gauche, travail.Gauche) && Pres(vu.Droite, milieu) || Pres(vu.Gauche, milieu) && Pres(vu.Droite, travail.Droite)))
+                    if (Pres(vu.Haut, travail.Haut) && Pres(vu.Bas, travail.Bas) && ((Pres(vu.Gauche, travail.Gauche) && Pres(vu.Droite, milieu)) || (Pres(vu.Gauche, milieu) && Pres(vu.Droite, travail.Droite))))
                     {
                         return;
                     }
@@ -919,9 +921,10 @@ namespace Loupedeck.TrinitePlugin
 
         private static Boolean EstPanneauShell(IntPtr fenetre)
         {
-            var classe = new System.Text.StringBuilder(64);
-            if (fenetre == IntPtr.Zero || GetClassName(fenetre, classe, classe.Capacity) == 0
-                || classe.ToString() != "Windows.UI.Core.CoreWindow" || ProcessusDeFenetre(fenetre, out var pid) == 0)
+            var classe = new Char[64];
+            Int32 longueur;
+            if (fenetre == IntPtr.Zero || (longueur = GetClassName(fenetre, classe, classe.Length)) == 0
+                || !classe.AsSpan(0, longueur).SequenceEqual("Windows.UI.Core.CoreWindow") || ProcessusDeFenetre(fenetre, out var pid) == 0)
             {
                 return false;
             }
@@ -938,7 +941,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        private static extern Int32 GetClassName(IntPtr h, System.Text.StringBuilder classe, Int32 max);
+        private static extern Int32 GetClassName(IntPtr h, [Out] Char[] classe, Int32 max);
 
         [DllImport("dwmapi.dll", EntryPoint = "DwmGetWindowAttribute")]
         private static extern Int32 Masquage(IntPtr h, Int32 attribut, out Int32 valeur, Int32 taille);

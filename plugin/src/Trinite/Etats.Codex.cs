@@ -70,7 +70,7 @@ namespace Loupedeck.TrinitePlugin
                     var vu = this.Vu(1, id, depuis);
                     var (sujet, source) = relais ? this.SujetEtSource(f) : (this._indexCodex.Noms.GetValueOrDefault(id) ?? "Chat Codex", -1);
                     var titre = relais ? "Relais · " + sujet : sujet;
-                    var regardee = etat == Etat.Fini && (vu || relais) || etat == Etat.Attend && vu; // question vue : « ? » effacé
+                    var regardee = (etat == Etat.Fini && (vu || relais)) || (etat == Etat.Attend && vu); // question vue : « ? » effacé
                     yield return new(1, id, titre, regardee ? Etat.Repos : etat, depuis, f.LastWriteTimeUtc, vu, relais, source);
                 }
             }
@@ -81,8 +81,8 @@ namespace Loupedeck.TrinitePlugin
         // (codex_workspace) ne suffit pas : sur le poste de Julien c'est Documents, celui de tous ses chats, et ses chats
         // faisaient courir les messagers sans aucun relais (02/11).
         public static Boolean ChatDuRelais(String id, String entete, IReadOnlySet<String> conversationsRelais) =>
-            id is not null && conversationsRelais.Contains(id)
-            || Champ(entete, "cwd") is { } cwd && String.Equals(Chemin(cwd), Chemin(Path.Combine(Maison, ".nexus", "relay", "codex-projet")), StringComparison.OrdinalIgnoreCase);
+            (id is not null && conversationsRelais.Contains(id))
+            || (Champ(entete, "cwd") is { } cwd && String.Equals(Chemin(cwd), Chemin(Path.Combine(Maison, ".nexus", "relay", "codex-projet")), StringComparison.OrdinalIgnoreCase));
 
         // Conversations Codex ouvertes par le relais : topics\<sujet>\codex.json (« conversation ») et
         // state\codex-owned.json (« threads »), dans ~\.nexus\relay\v1. Relu toutes les 5 s : quelques petits fichiers.
@@ -166,7 +166,7 @@ namespace Loupedeck.TrinitePlugin
                     .Where(f => DateTime.UtcNow - f.LastWriteTimeUtc <= Fenetre).Select(f => f.FullName).ToList());
             }
 
-            var jour = Path.Combine(sessions, DateTime.Now.ToString("yyyy"), DateTime.Now.ToString("MM"), DateTime.Now.ToString("dd"));
+            var jour = Path.Combine(sessions, DateTime.Now.ToString("yyyy", CultureInfo.InvariantCulture), DateTime.Now.ToString("MM", CultureInfo.InvariantCulture), DateTime.Now.ToString("dd", CultureInfo.InvariantCulture));
             var noms = Directory.Exists(jour) ? this._journauxCodex.Chemins.Union(Directory.EnumerateFiles(jour, "rollout-*.jsonl")) : this._journauxCodex.Chemins;
             return noms.Select(n => new FileInfo(n)).Where(f => f.Exists).ToList();
         }
@@ -215,21 +215,23 @@ namespace Loupedeck.TrinitePlugin
                 Double? Part(String fenetre) =>
                     doc.RootElement.TryGetProperty(fenetre, out var f) && f.ValueKind == JsonValueKind.Object
                     && f.TryGetProperty("remainingPercent", out var r) && r.ValueKind == JsonValueKind.Number
-                        ? 1 - (r.GetDouble() / 100)
+                        ? 1 - r.GetDouble() / 100
                         : null;
                 return new(Part("primaryWindow"), Part("secondaryWindow"));
             }
             catch (Exception)
             {
-                return this.QuotaCodexJournaux(); // Codex LB arrêté
+                return QuotaCodexJournaux(); // Codex LB arrêté
             }
         }
 
         // Sans Codex LB (Codex tel qu'installé) : les journaux les plus récents, chats archivés compris (l'archivage les sort
         // de sessions\) et sans limite d'âge (une semaine entamée vaut encore ; une fenêtre passée se lit à 0 %).
-        private Quota QuotaCodexJournaux()
+        private static readonly String[] DossiersJournauxCodex = ["sessions", "archived_sessions"];
+
+        private static Quota QuotaCodexJournaux()
         {
-            var fichiers = new[] { "sessions", "archived_sessions" }.Select(d => Path.Combine(DossierCodex, d)).Where(Directory.Exists)
+            var fichiers = DossiersJournauxCodex.Select(d => Path.Combine(DossierCodex, d)).Where(Directory.Exists)
                 .SelectMany(d => new DirectoryInfo(d).EnumerateFiles("rollout-*.jsonl", SearchOption.AllDirectories))
                 .OrderByDescending(f => f.LastWriteTimeUtc).Take(6).Select(f => f.FullName);
             (DateTime Quand, JsonElement Limites)? meilleur = null;

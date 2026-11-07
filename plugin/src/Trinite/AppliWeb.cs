@@ -2,6 +2,7 @@ namespace Loupedeck.TrinitePlugin
 {
     using System;
     using System.Diagnostics;
+    using System.Globalization;
     using System.IO;
     using System.Linq;
     using System.Reflection;
@@ -174,8 +175,8 @@ namespace Loupedeck.TrinitePlugin
             try
             {
                 var shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
-                var raccourci = shell.GetType().InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [lnk]);
-                return raccourci.GetType().InvokeMember("Arguments", BindingFlags.GetProperty, null, raccourci, null) as String ?? "";
+                var raccourci = shell.GetType().InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [lnk], CultureInfo.InvariantCulture);
+                return raccourci.GetType().InvokeMember("Arguments", BindingFlags.GetProperty, null, raccourci, null, CultureInfo.InvariantCulture) as String ?? "";
             }
             catch (Exception)
             {

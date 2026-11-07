@@ -20,6 +20,7 @@ public static class Program
 
     // Outils qui posent une question à l'utilisateur : le tour s'arrête sur lui (Claude, Antigravity).
     private static readonly HashSet<string> Questions = ["AskUserQuestion", "ask_question"];
+    private static readonly string[] MotsDeLimite = ["rate limit", "rate_limit", "quota", "resource_exhausted", "429", "usage limit", "capacity"];
 
     // Boîte de fin de tour de l'appli : une question si « ask » est rempli.
     private const string Choix = "mcp__ccd_turn__wrap_up";
@@ -224,7 +225,7 @@ public static class Program
         }
 
         var texte = (raison + " " + erreur).ToLowerInvariant();
-        return new[] { "rate limit", "rate_limit", "quota", "resource_exhausted", "429", "usage limit", "capacity" }
+        return MotsDeLimite
             .Any(m => texte.Contains(m, StringComparison.Ordinal)) ? "limit" : "error";
     }
 

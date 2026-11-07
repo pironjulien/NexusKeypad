@@ -140,9 +140,9 @@ namespace Loupedeck.TrinitePlugin
 
             try
             {
-                var tampon = new StringBuilder(1024);
-                var taille = (UInt32)tampon.Capacity;
-                return QueryFullProcessImageName(processus, 0, tampon, ref taille) ? tampon.ToString(0, (Int32)taille) : null;
+                var tampon = new Char[1024];
+                var taille = (UInt32)tampon.Length;
+                return QueryFullProcessImageName(processus, 0, tampon, ref taille) ? new String(tampon, 0, (Int32)taille) : null;
             }
             finally
             {
@@ -151,7 +151,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "QueryFullProcessImageNameW")]
-        private static extern Boolean QueryFullProcessImageName(IntPtr processus, UInt32 format, StringBuilder chemin, ref UInt32 taille);
+        private static extern Boolean QueryFullProcessImageName(IntPtr processus, UInt32 format, [Out] Char[] chemin, ref UInt32 taille);
 
         // Ligne de commande d'un processus, lue par Windows (sans WMI) ; "" si illisible.
         private static String LigneDeCommande(Int32 pid)
@@ -164,7 +164,7 @@ namespace Loupedeck.TrinitePlugin
 
             try
             {
-                NtQueryInformationProcess(processus, ProcessCommandLineInformation, IntPtr.Zero, 0, out var taille);
+                _ = NtQueryInformationProcess(processus, ProcessCommandLineInformation, IntPtr.Zero, 0, out var taille); // taille seule
                 if (taille == 0)
                 {
                     return "";
@@ -257,7 +257,7 @@ namespace Loupedeck.TrinitePlugin
         // l'abonnement puis à chaque changement ; atténué compte pour allumé.
         private static class EtatAffichage
         {
-            private static Guid Affichage = new("6fe69556-704a-47a0-8f24-c28d936fda47");
+            private static readonly Guid Affichage = new("6fe69556-704a-47a0-8f24-c28d936fda47");
             private static readonly RappelAlimentation Rappel = Changement; // gardé en vie pour Windows
             private static volatile Int32 _etat = -1;
 
@@ -310,8 +310,8 @@ namespace Loupedeck.TrinitePlugin
             private static extern UInt32 PowerSettingRegisterNotification(ref Guid settingGuid, UInt32 flags, ref DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS recipient, out IntPtr registrationHandle);
         }
 
-        private static Guid SousGroupeVideo = new("7516b95f-f776-4464-8c53-06167f40cc99"); // GUID_VIDEO_SUBGROUP
-        private static Guid ExtinctionVideo = new("3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e"); // GUID_VIDEO_POWERDOWN_TIMEOUT
+        private static readonly Guid SousGroupeVideo = new("7516b95f-f776-4464-8c53-06167f40cc99"); // GUID_VIDEO_SUBGROUP
+        private static readonly Guid ExtinctionVideo = new("3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e"); // GUID_VIDEO_POWERDOWN_TIMEOUT
 
         [StructLayout(LayoutKind.Sequential)]
         private struct SYSTEM_POWER_STATUS
@@ -346,7 +346,7 @@ namespace Loupedeck.TrinitePlugin
         {
             try
             {
-                GetWindowThreadProcessId(fenetre, out var pid);
+                _ = GetWindowThreadProcessId(fenetre, out var pid);
                 return pid == 0 ? "" : Process.GetProcessById((Int32)pid).ProcessName;
             }
             catch (Exception)

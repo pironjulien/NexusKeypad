@@ -35,9 +35,9 @@ namespace Loupedeck.TrinitePlugin
             return true;
         }
 
-        protected override Boolean RunCommand(ActionEditorActionParameters parametres)
+        protected override Boolean RunCommand(ActionEditorActionParameters actionParameters)
         {
-            var site = Signet.Choisi(parametres.GetString(Adresse, ""), parametres.GetString(Titre, ""));
+            var site = Signet.Choisi(actionParameters.GetString(Adresse, ""), actionParameters.GetString(Titre, ""));
             if (site.Url is null)
             {
                 PluginLog.Warning("touche du site sans adresse valable : rien d'ouvert");
@@ -50,9 +50,9 @@ namespace Loupedeck.TrinitePlugin
 
         // Toutes les touches du site ont la même image (le globe) : celle du moteur pour le pad (116 px), une autre taille
         // dessinée à part (Options+).
-        protected override BitmapImage GetCommandImage(ActionEditorActionParameters parametres, Int32 largeur, Int32 hauteur)
+        protected override BitmapImage GetCommandImage(ActionEditorActionParameters actionParameters, Int32 imageWidth, Int32 imageHeight)
         {
-            if (largeur == Rendu.T)
+            if (imageWidth == Rendu.T)
             {
                 this.Moteur.Demande(Moteur.Site);
                 if (this.Moteur.Image(Moteur.Site) is { } image)
@@ -61,12 +61,12 @@ namespace Loupedeck.TrinitePlugin
                 }
             }
 
-            return BitmapImage.FromArray(Rendu.Png(Moteur.Site, this.Moteur.Scene, Math.Min(largeur, hauteur)));
+            return BitmapImage.FromArray(Rendu.Png(Moteur.Site, this.Moteur.Scene, Math.Min(imageWidth, imageHeight)));
         }
 
         // Le nom du site sous la touche dans Options+ ; « Website » tant qu'aucune adresse n'est saisie.
-        protected override String GetCommandDisplayName(ActionEditorActionParameters parametres) =>
-            Signet.Choisi(parametres.GetString(Adresse, ""), "") is { Url: not null } site ? site.Nom : this.DisplayName;
+        protected override String GetCommandDisplayName(ActionEditorActionParameters actionParameters) =>
+            Signet.Choisi(actionParameters.GetString(Adresse, ""), "") is { Url: not null } site ? site.Nom : this.DisplayName;
     }
 }
 #endif

@@ -622,7 +622,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private static IEnumerable<String> Lignes(String chemin, Int32 octets)
+        private static String[] Lignes(String chemin, Int32 octets)
         {
             try
             {

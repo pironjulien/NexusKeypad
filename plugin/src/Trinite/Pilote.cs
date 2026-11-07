@@ -1,3 +1,4 @@
+#nullable enable
 namespace Loupedeck.TrinitePlugin
 {
     using System;
@@ -30,6 +31,7 @@ namespace Loupedeck.TrinitePlugin
 #if MARKETPLACE || POSTE || COMPLETE || STREAMDECK
         // Éditions du Logi Marketplace (AI Coding Agents, PC Dashboard, AI Coding Agents + PC) et Stream Deck (le tube est
         // celui du plugin Logi) : pas d'outils d'essai, donc pas de tube ouvert.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Same instance API as the editions that open the test pipe.")]
         public void Demarrer()
         {
         }

@@ -11,6 +11,8 @@ namespace Loupedeck.TrinitePlugin
     // Client minimal du port de débogage de Codex (9223) et d'Antigravity (9227), comme le relais : un Runtime.evaluate.
     public static class Cdp
     {
+        private static readonly String[] ClicSouris = ["mousePressed", "mouseReleased"];
+
         public const Int32 PortCodex = 9223;
         public const Int32 PortAntigravity = 9227;
 
@@ -48,7 +50,7 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 // Vrai seulement si les deux événements sont acceptés (une erreur CDP n'a pas de « result »).
-                return new[] { "mousePressed", "mouseReleased" }
+                return ClicSouris
                     .All(type => session.Envoyer("Input.dispatchMouseEvent", new { type, x, y, button = "left", clickCount = 1 }) is not null);
             }
             catch (Exception)

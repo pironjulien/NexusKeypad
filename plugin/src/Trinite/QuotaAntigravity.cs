@@ -290,7 +290,7 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (cinq is Boolean fenetre && restant is Double valeur)
                 {
-                    groupes.Add(new(fenetre, 1 - (valeur / 100), delai is TimeSpan attente ? maintenant + attente : null, principal, famille));
+                    groupes.Add(new(fenetre, 1 - valeur / 100, delai is TimeSpan attente ? maintenant + attente : null, principal, famille));
                 }
                 cinq = null;
                 restant = null;

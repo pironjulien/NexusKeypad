@@ -86,7 +86,7 @@ namespace Loupedeck.TrinitePlugin
 
                 if (ecran != IntPtr.Zero)
                 {
-                    ReleaseDC(IntPtr.Zero, ecran);
+                    _ = ReleaseDC(IntPtr.Zero, ecran);
                 }
 
                 SetThreadDpiAwarenessContext(avant);

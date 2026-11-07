@@ -10,7 +10,7 @@
     <Compile Include="..\..\plugin\src\Trinite\Connecteurs.cs" Link="Plugin\Connecteurs.cs" />
     <Compile Include="..\..\plugin\src\Trinite\EtatsEnDirect.cs" Link="Plugin\EtatsEnDirect.cs" />
     <Compile Include="..\..\hook\PluginLog.cs" Link="Plugin\PluginLog.cs" />
-    <PackageReference Include="Tomlyn" Version="2.10.1" />
+    <PackageReference Include="Tomlyn" Version="2.10.2" />
   </ItemGroup>
 
 </Project>

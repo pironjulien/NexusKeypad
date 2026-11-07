@@ -1,3 +1,4 @@
+#nullable enable
 namespace Loupedeck.TrinitePlugin
 {
     using System;
@@ -49,12 +50,11 @@ namespace Loupedeck.TrinitePlugin
         // sortie du cadre (appli réduite).
         private static HashSet<UInt32> Processus(IntPtr cadre)
         {
-            GetWindowThreadProcessId(cadre, out var hote);
+            _ = GetWindowThreadProcessId(cadre, out var hote);
             var pids = new HashSet<UInt32>();
             EnumChildWindows(cadre, (h, _) =>
             {
-                GetWindowThreadProcessId(h, out var pid);
-                if (pid != hote && pid != 0)
+                if (GetWindowThreadProcessId(h, out var pid) != 0 && pid != hote && pid != 0)
                 {
                     pids.Add(pid);
                 }
@@ -64,11 +64,11 @@ namespace Loupedeck.TrinitePlugin
             var titre = Uia.Titre(cadre);
             EnumWindows((h, _) =>
             {
-                var classe = new StringBuilder(64);
-                if (GetClassName(h, classe, classe.Capacity) > 0 && classe.ToString() == "Windows.UI.Core.CoreWindow" && Uia.Titre(h) == titre)
+                var classe = new Char[64];
+                var longueur = GetClassName(h, classe, classe.Length);
+                if (longueur > 0 && classe.AsSpan(0, longueur).SequenceEqual("Windows.UI.Core.CoreWindow") && Uia.Titre(h) == titre)
                 {
-                    GetWindowThreadProcessId(h, out var pid);
-                    if (pid != 0)
+                    if (GetWindowThreadProcessId(h, out var pid) != 0 && pid != 0)
                     {
                         pids.Add(pid);
                     }
@@ -95,8 +95,8 @@ namespace Loupedeck.TrinitePlugin
                     return "";
                 }
 
-                var nom = new StringBuilder((Int32)taille);
-                return GetPackageFullName(processus, ref taille, nom) == 0 ? nom.ToString() : "";
+                var nom = new Char[taille];
+                return GetPackageFullName(processus, ref taille, nom) == 0 && taille > 0 ? new String(nom, 0, (Int32)taille - 1) : ""; // taille : avec le zéro final
             }
             finally
             {
@@ -113,7 +113,7 @@ namespace Loupedeck.TrinitePlugin
         private static extern Boolean EnumWindows(Rappel rappel, IntPtr l);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        private static extern Int32 GetClassName(IntPtr h, StringBuilder classe, Int32 max);
+        private static extern Int32 GetClassName(IntPtr h, [Out] Char[] classe, Int32 max);
 
         [DllImport("user32.dll")]
         private static extern UInt32 GetWindowThreadProcessId(IntPtr h, out UInt32 pid);
@@ -125,7 +125,7 @@ namespace Loupedeck.TrinitePlugin
         private static extern Boolean CloseHandle(IntPtr h);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-        private static extern Int32 GetPackageFullName(IntPtr processus, ref UInt32 taille, StringBuilder nom);
+        private static extern Int32 GetPackageFullName(IntPtr processus, ref UInt32 taille, [Out] Char[]? nom);
 
         [ComImport, Guid("B1AEC16F-2383-4852-B0E9-8F0B1DC66B4D")]
         private class PackageDebugSettings

@@ -151,7 +151,7 @@ namespace Loupedeck.TrinitePlugin
             var (dRepos, dTotal) = (repos - _temps.Repos, total - _temps.Total);
             if (_temps.Total != 0 && dTotal > 0)
             {
-                _processeur = Math.Clamp(1 - (dRepos / (Double)dTotal), 0, 1);
+                _processeur = Math.Clamp(1 - dRepos / (Double)dTotal, 0, 1);
             }
 
             _temps = (repos, total);
@@ -192,15 +192,15 @@ namespace Loupedeck.TrinitePlugin
             var store = System.Threading.Tasks.Task.Run(() => Page(
                 "Store", "ms-windows-store://downloadsandupdates", ["Microsoft Store"],
                 ["Rechercher les mises à jour", "Obtenir les mises à jour", "Get updates", "Check for updates"],
-                ["Tout mettre à jour", "Mettre à jour tout", "Update all"], [], 25, arret,
+                ["Tout mettre à jour", "Mettre à jour tout", "Update all"], [], 25,
                 ["Mises à jour disponibles", "Updates available", "Tout mettre à jour", "Mettre à jour tout", "Update all"],
-                ["Réessayer", "Try again", "erreur", "error", "Something went wrong", "hors connexion", "offline"], moniteur));
+                ["Réessayer", "Try again", "erreur", "error", "Something went wrong", "hors connexion", "offline"], moniteur, arret));
             var windows = System.Threading.Tasks.Task.Run(() => Page(
                 "Windows Update", "ms-settings:windowsupdate", ["Paramètres", "Settings"],
                 ["Rechercher des mises à jour", "Check for updates"],
                 ["Télécharger et installer tout", "Tout télécharger et installer", "Installer tout", "Télécharger et installer",
                     "Installer maintenant", "Download & install all", "Install all", "Download & install", "Install now"],
-                ["Vous êtes à jour", "You're up to date"], 150, arret, [], [], moniteur));
+                ["Vous êtes à jour", "You're up to date"], 150, [], [], moniteur, arret));
             System.Threading.Tasks.Task.WaitAll(store, windows);
             return (store.Result, windows.Result);
         }
@@ -215,13 +215,13 @@ namespace Loupedeck.TrinitePlugin
         // n'a répondu. Sondage toutes les 0,5 s les 10 premières secondes, puis toutes les 2 s (chaque sondage parcourt la
         // fenêtre).
         private static IssueMiseAJour Page(String nom, String adresse, String[] titres, String[] rechercher, String[] installer,
-            String[] aJour, Int32 attente, System.Threading.CancellationToken arret, String[] proposees, String[] erreurs, IntPtr moniteur)
+            String[] aJour, Int32 attente, String[] proposees, String[] erreurs, IntPtr moniteur, System.Threading.CancellationToken arret)
         {
             var issue = IssueMiseAJour.Inconnue;
             try
             {
                 Gestes.Lancer(adresse);
-                IntPtr fenetre = IntPtr.Zero;
+                var fenetre = IntPtr.Zero;
                 for (var i = 0; i < 40 && fenetre == IntPtr.Zero && !arret.IsCancellationRequested; i++)
                 {
                     arret.WaitHandle.WaitOne(500);

@@ -474,8 +474,10 @@ namespace Loupedeck.TrinitePlugin
                 return chemin;
             }
 
-            var tampon = new StringBuilder(32768);
-            return GetShortPathNameW(chemin, tampon, tampon.Capacity) > 0 && !tampon.ToString().Contains(' ') ? tampon.ToString() : null;
+            var tampon = new Char[32768];
+            var longueur = GetShortPathNameW(chemin, tampon, tampon.Length);
+            var court = longueur > 0 && longueur < tampon.Length ? new String(tampon, 0, (Int32)longueur) : null;
+            return court is not null && !court.Contains(' ') ? court : null;
         }
 
         // Au-dessus des fenêtres mais sans prendre le clavier, « Non » par défaut : une touche Entrée tapée ailleurs pendant
@@ -487,7 +489,7 @@ namespace Loupedeck.TrinitePlugin
         private static extern Int32 MessageBoxW(IntPtr fenetre, String texte, String titre, UInt32 type);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-        private static extern UInt32 GetShortPathNameW(String chemin, StringBuilder court, Int32 taille);
+        private static extern UInt32 GetShortPathNameW(String chemin, [Out] Char[] court, Int32 taille);
     }
 }
 #endif
