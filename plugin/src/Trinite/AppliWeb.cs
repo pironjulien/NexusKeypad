@@ -37,7 +37,8 @@ namespace Loupedeck.TrinitePlugin
             ["Messages", "Google Messages"]);
 
         // Site d'une touche ; null sans adresse (touche du site de PC Dashboard pas encore réglée).
-        public static AppliWeb Site(Signet site) => site.Url is null ? null : new(site.Url, site.Titre is null ? [] : [site.Titre], [site.Nom], AuDebut: true);
+        public static AppliWeb? Site(Signet site) => site is { Url: { } url, Nom: { } nom }
+            ? new(url, site.Titre is null ? [] : [site.Titre], [nom], AuDebut: true) : null;
 
         private static readonly String Local = Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "";
 
@@ -156,7 +157,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Raccourci d'appli Chrome (« … --app-id=… ») à son nom, dans le menu Démarrer ou sur le Bureau.
-        private String Raccourci()
+        private String? Raccourci()
         {
             var dossiers = new[]
             {
@@ -174,9 +175,10 @@ namespace Loupedeck.TrinitePlugin
         {
             try
             {
-                var shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
-                var raccourci = shell.GetType().InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [lnk], CultureInfo.InvariantCulture);
-                return raccourci.GetType().InvokeMember("Arguments", BindingFlags.GetProperty, null, raccourci, null, CultureInfo.InvariantCulture) as String ?? "";
+                return Type.GetTypeFromProgID("WScript.Shell") is { } type && Activator.CreateInstance(type) is { } shell
+                    && shell.GetType().InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [lnk], CultureInfo.InvariantCulture) is { } raccourci
+                    ? raccourci.GetType().InvokeMember("Arguments", BindingFlags.GetProperty, null, raccourci, null, CultureInfo.InvariantCulture) as String ?? ""
+                    : "";
             }
             catch (Exception)
             {

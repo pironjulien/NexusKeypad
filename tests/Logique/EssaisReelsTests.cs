@@ -218,8 +218,9 @@ internal static class LecturePressePapiers
         try
         {
             var depot = GetClipboardData(15);
-            var nom = new System.Text.StringBuilder(1024);
-            return DragQueryFile(depot, 0, nom, nom.Capacity) > 0 ? nom.ToString() : null;
+            var nom = new Char[1024];
+            var longueur = DragQueryFile(depot, 0, nom, nom.Length);
+            return longueur > 0 ? new String(nom, 0, (Int32)longueur) : null;
         }
         finally
         {
@@ -253,7 +254,7 @@ internal static class LecturePressePapiers
     [DllImport("user32.dll")] private static extern Boolean CloseClipboard();
     [DllImport("user32.dll")] private static extern UInt32 EnumClipboardFormats(UInt32 format);
     [DllImport("user32.dll")] private static extern IntPtr GetClipboardData(UInt32 format);
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)] private static extern UInt32 DragQueryFile(IntPtr depot, UInt32 i, System.Text.StringBuilder nom, Int32 max);
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)] private static extern UInt32 DragQueryFile(IntPtr depot, UInt32 i, [Out] Char[] nom, Int32 max);
     [DllImport("kernel32.dll")] private static extern IntPtr GlobalLock(IntPtr m);
     [DllImport("kernel32.dll")] private static extern Boolean GlobalUnlock(IntPtr m);
 }

@@ -10,9 +10,9 @@ namespace Loupedeck.TrinitePlugin
     // Ce que voit une touche à un instant donné.
     public sealed class Scene
     {
-        public Instantane Instantane { get; init; }
+        public required Instantane Instantane { get; init; }
         public Double Temps { get; init; }
-        public Double[] Appuis { get; init; }
+        public required Double[] Appuis { get; init; }
         public Double PhotoCopiee { get; init; }
         public Double CaptureCollee { get; init; }
 
@@ -21,13 +21,13 @@ namespace Loupedeck.TrinitePlugin
         public DateTime Maintenant { get; init; } = DateTime.Now;
 
         // Page 2 : état du poste (null tant que la page n'a pas été affichée) ; dernier appui sur la touche des mises à jour.
-        public Poste Poste { get; init; }
+        public Poste? Poste { get; init; }
         public Double MiseAJour { get; init; } = -99;
         public Double MiseAJourFinie { get; init; } = -99;
         public Boolean MiseAJourReussie { get; init; } = true; // les deux pages lancées ou à jour
 
         // Site dessiné sur sa touche ; null : le réglage du poste (Signet.Reglage).
-        public Signet Site { get; init; }
+        public Signet? Site { get; init; }
 
         public Boolean Appui(Int32 touche) => this.Temps - this.Appuis[touche] < 0.2;
 
@@ -93,8 +93,8 @@ namespace Loupedeck.TrinitePlugin
         private readonly Double[] _appuis = Enumerable.Repeat(-9.0, Touches).ToArray();
         private volatile Int32 _page = Premiere < 9 ? 1 : 2; // page que le pad affiche : celle de sa dernière demande d'image
         private Double _demande = -99; // dernière demande d'image du pad (édition PC Dashboard : rien n'est lu sans elle)
-        private Poste _poste;
-        private volatile Tuple<Int32, Int32> _notifications; // mails, messages : objet entier, jamais lu à moitié écrit
+        private Poste? _poste;
+        private volatile Tuple<Int32, Int32>? _notifications; // mails, messages : objet entier, jamais lu à moitié écrit
         private Double _notificationsLues = -99;
         private Int32 _notificationsEnCours;
         private Double _miseAJour = -99; // dernier appui sur la touche des mises à jour (Windows Update et Store)
@@ -105,16 +105,16 @@ namespace Loupedeck.TrinitePlugin
         private volatile String[] _titres = []; // titres des fenêtres de Chrome (non-lus de Gmail et Messages)
         private Double _titresLus = -99;
         private Int32 _titresEnCours;
-        private volatile Tuple<Int32, DateTime> _gmailNexusBrowser; // non-lus Gmail donnés par NexusBrowser et leur date
+        private volatile Tuple<Int32, DateTime>? _gmailNexusBrowser; // non-lus Gmail donnés par NexusBrowser et leur date
 
         // Pris seulement s'il a moins de 3 min AU MOMENT de s'en servir (une relecture bloquée ne garde pas un vieux nombre).
-        private static Int32? NonPerime(Tuple<Int32, DateTime> compte) =>
+        private static Int32? NonPerime(Tuple<Int32, DateTime>? compte) =>
             compte is not null && DateTime.UtcNow - compte.Item2 < TimeSpan.FromMinutes(3) ? compte.Item1 : null;
 
         // ~/.nexus/nexus-browser/compteurs.json, écrit chaque minute par NexusBrowser quand sa case est cochée : une entrée
         // par profil Chrome (« sources »), la somme des comptes de moins de 3 min ; null sinon (NexusBrowser absent, case
         // décochée, Chrome fermé, session Gmail fermée). L'ancien format (un seul « gmail ») est encore lu.
-        private static Tuple<Int32, DateTime> GmailNexusBrowser()
+        private static Tuple<Int32, DateTime>? GmailNexusBrowser()
         {
             try
             {
@@ -158,10 +158,10 @@ namespace Loupedeck.TrinitePlugin
         private readonly Object _envoi = new();
         private readonly BitmapImage[] _images = new BitmapImage[Touches];
         private readonly Byte[][] _pixels = new Byte[Touches][];
-        private Timer _lecture;
-        private Timer _animation;
+        private Timer? _lecture;
+        private Timer? _animation;
 #if !POSTE
-        private Timer _telephone; // pas de photo du téléphone dans l'édition PC Dashboard
+        private Timer? _telephone; // pas de photo du téléphone dans l'édition PC Dashboard
 #endif
         private Instantane _instantane = Instantane.Vide;
 #if !POSTE
@@ -185,12 +185,12 @@ namespace Loupedeck.TrinitePlugin
         private Double _garde = -99; // dernière relance de Logi pour garder le pad allumé
 #endif
         private Int32 _animationOccupee;
-        private Pilote _pilote;
+        private Pilote? _pilote;
         private readonly System.Collections.Concurrent.BlockingCollection<(Double Quand, Int32 Touche, Action Geste, TaskCompletionSource<String> Issue)> _gestes = [];
-        private Thread _filGestes;
+        private Thread? _filGestes;
         private volatile Boolean _arret;
         private Double _teteRatee = -9; // instant où une tête n'a pas amené son appli devant en 3 s
-        private readonly String[] _ouverte = new String[3]; // dernière conversation ouverte par chaque tête
+        private readonly String?[] _ouverte = new String?[3]; // dernière conversation ouverte par chaque tête
         private Int32 _appuiFenetre; // numéro du dernier appui qui amène une fenêtre devant (têtes, page 2)
 
         public Moteur(Action<Int32> redessiner) => this._redessiner = redessiner;
@@ -230,13 +230,13 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Forme minimale et versionnée, sans titre, prompt, réponse ni chemin de photo.
-        public static String SnapshotJson(Instantane instantane, DateTime lu, DateTime maintenant)
+        public static String SnapshotJson(Instantane? instantane, DateTime lu, DateTime maintenant)
         {
             instantane ??= Instantane.Vide;
-            String Date(DateTime date) => date == DateTime.MinValue ? null : date.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+            String? Date(DateTime date) => date == DateTime.MinValue ? null : date.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture);
             Double? Nombre(Double? nombre) => nombre is Double n && Double.IsFinite(n) ? n : null;
             String[] agents = ["claude", "codex", "antigravity"];
-            String Agent(Int32 index) => index is >= 0 and < 3 ? agents[index] : null;
+            String? Agent(Int32 index) => index is >= 0 and < 3 ? agents[index] : null;
             return System.Text.Json.JsonSerializer.Serialize(new
             {
                 schema = 1,
@@ -403,7 +403,7 @@ namespace Loupedeck.TrinitePlugin
         // Un appui : action hors du fil du service (ouvrir une appli ou taper prend du temps).
         // Rend l'issue du geste (« fait », ou la raison de l'abandon), une fois passé dans la file : le pilote l'attend.
         // site : adresse de la touche du site quand elle est une commande à part (WebsiteCommand) ; sinon son réglage.
-        public Task<String> Appuyer(Int32 touche, Signet site = null)
+        public Task<String> Appuyer(Int32 touche, Signet? site = null)
         {
             var scene = this.Scene;
             this._appuis[touche] = scene.Temps;
@@ -435,7 +435,7 @@ namespace Loupedeck.TrinitePlugin
                 var geste = "?";
 #endif
                 var reussi = "✓";
-                String cause = null;
+                String? cause = null;
                 try
                 {
 #if !POSTE
@@ -574,7 +574,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Réponse du pilote : un refus ou un résultat inconnu ne peut jamais être annoncé comme « fait ».
-        public static String ResultatGeste(String issue, String cause) => cause is null && issue == "✓" ? "fait"
+        public static String ResultatGeste(String issue, String? cause) => cause is null && issue == "✓" ? "fait"
             : issue == "~" ? "inconnu : " + (cause ?? "effect not verified")
             : "échec : " + (cause ?? "effect not verified");
 
@@ -877,7 +877,7 @@ namespace Loupedeck.TrinitePlugin
         // seule (fermée, derrière sans alerte, ou une seule conversation, déjà affichée).
         // Claude n'est reconnue qu'à son titre : deux du même titre, c'est celle que le pad vient d'ouvrir (sinon le tour
         // restait bloqué sur la seconde, prise pour la première).
-        private Conversation Cible(Int32 agent, Instantane instantane)
+        private Conversation? Cible(Int32 agent, Instantane instantane)
         {
             var liste = instantane.Conversations[agent];
             var devant = Observateur.PremierPlan() == Observateur.Processus[agent];
@@ -921,7 +921,7 @@ namespace Loupedeck.TrinitePlugin
         // la dernière IA que l'utilisateur a utilisée, ramenée devant (la photo exigeait une IA devant : depuis une autre appli,
         // l'appui ne faisait rien, 24/10).
         // Rend l'IA visée (-1 : aucune) et la cause d'un abandon (null : collée), pour le journal commun.
-        private (Int32 Cible, String Cause) CollerDansIa(String geste, Func<Boolean> copier, Action collee)
+        private (Int32 Cible, String? Cause) CollerDansIa(String geste, Func<Boolean> copier, Action collee)
         {
             var devant = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan());
             var cible = devant >= 0 ? devant : this._derniereIa;
@@ -968,7 +968,7 @@ namespace Loupedeck.TrinitePlugin
 #endif
 
         // Page 2 : gestes immédiats sur le poste.
-        private void Page2(Int32 touche, Signet site)
+        private void Page2(Int32 touche, Signet? site)
         {
             switch (touche)
             {

@@ -8,8 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - The Logi plugin and the native hook build with the recommended .NET analyzers and the build-time code style, every
   warning an error (as NexusWpp). The same gate runs locally and in CI: the StyleCop analyzers pulled in by the
-  LogiPluginApi package (CI only, thousands of ignored warnings) are left out. Nullable reference types are enabled
-  file by file, starting with the key drawings, the clipboard, the scripts and the package lookup.
+  LogiPluginApi package (CI only, thousands of ignored warnings) are left out. Nullable reference types are checked in
+  every file of the plugin and the hook: values that can be missing (unread quotas, closed apps, unreadable files,
+  absent UI Automation elements) are declared so, and each use handles them.
+- The tests, the key preview tool (apercu) and the Stream Deck edition build with the recommended .NET analyzers, every
+  warning an error; the preview and the Stream Deck edition also check nullable reference types.
 - Win32 text reads (window titles and classes, short paths, process image and package names) use character buffers
   instead of StringBuilder.
 - Tomlyn 2.10.2.
@@ -20,6 +23,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Dependabot's NuGet updates silently found nothing: the build folders were built from `USERPROFILE`, unset on its
   Linux runner. One root `Directory.Build.props` now takes the user profile from .NET for every project.
+- Live states for Antigravity: when the hook's path has spaces and Windows gives it no short form, setting them up now
+  fails and restores both settings files, instead of removing Antigravity's hooks while reporting them set.
 
 ## [1.8.47] - 2026-11-07
 

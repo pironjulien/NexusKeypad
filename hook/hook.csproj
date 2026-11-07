@@ -9,7 +9,7 @@
     <AssemblyName>nexuskeypad-hook</AssemblyName>
     <RootNamespace>NexusKeypad.Hook</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>annotations</Nullable>
+    <Nullable>enable</Nullable>
     <!-- Recommended .NET analyzers and the build-time code-style rules of .editorconfig, all errors (as the plugin). -->
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>

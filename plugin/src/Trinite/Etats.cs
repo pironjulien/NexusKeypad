@@ -35,7 +35,9 @@ namespace Loupedeck.TrinitePlugin
         private DateTime _vuesGardees = DateTime.MinValue;
 
         // Regards gardés sur disque (24 h) : un redémarrage du plugin ou de Logi ne rallume pas une fin déjà vue (05/11).
-        private static String FichierVues => Path.Combine(Local, "NexusKeypad", "vues.json");
+        private static String DossierVues => Path.Combine(Local, "NexusKeypad");
+
+        private static String FichierVues => Path.Combine(DossierVues, "vues.json");
 
         private static ConcurrentDictionary<String, DateTime> ChargerVues()
         {
@@ -69,7 +71,7 @@ namespace Loupedeck.TrinitePlugin
         // Non-lus de l'appli Codex (.codex-global-state.json, electron-thread-read-state-v1.unreadByIdentity) : une
         // conversation qui en sort a été lue dans Codex, même sans son port ; seul ce passage compte (une conversation
         // jamais marquée non lue garde l'alerte du pad, comme avant). Format absent ou changé : rien n'est déduit.
-        private HashSet<String> _nonLusCodex;
+        private HashSet<String>? _nonLusCodex;
         private DateTime _nonLusCodexEcrit = DateTime.MinValue;
 
         private void SuivreNonLusCodex()
@@ -85,15 +87,15 @@ namespace Loupedeck.TrinitePlugin
 
                 this._nonLusCodexEcrit = ecrit;
                 var nonLus = ecrit == DateTime.MinValue ? null : NonLusCodex(File.ReadAllText(fichier));
-                if (this._nonLusCodex is not null && nonLus is not null)
+                if (this._nonLusCodex is { } anciens && nonLus is not null)
                 {
-                    foreach (var id in this._nonLusCodex.Where(i => !nonLus.Contains(i)))
+                    foreach (var id in anciens.Where(i => !nonLus.Contains(i)))
                     {
                         this.MarquerVu(1, id);
                     }
 
                     // « Marquer comme non lu » (Ctrl+Shift+U) : la fin déjà vue se rallume sur le pad.
-                    foreach (var id in nonLus.Where(i => !this._nonLusCodex.Contains(i)))
+                    foreach (var id in nonLus.Where(i => !anciens.Contains(i)))
                     {
                         this._vuesChangees |= this._vues.TryRemove($"1:{id}", out _);
                     }
@@ -108,7 +110,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        internal static HashSet<String> NonLusCodex(String json)
+        internal static HashSet<String>? NonLusCodex(String json)
         {
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("electron-thread-read-state-v1", out var etat) || etat.ValueKind != JsonValueKind.Object
@@ -122,9 +124,9 @@ namespace Loupedeck.TrinitePlugin
             {
                 foreach (var hote in identite.Value.EnumerateObject().Where(h => h.Value.ValueKind == JsonValueKind.Array))
                 {
-                    foreach (var id in hote.Value.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String))
+                    foreach (var id in hote.Value.EnumerateArray().Select(x => x.ValueKind == JsonValueKind.String ? x.GetString() : null).OfType<String>())
                     {
-                        ids.Add(id.GetString());
+                        ids.Add(id);
                     }
                 }
             }
@@ -144,7 +146,7 @@ namespace Loupedeck.TrinitePlugin
                 var limite = DateTime.UtcNow - TimeSpan.FromHours(24);
                 var json = JsonSerializer.Serialize(this._vues.Where(v => v.Value > limite)
                     .ToDictionary(v => v.Key, v => new DateTimeOffset(v.Value, TimeSpan.Zero).ToUnixTimeMilliseconds()));
-                Directory.CreateDirectory(Path.GetDirectoryName(FichierVues));
+                Directory.CreateDirectory(DossierVues);
                 var temporaire = FichierVues + ".tmp";
                 File.WriteAllText(temporaire, json);
                 File.Move(temporaire, FichierVues, overwrite: true);
@@ -165,31 +167,31 @@ namespace Loupedeck.TrinitePlugin
         private List<(String Id, String Titre, DateTime Activite, Boolean Selection)> _lignesAgy = [];
         private readonly Dictionary<String, String> _sujets = [];
         private readonly Dictionary<String, Int32> _sources = [];
-        private readonly Quota[] _quotas = [null, null, QuotaAntigravity.Garde(out _)];
-        private readonly Process[] _lancees = new Process[3];
+        private readonly Quota?[] _quotas = [null, null, QuotaAntigravity.Garde(out _)];
+        private readonly Process?[] _lancees = new Process?[3];
         private readonly DateTime[] _recherche = new DateTime[3];
         private readonly DateTime[] _vueLancee = new DateTime[3];
         private DateTime _quotaAgyLu = QuotaAntigravity.Lu(); // dernière lecture réussie de sa page Settings › Models
         private DateTime _quotaAgyEssai = DateTime.MinValue;
-        private String _selectionCodex;
-        private String _selectionAgy;
+        private String? _selectionCodex;
+        private String? _selectionAgy;
         private Int64 _tour;
-        private (DateTime Ecrit, String Compte) _compteClaude = (DateTime.MinValue, null);
-        private String _perimetreQuotaClaude;
+        private (DateTime Ecrit, String? Compte) _compteClaude = (DateTime.MinValue, null);
+        private String? _perimetreQuotaClaude;
 #endif
 
         public Telephone Telephone { get; } = new();
 
 #if !POSTE
         // Relevé forcé (pilote) : la page Settings › Models est ouverte un instant, comme au relevé automatique.
-        public Quota ReleverAntigravity()
+        public Quota? ReleverAntigravity()
         {
             if (!System.Threading.Monitor.TryEnter(Interface.Verrou, 5000))
             {
                 return null; // un geste ou un autre relevé occupe l'interface
             }
 
-            Quota quota;
+            Quota? quota;
             try
             {
                 quota = QuotaAntigravity.Lire(ouvrir: true);
@@ -276,7 +278,7 @@ namespace Loupedeck.TrinitePlugin
         private readonly Object _verrouListes = new(); // lecture des journaux : jamais deux à la fois (caches partagés)
 
         // La conversation affichée dans l'appli : titre de l'en-tête pour Claude, identifiant sélectionné pour les deux autres.
-        public String ConversationAffichee(Int32 agent, Boolean relire = true)
+        public String? ConversationAffichee(Int32 agent, Boolean relire = true)
         {
             if (agent == 0)
             {
@@ -353,7 +355,7 @@ namespace Loupedeck.TrinitePlugin
             // Antigravity par sa page Settings › Models (détails plus bas) ; la dernière valeur lue reste affichée entre
             // deux lectures.
             // Chaque IA à part : l'échec de l'une ne prive pas les autres de leur lecture.
-            void Quota(Int32 agent, Boolean maintenant, Func<Quota> lire)
+            void Quota(Int32 agent, Boolean maintenant, Func<Quota?> lire)
             {
                 try
                 {
@@ -467,7 +469,7 @@ namespace Loupedeck.TrinitePlugin
                 using var flux = new FileStream(fichier, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using var doc = JsonDocument.Parse(flux);
                 var quand = DateTimeOffset.FromUnixTimeMilliseconds((Int64)(doc.RootElement.GetProperty("at").GetDouble() * 1000)).UtcDateTime;
-                return (doc.RootElement.GetProperty("state").GetString(), quand);
+                return doc.RootElement.GetProperty("state").GetString() is { } etat ? (etat, quand) : null;
             }
             catch (Exception)
             {
@@ -482,7 +484,7 @@ namespace Loupedeck.TrinitePlugin
             {
                 using var flux = new FileStream(Path.Combine(DossierEtats, agent, session + ".json"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using var doc = JsonDocument.Parse(flux);
-                return doc.RootElement.TryGetProperty("reply", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : "";
+                return doc.RootElement.TryGetProperty("reply", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() ?? "" : "";
             }
             catch (Exception)
             {
@@ -578,7 +580,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
 #endif
-        private static String Champ(String json, String nom)
+        private static String? Champ(String json, String nom)
         {
             var m = Regex.Match(json, $"\"{nom}\":(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([^,}}\\]]+))");
             return !m.Success ? null : m.Groups[1].Success ? ChaineJson(m.Groups[1].Value) : m.Groups[2].Value.Trim();
@@ -598,7 +600,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private static DateTime? Instant(String ms) =>
+        private static DateTime? Instant(String? ms) =>
             Int64.TryParse(ms, out var v) ? DateTimeOffset.FromUnixTimeMilliseconds(v).UtcDateTime : null;
 
         private static DateTime? Horodatage(String ligne)

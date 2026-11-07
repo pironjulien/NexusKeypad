@@ -6,7 +6,7 @@ namespace Loupedeck.TrinitePlugin
 
     internal static class PluginLog
     {
-        private static PluginLogFile _pluginLogFile;
+        private static PluginLogFile? _pluginLogFile;
 
         public static void Init(PluginLogFile pluginLogFile)
         {

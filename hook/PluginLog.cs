@@ -10,6 +10,10 @@ namespace Loupedeck.TrinitePlugin
         {
         }
 
+        public static void Warning(String text)
+        {
+        }
+
         public static void Warning(Exception ex, String text)
         {
         }

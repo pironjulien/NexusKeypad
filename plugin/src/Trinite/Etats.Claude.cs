@@ -22,17 +22,18 @@ namespace Loupedeck.TrinitePlugin
         private IEnumerable<Conversation> Claude()
         {
             this._sessionClaudeAffiche = null;
-            var racine = Directory.Exists(Path.Combine(Local, "Claude-Data"))
-                ? Directory.EnumerateDirectories(Path.Combine(Local, "Claude-Data")).Select(d => Path.Combine(d, "claude-code-sessions")).FirstOrDefault(Directory.Exists)
+            var dossierClaude = Directory.Exists(Path.Combine(Local, "Claude-Data"))
+                ? Directory.EnumerateDirectories(Path.Combine(Local, "Claude-Data")).FirstOrDefault(d => Directory.Exists(Path.Combine(d, "claude-code-sessions")))
                 : null;
-            if (racine is null)
+            if (dossierClaude is null)
             {
                 yield break;
             }
 
+            var racine = Path.Combine(dossierClaude, "claude-code-sessions");
             // Plusieurs comptes Claude sur le PC : l'appli ne montre que les conversations du compte connecté
             // (lastKnownAccountUuid de son config.json, un dossier par compte).
-            var config = Path.Combine(Path.GetDirectoryName(racine), "config.json");
+            var config = Path.Combine(dossierClaude, "config.json");
             var ecritConfig = File.Exists(config) ? File.GetLastWriteTimeUtc(config) : DateTime.MinValue;
             if (ecritConfig != this._compteClaude.Ecrit)
             {
@@ -45,7 +46,7 @@ namespace Loupedeck.TrinitePlugin
                 this._compteClaude = (ecritConfig, nouveauCompte);
             }
 
-            this._dossierClaude = Path.GetDirectoryName(racine);
+            this._dossierClaude = dossierClaude;
             if (this._compteClaude.Compte is String compte && Directory.Exists(Path.Combine(racine, compte)))
             {
                 racine = Path.Combine(racine, compte);
@@ -56,8 +57,8 @@ namespace Loupedeck.TrinitePlugin
             // remplacés d'un bloc à la fin : jamais lus à moitié remplis. Organisation = dossier de la fiche sous le compte
             // (claude-code-sessions\<compte>\<org>\local_*.json ; « <compte>\<org> » quand le compte est inconnu).
             var orgParCli = new Dictionary<String, String>(StringComparer.Ordinal);
-            String orgAffichee = null;
-            var brutes = new List<(Conversation Conv, String Cwd)>();
+            String? orgAffichee = null;
+            var brutes = new List<(Conversation Conv, String? Cwd)>();
             foreach (var fichier in Directory.EnumerateFiles(racine, "local_*.json", SearchOption.AllDirectories))
             {
                 var ecrit = File.GetLastWriteTimeUtc(fichier);
@@ -83,7 +84,7 @@ namespace Loupedeck.TrinitePlugin
                 var activite = Instant(Champ(meta, "lastActivityAt")) ?? ecrit;
                 var regard = Instant(Champ(meta, "lastFocusedAt")) ?? DateTime.MinValue;
                 var cli = Champ(meta, "cliSessionId");
-                var org = Path.GetRelativePath(racine, Path.GetDirectoryName(fichier));
+                var org = Path.GetRelativePath(racine, Path.GetDirectoryName(fichier) ?? throw new IOException("Fiche de session sans dossier."));
                 if (id == this._sessionClaudeAffiche) { orgAffichee = org; }
                 if (cli is not null)
                 {
@@ -126,7 +127,7 @@ namespace Loupedeck.TrinitePlugin
         // Fin de tour classée par l'appli elle-même (postTurnSummary de sa fiche : « blocked » = elle attend l'utilisateur,
         // « completed » / « review_ready » = fini), seulement quand ce résumé porte sur la réponse notée par le Stop de ce
         // tour (summarizes_uuid). Absent, ancien ou d'un format inconnu : l'état des hooks reste (05/11).
-        private readonly Dictionary<String, (DateTime Ecrit, String Categorie, String Uuid)> _resumesClaude = [];
+        private readonly Dictionary<String, (DateTime Ecrit, String? Categorie, String? Uuid)> _resumesClaude = [];
 
         private Etat SelonResumeClaude(String fichier, DateTime ecrit, String reponse, Etat etat)
         {
@@ -154,7 +155,7 @@ namespace Loupedeck.TrinitePlugin
             };
         }
 
-        internal static (String Categorie, String Uuid)? ResumeClaude(String texte)
+        internal static (String Categorie, String Uuid)? ResumeClaude(String? texte)
         {
             var m = Regex.Match(texte ?? "", "\"postTurnSummary\"\\s*:\\s*\\{(?<corps>[^{}]*)\\}");
             if (!m.Success)
@@ -187,7 +188,7 @@ namespace Loupedeck.TrinitePlugin
 
         private static readonly TimeSpan FenetreReposClaude = TimeSpan.FromHours(6);
 
-        public static Boolean ConversationClaudeActive(Conversation c, String cwd, String sessionAffichee, String cwdActif, DateTime maintenantUtc, TimeSpan? fenetreRepos = null)
+        public static Boolean ConversationClaudeActive(Conversation c, String? cwd, String? sessionAffichee, String? cwdActif, DateTime maintenantUtc, TimeSpan? fenetreRepos = null)
         {
             if (c.Etat is not Etat.Repos)
             {
@@ -213,17 +214,17 @@ namespace Loupedeck.TrinitePlugin
             return true;
         }
 
-        private static String NormaliserDossier(String d) => String.IsNullOrWhiteSpace(d) ? null : d.Replace('/', '\\').TrimEnd('\\');
+        private static String? NormaliserDossier(String d) => String.IsNullOrWhiteSpace(d) ? null : d.Replace('/', '\\').TrimEnd('\\');
 
         // Sessions récentes du compte Claude connecté (cliSessionId → organisation), relevées par Claude().
         private IReadOnlyDictionary<String, String> _orgParCliClaude = new Dictionary<String, String>();
-        private String _sessionClaudeAffiche;
-        private String _orgQuotaClaude;
-        private String _dossierClaude;
+        private String? _sessionClaudeAffiche;
+        private String? _orgQuotaClaude;
+        private String? _dossierClaude;
 
         // Organisation dont le pad montre le quota : celle de la conversation affichée ; sans elle, l'organisation unique des
         // sessions récentes du compte (plusieurs : aucune devinée).
-        internal static String OrganisationQuotaClaude(IReadOnlyDictionary<String, String> orgParCli, String orgAffichee)
+        internal static String? OrganisationQuotaClaude(IReadOnlyDictionary<String, String> orgParCli, String? orgAffichee)
         {
             if (orgAffichee is not null)
             {
@@ -237,14 +238,14 @@ namespace Loupedeck.TrinitePlugin
         // Le quota est celui du compte et de l'organisation, pas d'une conversation : la publication de n'importe quelle
         // session récente du compte connecté vaut si elle est de la même organisation (une autre organisation ou un autre
         // compte a son propre quota : jamais mélangés, voir l'historique plus bas).
-        internal static Boolean PublicationQuotaClaudeAcceptee(String session, IReadOnlyDictionary<String, String> orgParCli, String orgQuota) =>
+        internal static Boolean PublicationQuotaClaudeAcceptee(String? session, IReadOnlyDictionary<String, String> orgParCli, String? orgQuota) =>
             session is not null && orgQuota is not null && orgParCli.TryGetValue(session, out var org) && org == orgQuota;
 
         // Quota écrit par le plugin Claude « Nexus Pad » (facultatif, non publié ici) à chaque réponse : les deux fenêtres exactes,
         // sans réseau ni menu ouvert. Gardé seulement s'il vient d'une session récente du compte connecté et de l'organisation
         // affichée ; une fenêtre dont la remise à zéro est passée vaut 0 %. Null : pas de plugin, autre compte/organisation,
         // ou fichier illisible. valable : publication lisible acceptée ; elle fait alors foi, même périmée (null : jauge grise).
-        private Quota QuotaClaudePlugin(out Boolean valable)
+        private Quota? QuotaClaudePlugin(out Boolean valable)
         {
             valable = false;
             try
@@ -293,7 +294,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Quota tenu sur disque par Claude de bureau (plan-usage-history.json) : historique officiel des deux
         // fenêtres exactes (5 h et semaine), tenu par l'application elle-même sans réseau ni interface.
-        public static Quota QuotaHistoriqueClaude(String json, DateTime maintenantUtc, String org = null) =>
+        public static Quota? QuotaHistoriqueClaude(String? json, DateTime maintenantUtc, String? org = null) =>
             QuotaHistoriqueClaude(json, maintenantUtc, org, out _);
 
         // L'application n'écrit son historique que tous les quarts d'heure (une heure parfois, vu le 06/11/2026) : retenu
@@ -302,7 +303,7 @@ namespace Loupedeck.TrinitePlugin
         // reste qu'en secours. La publication du plugin Nexus Pad, quand elle est acceptée, garde la priorité.
         internal static readonly TimeSpan FraicheurHistoriqueClaude = TimeSpan.FromMinutes(2);
 
-        internal static Quota ChoisirQuotaClaude(Quota publie, Quota historique, DateTime? dateHistorique, DateTime maintenantUtc, Func<Quota> direct)
+        internal static Quota? ChoisirQuotaClaude(Quota? publie, Quota? historique, DateTime? dateHistorique, DateTime maintenantUtc, Func<Quota?>? direct)
         {
             if (publie is not null)
             {
@@ -317,7 +318,7 @@ namespace Loupedeck.TrinitePlugin
             return direct?.Invoke() ?? historique;
         }
 
-        internal static Quota QuotaHistoriqueClaude(String json, DateTime maintenantUtc, String org, out DateTime? dateEchantillon)
+        internal static Quota? QuotaHistoriqueClaude(String? json, DateTime maintenantUtc, String? org, out DateTime? dateEchantillon)
         {
             dateEchantillon = null;
             if (String.IsNullOrWhiteSpace(json))
@@ -387,7 +388,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private Quota QuotaClaudeHistorique(out DateTime? dateEchantillon)
+        private Quota? QuotaClaudeHistorique(out DateTime? dateEchantillon)
         {
             dateEchantillon = null;
             try
@@ -406,29 +407,27 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private static String DossierHistoriqueClaude() => Directory.Exists(Path.Combine(Local, "Claude-Data"))
+        private static String? DossierHistoriqueClaude() => Directory.Exists(Path.Combine(Local, "Claude-Data"))
             ? Directory.EnumerateDirectories(Path.Combine(Local, "Claude-Data")).FirstOrDefault(d => File.Exists(Path.Combine(d, "plan-usage-history.json")))
             : null;
 
         // Périmètre prouvé par la fiche affichée ; sans elle, celui de l'organisation retenue pour la publication du quota.
-        private String PerimetreQuotaClaude() => PerimetreQuotaClaudeCompte(DossierHistoriqueClaude(), this._compteClaude.Compte, this._sessionClaudeAffiche)
+        private String? PerimetreQuotaClaude() => PerimetreQuotaClaudeCompte(DossierHistoriqueClaude(), this._compteClaude.Compte, this._sessionClaudeAffiche)
             ?? (this._orgQuotaClaude is String org && this._dossierClaude is String dossier
                 ? Path.GetFullPath(dossier) + "\0" + this._compteClaude.Compte + "\0" + org : null);
 
-        internal static String PerimetreQuotaClaudeCompte(String dossier, String compte, String sessionAffichee = null)
-        {
-            var org = OrganisationHistoriqueClaude(dossier, compte, sessionAffichee);
-            return org is null ? null : Path.GetFullPath(dossier) + "\0" + compte + "\0" + org;
-        }
+        internal static String? PerimetreQuotaClaudeCompte(String? dossier, String? compte, String? sessionAffichee = null) =>
+            dossier is not null && OrganisationHistoriqueClaude(dossier, compte, sessionAffichee) is { } org
+                ? Path.GetFullPath(dossier) + "\0" + compte + "\0" + org : null;
 
         // Une nouvelle lecture partielle peut compléter seulement une jauge du même périmètre prouvé.
-        internal static Quota FusionnerQuotaClaude(Quota precedente, Quota lue, String ancienPerimetre, String perimetre)
+        internal static Quota? FusionnerQuotaClaude(Quota? precedente, Quota? lue, String? ancienPerimetre, String? perimetre)
         {
             var garde = perimetre is not null && String.Equals(ancienPerimetre, perimetre, StringComparison.Ordinal) ? precedente : null;
             return lue is null ? garde : new(lue.Cinq ?? garde?.Cinq, lue.Semaine ?? garde?.Semaine);
         }
 
-        private static String OrganisationHistoriqueClaude(String dossier, String compte, String sessionAffichee)
+        private static String? OrganisationHistoriqueClaude(String dossier, String? compte, String? sessionAffichee)
         {
             try
             {
@@ -440,7 +439,7 @@ namespace Loupedeck.TrinitePlugin
 
                 var sessions = Path.Combine(dossier, "claude-code-sessions", compte);
                 if (!Directory.Exists(sessions)) { return null; }
-                String retenue = null;
+                String? retenue = null;
                 foreach (var org in Directory.EnumerateDirectories(sessions))
                 {
                     var fiche = Path.Combine(org, sessionAffichee + ".json");
@@ -463,10 +462,10 @@ namespace Loupedeck.TrinitePlugin
 
         // L'historique mélange les organisations de l'application. L'ID exact affiché et sa fiche du compte courant
         // prouvent l'organisation ; sans cette preuve, le lecteur courant UIA reste le secours.
-        internal static Quota QuotaHistoriqueClaudeCompte(String dossier, String compte, DateTime maintenantUtc, String sessionAffichee = null) =>
+        internal static Quota? QuotaHistoriqueClaudeCompte(String dossier, String? compte, DateTime maintenantUtc, String? sessionAffichee = null) =>
             QuotaHistoriqueClaudeCompte(dossier, compte, maintenantUtc, out _, sessionAffichee);
 
-        internal static Quota QuotaHistoriqueClaudeCompte(String dossier, String compte, DateTime maintenantUtc, out DateTime? dateEchantillon, String sessionAffichee = null)
+        internal static Quota? QuotaHistoriqueClaudeCompte(String dossier, String? compte, DateTime maintenantUtc, out DateTime? dateEchantillon, String? sessionAffichee = null)
         {
             dateEchantillon = null;
             try
@@ -482,7 +481,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private static String CompteClaude(String config)
+        private static String? CompteClaude(String config)
         {
             try
             {

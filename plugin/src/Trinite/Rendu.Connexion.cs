@@ -1,4 +1,3 @@
-#nullable enable
 #if !POSTE
 namespace Loupedeck.TrinitePlugin
 {

@@ -62,7 +62,7 @@ public sealed class RenduTests
     }
 
     [Fact]
-    public void Planches_de_l_apercu()
+    public async Task Planches_de_l_apercu()
     {
         // apercu (built with these tests) compiles the same sources and draws the 9 keys in every situation.
         var planches = Path.Combine(Metadonnee("NexusKeypad.Build"), "planches");
@@ -75,9 +75,9 @@ public sealed class RenduTests
         info.ArgumentList.Add(planches);
         using var apercu = Process.Start(info)!;
         var sortie = apercu.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
-        var erreurs = apercu.StandardError.ReadToEnd();
-        apercu.WaitForExit();
-        Assert.True(apercu.ExitCode == 0, $"L'aperçu échoue : {sortie.Result}{erreurs}");
+        var erreurs = apercu.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+        await apercu.WaitForExitAsync(TestContext.Current.CancellationToken);
+        Assert.True(apercu.ExitCode == 0, $"L'aperçu échoue : {await sortie}{await erreurs}");
         foreach (var nom in new[] { "actif", "calme", "tetes" })
         {
             var png = new FileInfo(Path.Combine(planches, nom + ".png"));

@@ -155,7 +155,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Vrai : l'appui a servi à la configuration ; il ne doit jamais ouvrir une ancienne conversation ensuite.
-        public static Boolean Traiter(Int32 agent, Instantane instantane, Func<Instantane> actuel = null)
+        public static Boolean Traiter(Int32 agent, Instantane? instantane, Func<Instantane>? actuel = null)
         {
             var connexion = Lire(forcer: true)[agent];
             // Une connexion préparée mais encore partielle ne transforme pas chaque appui en dialogue de relance.
@@ -167,7 +167,7 @@ namespace Loupedeck.TrinitePlugin
             return true;
         }
 
-        private static void Dialoguer(Int32 agent, Connexion connexion, Instantane instantane, Func<Instantane> actuel)
+        private static void Dialoguer(Int32 agent, Connexion connexion, Instantane? instantane, Func<Instantane>? actuel)
         {
             try
             {
@@ -240,7 +240,7 @@ namespace Loupedeck.TrinitePlugin
             finally { Volatile.Write(ref _question, 0); }
         }
 
-        internal static Boolean RelanceOccupee(Int32 agent, Instantane instantane) => instantane is null
+        internal static Boolean RelanceOccupee(Int32 agent, Instantane? instantane) => instantane is null
             || instantane.DicteeIa == agent || instantane.Conversations[agent].Any(c => c.Etat is Etat.Travaille or Etat.Autorisation or Etat.Attend);
 
         private static Boolean Oui(String texte) => MessageBoxW(IntPtr.Zero, texte, "NexusKeypad", 0x4 | 0x20 | 0x100 | 0x40000) == 6;

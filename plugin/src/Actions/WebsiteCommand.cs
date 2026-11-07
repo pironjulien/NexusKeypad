@@ -66,7 +66,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Le nom du site sous la touche dans Options+ ; « Website » tant qu'aucune adresse n'est saisie.
         protected override String GetCommandDisplayName(ActionEditorActionParameters actionParameters) =>
-            Signet.Choisi(actionParameters.GetString(Adresse, ""), "") is { Url: not null } site ? site.Nom : this.DisplayName;
+            Signet.Choisi(actionParameters.GetString(Adresse, ""), "") is { Nom: { } nom } ? nom : this.DisplayName;
     }
 }
 #endif

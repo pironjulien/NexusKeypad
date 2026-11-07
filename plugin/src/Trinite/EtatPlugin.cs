@@ -14,8 +14,13 @@ namespace Loupedeck.TrinitePlugin
         public static String FichierEtat => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nexus", "status", "keypad.json");
 
         // Version du plugin installé, lue dans son paquet (metadata/LoupedeckPackage.yaml).
-        public static String Version(String dossierPlugin)
+        public static String Version(String? dossierPlugin)
         {
+            if (dossierPlugin is null)
+            {
+                return ""; // no plugin folder: no installed version to read
+            }
+
             try
             {
                 var yaml = File.ReadAllText(Path.Combine(dossierPlugin, "metadata", "LoupedeckPackage.yaml"));
@@ -27,12 +32,12 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        public static void Ecrire(String version, String message, String fichier = null)
+        public static void Ecrire(String version, String message, String? fichier = null)
         {
             try
             {
                 fichier ??= FichierEtat;
-                Directory.CreateDirectory(Path.GetDirectoryName(fichier));
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(fichier)) ?? throw new IOException("Chemin sans dossier parent."));
                 var json = JsonSerializer.Serialize(new
                 {
                     product = "keypad",

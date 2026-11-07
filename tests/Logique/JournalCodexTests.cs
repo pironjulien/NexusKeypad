@@ -88,7 +88,7 @@ public sealed class JournalCodexTests
     private static String HookCodex(String etat, String evenement, String tour = "tour-a", String heure = "20:50:00.000") => JsonSerializer.Serialize(new
     {
         schema = 1, scope = "main", state = etat, @event = evenement, turn_id = tour,
-        at = DateTimeOffset.Parse("2026-10-27T" + heure + "Z").ToUnixTimeMilliseconds() / 1000.0,
+        at = DateTimeOffset.Parse("2026-10-27T" + heure + "Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds() / 1000.0,
     });
 
     private static Etat Fusion(IEnumerable<String> journal, String hook, Boolean relais = false, DateTime? quand = null) =>

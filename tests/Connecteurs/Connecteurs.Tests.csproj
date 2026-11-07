@@ -3,7 +3,6 @@
   <!-- The AI connectors (Claude, Codex, Antigravity) in isolated profiles: setup, repair, migration, rollback. Their own
        assembly: the scenario redirects the connectors' folders for the whole process. -->
   <PropertyGroup>
-    <Nullable>disable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

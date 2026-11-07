@@ -52,8 +52,8 @@ public sealed class InstallerTests
             info.Environment["PSModulePath"] = coreModules + ";" + desktopModules + ";" + customModules;
             info.Environment["NEXUS_TEST_INPUT"] = entree;
             using var processus = Process.Start(info)!;
-            var sortie = processus.StandardOutput.ReadToEndAsync();
-            var erreur = processus.StandardError.ReadToEndAsync();
+            var sortie = processus.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+            var erreur = processus.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
             using var limite = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
             limite.CancelAfter(TimeSpan.FromSeconds(30));
             try { await processus.WaitForExitAsync(limite.Token); }
@@ -66,7 +66,7 @@ public sealed class InstallerTests
             Assert.False(File.Exists(entree + ":Zone.Identifier"), "The Desktop Unblock-File must remove the isolated file's download marker.");
             var chemins = resultat["modulePaths"]!.AsArray().Select(n => n!.GetValue<String>()).ToArray();
             Assert.Equal(desktopModules, chemins[0], ignoreCase: true);
-            Assert.Single(chemins.Where(p => String.Equals(p.TrimEnd('\\'), desktopModules, StringComparison.OrdinalIgnoreCase)));
+            Assert.Single(chemins, p => String.Equals(p.TrimEnd('\\'), desktopModules, StringComparison.OrdinalIgnoreCase));
             Assert.Contains(coreModules, chemins);
             Assert.Contains(customModules, chemins);
         }

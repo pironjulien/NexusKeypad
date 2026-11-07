@@ -4,6 +4,7 @@ namespace Loupedeck.TrinitePlugin
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
     using System.IO;
     using System.Linq;
@@ -29,7 +30,7 @@ namespace Loupedeck.TrinitePlugin
         public DateTime? PrepareLe { get; init; }
         // null : non vérifié ; false : premier callback pas encore observé. La configuration prête ne l'invente pas.
         public Boolean? PremierEvenementObserve { get; init; }
-        public String CodeAttente { get; init; }
+        public String? CodeAttente { get; init; }
     }
 
     // Three host adapters, one installed keypad runtime. Merely loading the pad never changes an AI profile.
@@ -41,14 +42,15 @@ namespace Loupedeck.TrinitePlugin
         private const String ProgrammeHook = "__NEXUS_KEYPAD_HOOK__";
         private static readonly String[] Agents = ["claude", "codex", "antigravity"];
         private static readonly Object Verrou = new();
-        private static String _exePaquet;
-        private static String _maison;
-        private static Func<String[], (Int32 Code, String Sortie)> _commandeClaudeEssai;
+        private static String? _exePaquet;
+        private static String? _maison;
+        private static Func<String[], (Int32 Code, String Sortie)>? _commandeClaudeEssai;
 
         private static String Maison => _maison ?? Environment.GetEnvironmentVariable("USERPROFILE") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         private static String Local { get => field ?? Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData); set; }
         private static String Racine => Path.Combine(Local, "NexusKeypad", "connecteurs");
-        private static String Executable => Path.Combine(Local, "NexusKeypad", "hook", EtatsEnDirect.NomExe);
+        private static String DossierHook => Path.Combine(Local, "NexusKeypad", "hook");
+        private static String Executable => Path.Combine(DossierHook, EtatsEnDirect.NomExe);
         private static String Source => Path.Combine(Path.GetDirectoryName(_exePaquet ?? "") ?? "", "connecteurs");
         private static String Codex => Path.Combine(Maison, ".codex");
         private static String Gemini => Path.Combine(Maison, ".gemini", "config");
@@ -92,7 +94,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Touche de dictée par simple appui de Codex telle qu'il la lit (la sienne ou F13), ou null.
-        public static String CleDicteeCodex()
+        public static String? CleDicteeCodex()
         {
             try
             {
@@ -107,10 +109,10 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Liste à écrire, ou null si rien ne change.
-        internal static JsonArray ToucheDicteeCodex(JsonArray raccourcis, Boolean actif)
+        internal static JsonArray? ToucheDicteeCodex(JsonArray raccourcis, Boolean actif)
         {
-            Boolean Dictee(JsonNode n) => n is JsonObject o && o["command"]?.GetValue<String>() == CommandeDicteeCodex;
-            var notre = raccourcis.FirstOrDefault(n => Dictee(n) && n!["key"]?.GetValue<String>() == ToucheDicteePad);
+            Boolean Dictee(JsonNode? n) => n is JsonObject o && o["command"]?.GetValue<String>() == CommandeDicteeCodex;
+            var notre = raccourcis.FirstOrDefault(n => Dictee(n) && n?["key"]?.GetValue<String>() == ToucheDicteePad);
             if (actif)
             {
                 if (raccourcis.Any(Dictee)) { return null; } // la sienne, ou la nôtre déjà posée
@@ -143,10 +145,9 @@ namespace Loupedeck.TrinitePlugin
         private static Boolean FichierCommun(String chemin)
         {
             var complet = Path.GetFullPath(chemin);
-            var dossier = Path.GetDirectoryName(Executable);
             return MemeChemin(complet, Executable)
-                || complet.StartsWith(Path.Combine(dossier, "connecteurs") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                || MemeChemin(complet, Path.Combine(dossier, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"));
+                || complet.StartsWith(Path.Combine(DossierHook, "connecteurs") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || MemeChemin(complet, Path.Combine(DossierHook, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"));
         }
 
         private static Boolean FichiersConformes(JsonObject fichiers, Boolean communs = false) => fichiers.All(fichier =>
@@ -173,41 +174,46 @@ namespace Loupedeck.TrinitePlugin
             var objet = LireJson(CatalogueCodex);
             if (objet["name"] is null) { objet["name"] = "personal"; }
             if (objet["plugins"] is null) { objet["plugins"] = new JsonArray(); }
-            if (objet["plugins"] is not JsonArray) { throw new InvalidDataException("Le catalogue Codex est invalide."); }
+            _ = PluginsCodex(objet);
             return objet;
         }
+
+        private static JsonArray PluginsCodex(JsonObject catalogue) => catalogue["plugins"] as JsonArray
+            ?? throw new InvalidDataException("Le catalogue Codex est invalide.");
 
         private static TomlTable LireToml(String texte) => TomlSerializer.Deserialize(texte, ConnecteurTomlContext.Default.TomlTable)
             ?? throw new InvalidDataException("La configuration TOML est vide.");
 
-        private static TomlTable Table(TomlTable parent, String cle, Boolean creer)
-        {
-            if (!parent.TryGetValue(cle, out var valeur))
-            {
-                if (!creer) { return null; }
-                parent[cle] = valeur = new TomlTable();
-            }
+        // The section if present (null otherwise); never an unexpected type.
+        private static TomlTable? Table(TomlTable parent, String cle) => !parent.TryGetValue(cle, out var valeur) ? null
+            : valeur as TomlTable ?? throw new InvalidDataException("Une section TOML a un type inattendu.");
 
-            return valeur as TomlTable ?? throw new InvalidDataException("Une section TOML a un type inattendu.");
+        // The section, created when absent.
+        private static TomlTable TableCreee(TomlTable parent, String cle)
+        {
+            if (Table(parent, cle) is { } table) { return table; }
+            var nouvelle = new TomlTable();
+            parent[cle] = nouvelle;
+            return nouvelle;
         }
 
         // Every other nexus-keypad identity enabled in Codex (Nexus catalogs, the connector's former personal copy):
         // their hooks would double the connector's.
         private static String[] CodexDoublons(String texte, String identite)
         {
-            var plugins = Table(LireToml(texte), "plugins", false);
+            var plugins = Table(LireToml(texte), "plugins");
             return plugins is null ? [] : EtatsEnDirect.IdentitesNexus.Append(IdentiteCodex(LireCatalogueCodex())).Where(p => p != identite)
-                .Where(p => Table(plugins, p, false) is { } t && t.TryGetValue("enabled", out var v) && v is true).ToArray();
+                .Where(p => Table(plugins, p) is { } t && t.TryGetValue("enabled", out var v) && v is true).ToArray();
         }
 
         private static readonly String[] FichiersCodexNexus = [".codex-plugin/plugin.json", "skills/nexus-keypad/SKILL.md"];
 
         // NexusSystem's catalog copy, once declared in Codex's profile, is the connector (as for Claude): its folder in
         // Codex's cache is the newest complete version, or null while Codex has not installed it.
-        private static (String Identite, String Dossier)? PluginCodexNexus(String texte)
+        private static (String Identite, String? Dossier)? PluginCodexNexus(String texte)
         {
-            var plugins = Table(LireToml(texte), "plugins", false);
-            if (plugins is null || Table(plugins, EtatsEnDirect.PluginClaudePublic, false) is null) { return null; }
+            var plugins = Table(LireToml(texte), "plugins");
+            if (plugins is null || Table(plugins, EtatsEnDirect.PluginClaudePublic) is null) { return null; }
             var cache = Path.Combine(Codex, "plugins", "cache", "nexus-plugins", Nom);
             var dossier = !Directory.Exists(cache) ? null : Directory.EnumerateDirectories(cache)
                 .Where(d => System.Version.TryParse(Path.GetFileName(d), out _) && FichiersCodexNexus.All(f => File.Exists(Path.Combine(d, f))))
@@ -219,22 +225,24 @@ namespace Loupedeck.TrinitePlugin
         {
             var chemin = Path.Combine(Codex, "config.toml");
             if (!File.Exists(chemin)) { return false; }
-            var plugins = Table(LireToml(File.ReadAllText(chemin)), "plugins", false);
-            var plugin = plugins is null ? null : Table(plugins, identite, false);
+            var plugins = Table(LireToml(File.ReadAllText(chemin)), "plugins");
+            var plugin = plugins is null ? null : Table(plugins, identite);
             return plugin is not null && plugin.TryGetValue("enabled", out var valeur) && valeur is true;
         }
 
-        private static String[] Cle(KeySyntax cle) => new[] { Morceau(cle.Key) }.Concat(cle.DotKeys.Select(x => Morceau(x.Key))).ToArray();
-        private static String Morceau(BareKeyOrStringValueSyntax cle) => cle switch
+        private static String[] Cle(KeySyntax? cle) => cle is null ? throw new InvalidDataException("Clé TOML absente.")
+            : new[] { Morceau(cle.Key) }.Concat(cle.DotKeys.Select(x => Morceau(x.Key))).ToArray();
+        private static String Morceau(BareKeyOrStringValueSyntax? cle) => cle switch
         {
-            StringValueSyntax s => s.Value,
-            BareKeySyntax b => b.Key.Text,
+            StringValueSyntax { Value: { } valeur } => valeur,
+            BareKeySyntax { Key.Text: { } texte } => texte,
             _ => throw new InvalidDataException("Clé TOML non reconnue."),
         };
 
-        private static IEnumerable<(String[] Chemin, ValueSyntax Valeur)> Valeurs(IEnumerable<KeyValueSyntax> entrees, String[] prefixe)
+        // Every key/value of the syntax tree with its full path, inline tables included.
+        private static IEnumerable<(String[] Chemin, ValueSyntax? Valeur)> Valeurs(IEnumerable<KeyValueSyntax?> entrees, String[] prefixe)
         {
-            foreach (var entree in entrees)
+            foreach (var entree in entrees.OfType<KeyValueSyntax>())
             {
                 var chemin = prefixe.Concat(Cle(entree.Key)).ToArray();
                 yield return (chemin, entree.Value);
@@ -251,7 +259,7 @@ namespace Loupedeck.TrinitePlugin
         {
             var modele = LireToml(texte);
             var attendu = LireToml(texte);
-            var plugin = Table(Table(attendu, "plugins", true), identite, true);
+            var plugin = TableCreee(TableCreee(attendu, "plugins"), identite);
             plugin["enabled"] = actif;
             var syntaxe = SyntaxParser.ParseStrict(texte);
             var valeurs = Valeurs(syntaxe.KeyValues, []).Concat(syntaxe.Tables.SelectMany(t => Valeurs(t.Items, Cle(t.Name)))).ToList();
@@ -267,8 +275,8 @@ namespace Loupedeck.TrinitePlugin
             {
                 var nl = texte.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
                 var insertion = "enabled = " + booleen;
-                InlineTableSyntax dans = null;
-                TableSyntaxBase table = null;
+                InlineTableSyntax? dans = null;
+                TableSyntaxBase? table = null;
                 for (var longueur = 2; longueur >= 1 && dans is null && table is null; longueur--)
                 {
                     var prefixe = cible.Take(longueur).ToArray();
@@ -282,12 +290,13 @@ namespace Loupedeck.TrinitePlugin
 
                 if (dans is not null)
                 {
-                    var position = dans.CloseBrace.Span.Offset;
+                    var position = (dans.CloseBrace ?? throw new InvalidDataException("Table TOML en ligne sans accolade fermante.")).Span.Offset;
                     resultat = texte[..position] + (dans.Items.Any() ? ", " : " ") + insertion + " " + texte[position..];
                 }
                 else if (table is not null)
                 {
-                    var position = table.CloseBracket.Span.Offset + table.CloseBracket.Span.Length;
+                    var fermeture = table.CloseBracket ?? throw new InvalidDataException("Section TOML sans crochet fermant.");
+                    var position = fermeture.Span.Offset + fermeture.Span.Length;
                     position = texte.IndexOf('\n', position);
                     position = position < 0 ? texte.Length : position + 1;
                     resultat = texte[..position] + (position == texte.Length && !texte.EndsWith('\n') ? nl : "") + insertion + nl + texte[position..];
@@ -308,7 +317,7 @@ namespace Loupedeck.TrinitePlugin
 
         private static String TomlChaine(String texte) => new StringValueSyntax(texte).ToString();
 
-        private static Boolean MemeToml(Object a, Object b)
+        private static Boolean MemeToml(Object? a, Object? b)
         {
             if (a is TomlTable ta && b is TomlTable tb)
             {
@@ -373,7 +382,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Preserve the selected catalog even while Claude's manager has not installed its cache. Falling back to a
         // disabled legacy catalog would silently reverse a migration and enable two sets of hooks.
-        private static (String Identite, String Dossier)? PluginClaudeNexus(JsonObject reglages)
+        private static (String Identite, String? Dossier)? PluginClaudeNexus(JsonObject reglages)
         {
             var actives = EtatsEnDirect.IdentitesNexus.Where(p => (reglages["enabledPlugins"] as JsonObject)?[p]?.GetValue<Boolean>() == true).ToArray();
             if (actives.Length > 1) { throw new InvalidDataException("Plusieurs connecteurs NexusKeypad sont activés dans Claude ; conserver une seule identité."); }
@@ -385,7 +394,7 @@ namespace Loupedeck.TrinitePlugin
             return (identite, dossier);
         }
 
-        private static Boolean CacheClaudeComplet(String dossier) => !String.IsNullOrEmpty(dossier)
+        private static Boolean CacheClaudeComplet([NotNullWhen(true)] String? dossier) => !String.IsNullOrEmpty(dossier)
             && FichiersClaudeNexus.All(f => File.Exists(Path.Combine(dossier, f)));
 
         private static Connexion AttenteClaude(String identite) => new(EtatConnexion.EnCours,
@@ -401,13 +410,13 @@ namespace Loupedeck.TrinitePlugin
                 {
                     if (!Present(agent)) { return new(EtatConnexion.Absent, "Application absente de ce profil Windows."); }
                     var reglagesClaude = agent == 0 ? LireJson(Path.Combine(Claude, "settings.json")) : null;
-                    var selectionClaude = agent == 0 ? PluginClaudeNexus(reglagesClaude) : null;
-                    var pluginClaudeActif = agent == 0 && EtatsEnDirect.PluginComplet(reglagesClaude) == true;
+                    var selectionClaude = reglagesClaude is null ? null : PluginClaudeNexus(reglagesClaude);
+                    var pluginClaudeActif = reglagesClaude is not null && EtatsEnDirect.PluginComplet(reglagesClaude) == true;
                     if (pluginClaudeActif && selectionClaude is { } selection && !CacheClaudeComplet(selection.Dossier)) { return AttenteClaude(selection.Identite); }
                     var recu = LireJson(Recu(agent));
-                    if (pluginClaudeActif && selectionClaude is { } configure && recu["active"]?.GetValue<Boolean>() == true
+                    if (pluginClaudeActif && selectionClaude is { Dossier: { } dossierClaude } configure && recu["active"]?.GetValue<Boolean>() == true
                         && (recu["identity"]?.GetValue<String>() != configure.Identite || recu["files"] is not JsonObject declares
-                            || !FichiersClaudeNexus.All(f => declares.ContainsKey(Path.Combine(configure.Dossier, f)))))
+                            || !FichiersClaudeNexus.All(f => declares.ContainsKey(Path.Combine(dossierClaude, f)))))
                     {
                         return new(EtatConnexion.Reparer, "Le plugin Claude sélectionné est installé ; son identité et son cache actuels restent à adopter par le connecteur.");
                     }
@@ -480,7 +489,7 @@ namespace Loupedeck.TrinitePlugin
                                 return new(EtatConnexion.Reparer, "Le plugin NexusKeypad du catalogue NexusSystem est installé dans Codex ; le connecteur doit l’adopter.");
                             }
                         }
-                        else if (((JsonArray)LireCatalogueCodex()["plugins"]).OfType<JsonObject>().Count(x => x["name"]?.GetValue<String>() == Nom
+                        else if (PluginsCodex(LireCatalogueCodex()).OfType<JsonObject>().Count(x => x["name"]?.GetValue<String>() == Nom
                             && x["source"]?["source"]?.GetValue<String>() == "local"
                             && x["source"]?["path"]?.GetValue<String>() == "./.codex/plugins/" + Nom) != 1)
                         {
@@ -509,8 +518,8 @@ namespace Loupedeck.TrinitePlugin
                 var recu = LireJson(Recu(agent));
                 var identite = recu["identity"]?.GetValue<String>();
                 if (recu["active"]?.GetValue<Boolean>() != true || recu["version"]?.GetValue<String>() != Version
-                    || !EtatsEnDirect.IdentitesNexus.Contains(identite) || recu["files"] is not JsonObject fichiers) { return false; }
-                (String Identite, String Dossier)? selection;
+                    || identite is null || !EtatsEnDirect.IdentitesNexus.Contains(identite) || recu["files"] is not JsonObject fichiers) { return false; }
+                (String Identite, String? Dossier)? selection;
                 String[] attendus;
                 Boolean actif;
                 if (agent == 0)
@@ -528,8 +537,8 @@ namespace Loupedeck.TrinitePlugin
                     actif = CodexActif(identite) && selection is { Dossier: not null };
                 }
                 else { return false; }
-                return actif && selection!.Value.Identite == identite
-                    && !attendus.All(f => fichiers.ContainsKey(Path.Combine(selection.Value.Dossier, f)));
+                return actif && selection is { Dossier: { } dossier } choisie && choisie.Identite == identite
+                    && !attendus.All(f => fichiers.ContainsKey(Path.Combine(dossier, f)));
             }
             catch (Exception) { return false; }
         }
@@ -564,11 +573,11 @@ namespace Loupedeck.TrinitePlugin
             catch (Exception) { return false; }
         }
 
-        private static Boolean MemeChemin(String a, String b) => !String.IsNullOrEmpty(a) && !String.IsNullOrEmpty(b)
+        private static Boolean MemeChemin(String? a, String? b) => !String.IsNullOrEmpty(a) && !String.IsNullOrEmpty(b)
             && String.Equals(Path.GetFullPath(a).TrimEnd(Path.DirectorySeparatorChar), Path.GetFullPath(b).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
 
         // Claude Desktop installs its official plugin-management CLI here. Do not execute an arbitrary PATH command.
-        private static String CliClaude()
+        private static String? CliClaude()
         {
             var racine = Path.Combine(Local, "Claude-Data");
             if (!Directory.Exists(racine)) { return null; }
@@ -639,7 +648,7 @@ namespace Loupedeck.TrinitePlugin
         {
             var declare = LireJson(Path.Combine(Claude, "settings.json"))["extraKnownMarketplaces"]?["nexuskeypad"];
             var connu = LireJson(Path.Combine(Claude, "plugins", "known_marketplaces.json"))["nexuskeypad"];
-            foreach (var entree in new[] { declare, connu }.Where(e => e is not null))
+            foreach (var entree in new[] { declare, connu }.OfType<JsonNode>())
             {
                 if (entree["source"]?["source"]?.GetValue<String>() != "directory"
                     || !MemeChemin(entree["source"]?["path"]?.GetValue<String>(), Path.Combine(Racine, "claude")))
@@ -748,7 +757,7 @@ namespace Loupedeck.TrinitePlugin
 
         internal sealed class Transaction
         {
-            private readonly Dictionary<String, Byte[]> _avant = new(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<String, Byte[]?> _avant = new(StringComparer.OrdinalIgnoreCase);
             private readonly Dictionary<String, Byte[]> _apres = new(StringComparer.OrdinalIgnoreCase);
 
             internal Boolean Identique => this._apres.All(item => this._avant[item.Key] is { } avant
@@ -777,7 +786,7 @@ namespace Loupedeck.TrinitePlugin
             private static void Ecrire(String chemin, Byte[] contenu)
             {
                 SansLien(chemin);
-                Directory.CreateDirectory(Path.GetDirectoryName(chemin));
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(chemin)) ?? throw new IOException("Chemin sans dossier parent."));
                 var temporaire = chemin + ".nexuskeypad-" + Guid.NewGuid().ToString("N") + ".tmp";
                 try { File.WriteAllBytes(temporaire, contenu); File.Move(temporaire, chemin, overwrite: true); }
                 finally { if (File.Exists(temporaire)) { File.Delete(temporaire); } }
@@ -863,10 +872,8 @@ namespace Loupedeck.TrinitePlugin
                     catch (System.Threading.AbandonedMutexException) { pris = true; }
                     if (!pris) { return new(EtatConnexion.EnCours, "Une autre configuration NexusKeypad est en cours."); }
                     if (!Present(agent)) { return new(EtatConnexion.Absent, "Application absente de ce profil Windows."); }
-                    if (actif && (String.IsNullOrEmpty(_exePaquet) || !File.Exists(_exePaquet)))
-                    {
-                        throw new FileNotFoundException("Le programme NexusKeypad manque dans le paquet.");
-                    }
+                    var exePaquet = !actif ? null : _exePaquet is { Length: > 0 } exe && File.Exists(exe) ? exe
+                        : throw new FileNotFoundException("Le programme NexusKeypad manque dans le paquet.");
 
                     // La date décrit une vraie préparation, pas chaque demande « enable ». On ne la réutilise
                     // que si l'installation et l'activation actuelles sont encore vérifiées, puis comparées au plan.
@@ -882,7 +889,7 @@ namespace Loupedeck.TrinitePlugin
                         fichiers[chemin] = Empreinte(contenu);
                     }
 
-                    if (actif)
+                    if (exePaquet is not null)
                     {
                         var communs = new JsonObject();
                         void Commun(String chemin, Byte[] contenu)
@@ -891,7 +898,7 @@ namespace Loupedeck.TrinitePlugin
                             communs[chemin] = Empreinte(contenu);
                         }
 
-                        Commun(Executable, File.ReadAllBytes(_exePaquet));
+                        Commun(Executable, File.ReadAllBytes(exePaquet));
                         // The installed diagnostic command can repair/enable itself later without a source checkout or
                         // a running Logitech process. The same small packages travel next to its stable executable.
                         if (!Directory.Exists(Source)) { throw new DirectoryNotFoundException("Les connecteurs manquent dans le paquet NexusKeypad."); }
@@ -901,10 +908,11 @@ namespace Loupedeck.TrinitePlugin
                         }
                         foreach (var fichier in Directory.EnumerateFiles(Source, "*", SearchOption.AllDirectories))
                         {
-                            Commun(Path.Combine(Path.GetDirectoryName(Executable), "connecteurs", Path.GetRelativePath(Source, fichier)), File.ReadAllBytes(fichier));
+                            Commun(Path.Combine(DossierHook, "connecteurs", Path.GetRelativePath(Source, fichier)), File.ReadAllBytes(fichier));
                         }
-                        var quotaSource = Path.Combine(Path.GetDirectoryName(_exePaquet), "claude-quota", "nexuskeypad-quota", "hooks", "register.ts");
-                        Commun(Path.Combine(Path.GetDirectoryName(Executable), "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"), File.ReadAllBytes(quotaSource));
+                        var quotaSource = Path.Combine(Path.GetDirectoryName(exePaquet) ?? throw new FileNotFoundException("Le dossier du paquet NexusKeypad est introuvable."),
+                            "claude-quota", "nexuskeypad-quota", "hooks", "register.ts");
+                        Commun(Path.Combine(DossierHook, "claude-quota", "nexuskeypad-quota", "hooks", "register.ts"), File.ReadAllBytes(quotaSource));
                         transaction.PoserJson(RecuCommun, new JsonObject { ["version"] = Version, ["files"] = communs });
                     }
                     var cible = agent switch
@@ -914,7 +922,7 @@ namespace Loupedeck.TrinitePlugin
                         _ => Path.Combine(Gemini, "plugins", Nom),
                     };
                     var reglagesClaude = agent == 0 ? LireJson(Path.Combine(Claude, "settings.json")) : null;
-                    var complet = agent == 0 ? PluginClaudeNexus(reglagesClaude) : null;
+                    var complet = reglagesClaude is null ? null : PluginClaudeNexus(reglagesClaude);
                     if (actif && complet is { } selection && !CacheClaudeComplet(selection.Dossier)) { return AttenteClaude(selection.Identite); }
                     var prive = complet?.Dossier;
                     if (agent == 0 && actif && prive is null) { VerifierCatalogueClaude(); } // before any transaction write
@@ -928,7 +936,7 @@ namespace Loupedeck.TrinitePlugin
                         }
                     }
 
-                    if (agent == 0)
+                    if (reglagesClaude is not null)
                     {
                         EtatsEnDirect.ArrangerClaude(reglagesClaude, false); // remove only our former global hooks
                         EtatsEnDirect.ArrangerQuota(reglagesClaude, null); // quota now travels with the connector
@@ -959,7 +967,7 @@ namespace Loupedeck.TrinitePlugin
                         var configuration = Path.Combine(Codex, "config.toml");
                         var texte = File.Exists(configuration) ? File.ReadAllText(configuration) : "";
                         var catalogue = LireCatalogueCodex();
-                        var liste = (JsonArray)catalogue["plugins"];
+                        var liste = PluginsCodex(catalogue);
                         var nexus = PluginCodexNexus(texte);
                         if (actif && nexus is { Dossier: null } attente)
                         {
@@ -1021,12 +1029,14 @@ namespace Loupedeck.TrinitePlugin
                     }
 
                     var proprietaireHooks = agent is 0 or 2 ? "plugin" : null;
-                    var identique = actif && precedente?.Etat == EtatConnexion.Pret && precedente.PrepareLe is DateTime date
+                    // The earlier preparation date, kept only when nothing changed since then.
+                    DateTime? anterieure = actif && precedente?.Etat == EtatConnexion.Pret && precedente.PrepareLe is DateTime date
                         && date.ToUniversalTime() <= DateTime.UtcNow && transaction.Identique
                         && ancienRecu?["identity"]?.GetValue<String>() == identite
                         && ancienRecu?["hookOwner"]?.GetValue<String>() == proprietaireHooks
-                        && JsonNode.DeepEquals(ancienRecu?["files"], fichiers);
-                    var prepareLe = identique ? precedente.PrepareLe!.Value : DateTime.UtcNow;
+                        && JsonNode.DeepEquals(ancienRecu?["files"], fichiers) ? date : null;
+                    var identique = anterieure is not null;
+                    var prepareLe = anterieure ?? DateTime.UtcNow;
                     var recuFinal = new JsonObject { ["version"] = Version, ["active"] = actif,
                         ["identity"] = identite, ["preparedAt"] = prepareLe.ToString("O", CultureInfo.InvariantCulture), ["files"] = fichiers,
                         ["hookOwner"] = proprietaireHooks, ["sharedRuntime"] = actif };

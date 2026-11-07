@@ -6,7 +6,6 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <!-- WinForms only for the opt-in real clipboard test (saves and restores the user's clipboard). -->
     <UseWindowsForms>true</UseWindowsForms>
-    <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

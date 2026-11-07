@@ -25,7 +25,7 @@ public sealed class SnapshotTests
         var root = doc.RootElement;
         Vrai(root.GetProperty("schema").GetInt32() == 1 && root.GetProperty("source").GetString() == "cached-pad-snapshot", "Version et origine du snapshot.");
         Vrai(root.GetProperty("available").GetBoolean(), "Le cache lu est disponible.");
-        Vrai(root.GetProperty("sampled_at").GetString().StartsWith("2026-10-29T11:59:59.600"), "Date de la lecture conservée.");
+        Vrai(root.GetProperty("sampled_at").GetString().StartsWith("2026-10-29T11:59:59.600", StringComparison.Ordinal), "Date de la lecture conservée.");
         Vrai(!brut.Contains(secret) && !brut.Contains("Titre") && !brut.Contains("Detail"), "Aucun titre, détail libre ou texte de conversation.");
         var agents = root.GetProperty("agents");
         Vrai(agents.GetArrayLength() == 3 && agents[0].GetProperty("id").GetString() == "claude" && agents[2].GetProperty("id").GetString() == "antigravity", "Trois IA explicitement identifiées.");
@@ -62,6 +62,6 @@ public sealed class SnapshotTests
         Vrai(Moteur.ResultatGeste("✓", null) == "fait", "Effet vérifié annoncé comme fait.");
         Vrai(Moteur.ResultatGeste("~", "app not ready") == "inconnu : app not ready", "Résultat inconnu jamais annoncé comme fait.");
         Vrai(Moteur.ResultatGeste("✓", "draft not empty") == "échec : draft not empty", "Refus avec cause jamais annoncé comme fait.");
-        Vrai(Moteur.ResultatGeste("✗", "InvalidOperationException").StartsWith("échec : "), "Exception conservée comme échec du pilote.");
+        Vrai(Moteur.ResultatGeste("✗", "InvalidOperationException").StartsWith("échec : ", StringComparison.Ordinal), "Exception conservée comme échec du pilote.");
     }
 }

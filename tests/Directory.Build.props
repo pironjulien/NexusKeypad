@@ -13,8 +13,12 @@
     <RootNamespace>NexusKeypad.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <!-- Test code only: no style analyzers (those of the LogiPluginApi package in CI). -->
-    <RunAnalyzers>false</RunAnalyzers>
+    <!-- The recommended .NET analyzers, every warning an error, as the plugin (the StyleCop analyzers of the LogiPluginApi
+         package in CI are left out by the root Directory.Build.props). Nullable annotations: the plugin's and hook's sources
+         compiled here keep their annotations (checked by their own builds); test code fails on a null by itself. -->
+    <Nullable>annotations</Nullable>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     <LogiService>C:\Program Files\Logi\LogiPluginService\</LogiService>
   </PropertyGroup>

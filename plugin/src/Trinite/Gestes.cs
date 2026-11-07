@@ -405,7 +405,7 @@ namespace Loupedeck.TrinitePlugin
             return false;
         }
 
-        private static String AttendreEt(Func<String> geste)
+        private static String? AttendreEt(Func<String?> geste)
         {
             AttendreClaude();
             return geste();
@@ -415,7 +415,7 @@ namespace Loupedeck.TrinitePlugin
         // bouton micro par le port. La touche partie, jamais de clic en plus : deux micros ne s'ouvrent pas.
         private static Boolean _dicteeCodexParTouche;
 
-        private static String DicterCodex(IntPtr fenetre)
+        private static String? DicterCodex(IntPtr fenetre)
         {
             if (Connecteurs.CleDicteeCodex() is { } cle && Accelerateur(cle) is { } touches)
             {
@@ -429,7 +429,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // « F13 », « Insert », « Ctrl+Shift+K »… (format de keybindings.json) → touches virtuelles ; null si inconnu.
-        internal static Byte[] Accelerateur(String cle)
+        internal static Byte[]? Accelerateur(String cle)
         {
             var touches = new List<Byte>();
             var morceaux = cle.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -468,7 +468,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Raccourci officiel de l'appli, seulement si sa fenêtre est encore devant ; null si parti, sinon la raison.
-        private static String Raccourci(IntPtr fenetre, params Byte[] touches)
+        private static String? Raccourci(IntPtr fenetre, params Byte[] touches)
         {
             Thread.Sleep(80);
             if (GetForegroundWindow() != fenetre)
@@ -480,7 +480,7 @@ namespace Loupedeck.TrinitePlugin
             return null;
         }
 
-        private static String DicteeWindows()
+        private static String? DicteeWindows()
         {
             Thread.Sleep(80);
             Touches(VK_LWIN, 0x48);
@@ -498,7 +498,7 @@ namespace Loupedeck.TrinitePlugin
             // Port muet (appli lancée sans lui) : le raccourci officiel qui met le curseur dans la saisie — Codex « Placer le
             // curseur dans le chat principal » (Alt+L), Antigravity « Focus Input » (Ctrl+L) — pour un ajout seulement
             // (vider le champ demande le port).
-            String Port(Int32 port, Byte[] raccourci)
+            String? Port(Int32 port, Byte[] raccourci)
             {
                 var p = Saisie(port, Js.PreparerSaisie(vide));
                 return p == PortMuet && !vide ? Raccourci(fenetre, raccourci) : p;
@@ -540,7 +540,7 @@ namespace Loupedeck.TrinitePlugin
             // Un micro déjà ouvert doit toujours pouvoir être arrêté par ce geste explicite, même si le connecteur
             // a été désactivé entre-temps. Seul le démarrage d'une nouvelle dictée respecte ensuite sa désactivation.
             Boolean Lancee(Int32 agent) => Process.GetProcessesByName(Observateur.Processus[agent]).Length > 0;
-            Boolean? Clic(String url = null)
+            Boolean? Clic(String? url = null)
             {
                 var resultat = Cdp.Evaluer(Cdp.PortCodex, Js.Cliquer(Js.Arrets), url)?.GetString();
                 if (resultat is null) { return null; }
@@ -592,7 +592,7 @@ namespace Loupedeck.TrinitePlugin
 
         private static Boolean? DicteeObservee(Int32 agent)
         {
-            Boolean? Lire(Int32 port, String url = null) => Cdp.Evaluer(port, Js.DicteeEnCours, url, attente: 1) is { } lu
+            Boolean? Lire(Int32 port, String? url = null) => Cdp.Evaluer(port, Js.DicteeEnCours, url, attente: 1) is { } lu
                 ? lu.ValueKind == System.Text.Json.JsonValueKind.True ? true
                     : lu.ValueKind == System.Text.Json.JsonValueKind.False ? false : null : null;
             try
@@ -624,7 +624,7 @@ namespace Loupedeck.TrinitePlugin
 
         private const String PortMuet = "port de débogage muet";
 
-        private static String Saisie(Int32 port, String js, String url = null)
+        private static String? Saisie(Int32 port, String js, String? url = null)
         {
             var r = Cdp.Evaluer(port, js, url);
             return r?.GetString() is "ok" ? null : r?.GetString() ?? PortMuet;

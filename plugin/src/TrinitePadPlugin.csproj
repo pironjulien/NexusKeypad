@@ -4,13 +4,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <Version>1.8.47</Version>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Loupedeck.TrinitePlugin</RootNamespace>
 
     <ErrorReport>prompt</ErrorReport>
-    <!-- Recommended .NET analyzers and the build-time code-style rules of .editorconfig, all errors (as NexusWpp).
-         Nullable reference types are enabled file by file (#nullable enable), starting with the shared core. -->
+    <!-- Recommended .NET analyzers and the build-time code-style rules of .editorconfig, all errors (as NexusWpp), with
+         nullable reference types checked in every file. -->
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -105,15 +105,10 @@
   </ItemGroup>
 
   <!-- Sans service Logi (intégration continue) : l'API publiée par Logitech, pour compiler seulement, sans les analyseurs
-       StyleCop qu'elle tire par dépendance (absents en local) : la même barrière d'analyse en local et en CI. -->
+       StyleCop qu'elle tire par dépendance (retirés par le Directory.Build.props de la racine). -->
   <ItemGroup Condition="!Exists('$(LogiService)PluginApi.dll')">
     <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
-  <Target Name="SansStyleCop" AfterTargets="ResolveLockFileAnalyzers">
-    <ItemGroup>
-      <Analyzer Remove="@(Analyzer)" Condition="'%(Analyzer.NuGetPackageId)' == 'StyleCop.Analyzers'" />
-    </ItemGroup>
-  </Target>
 
   <Target Name="CopyPackage" AfterTargets="PostBuildEvent">
     <ItemGroup>

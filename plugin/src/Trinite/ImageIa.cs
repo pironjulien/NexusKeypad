@@ -29,7 +29,7 @@ namespace Loupedeck.TrinitePlugin
         // Photo ou fichier image : redressée selon son EXIF puis écrite en <base>.webp ; rend le WebP, ou null si l'image
         // est illisible ou ne tient pas sous 3 Mo. Un JPEG passe aussi par le sans perte : réduit à 2,56 Mpx, il tient
         // 3 Mo (1,8 Mo pour une photo de 12 Mpx), l'IA reçoit alors les pixels du JPEG sans seconde perte.
-        public static String Ecrire(String source, String baseSortie)
+        public static String? Ecrire(String source, String baseSortie)
         {
             using var codec = SKCodec.Create(source);
             if (codec is null)
@@ -43,7 +43,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Image déjà en mémoire (capture d'écran) : réduite puis écrite en <base>.webp.
-        public static String Ecrire(SKBitmap image, String baseSortie)
+        public static String? Ecrire(SKBitmap image, String baseSortie)
         {
             var k = Math.Min(1.0, Math.Min(CoteMax / (Double)Math.Max(image.Width, image.Height), Math.Sqrt(PixelsMax / ((Double)image.Width * image.Height))));
             using var reduite = k < 1
@@ -65,7 +65,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Le premier encodage qui tient le plafond, dans l'ordre de la règle ; null si aucun.
-        private static SKData Encoder(SKBitmap reduite)
+        private static SKData? Encoder(SKBitmap reduite)
         {
             using (var pixels = reduite.PeekPixels())
             {
@@ -102,7 +102,7 @@ namespace Loupedeck.TrinitePlugin
             return null;
         }
 
-        private static SKData Tient(SKData webp)
+        private static SKData? Tient(SKData webp)
         {
             if (webp is not null && webp.Size <= PoidsMax)
             {

@@ -23,8 +23,8 @@ public sealed class LanceursTests
     [Fact]
     public void Demarrage_unique_et_preuve()
     {
-        Vrai(Lanceurs.ExecuterDemarrage(new(EtatLancement.Pret, "test"), () => throw new Exception("unexpected launch"),
-            () => throw new Exception("unexpected probe"), _ => { }), "application prête : rien à lancer");
+        Vrai(Lanceurs.ExecuterDemarrage(new(EtatLancement.Pret, "test"), () => throw new InvalidOperationException("unexpected launch"),
+            () => throw new InvalidOperationException("unexpected probe"), _ => { }), "application prête : rien à lancer");
         var lancement = 0;
         var lectures = 0;
         Vrai(Lanceurs.ExecuterDemarrage(new(EtatLancement.Fermee, "test"), () => { lancement++; return true; },
@@ -33,7 +33,7 @@ public sealed class LanceursTests
         Vrai(!Lanceurs.ExecuterDemarrage(new(EtatLancement.Fermee, "test"), () => { lancement++; return true; },
             () => false, _ => { }) && lancement == 1, "port muet : échec sans deuxième lancement");
         Vrai(!Lanceurs.ExecuterDemarrage(new(EtatLancement.Fermee, "test"), () => false,
-            () => throw new Exception("unexpected probe"), _ => { }), "lancement refusé : pas de preuve inventée");
+            () => throw new InvalidOperationException("unexpected probe"), _ => { }), "lancement refusé : pas de preuve inventée");
         lancement = 0;
         lectures = 0;
         Vrai(Lanceurs.ExecuterDemarrage(new(EtatLancement.Masquee, "test"), () => { lancement++; return true; },

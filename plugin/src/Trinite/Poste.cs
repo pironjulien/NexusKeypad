@@ -104,8 +104,8 @@ namespace Loupedeck.TrinitePlugin
         // Points audio du périphérique par défaut d'un flux ; null s'il n'y en a pas.
         private static (IAudioEndpointVolume Volume, IAudioMeterInformation Crete)? Ouvrir(Int32 flux)
         {
-            IMMDeviceEnumerator enumerateur = null;
-            IMMDevice peripherique = null;
+            IMMDeviceEnumerator? enumerateur = null;
+            IMMDevice? peripherique = null;
             try
             {
                 enumerateur = (IMMDeviceEnumerator)new MMDeviceEnumerator();

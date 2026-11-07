@@ -36,17 +36,17 @@ namespace Loupedeck.TrinitePlugin
         public System.Collections.Generic.IReadOnlyList<GroupeQuota> Groupes { get; init; } = [];
 
         // Dernière famille réellement sélectionnée dans l'interface ; null si aucune sélection n'est prouvée.
-        public String GroupeSelectionne { get; init; }
+        public String? GroupeSelectionne { get; init; }
     }
 
     // Une fenêtre d'un groupe de modèles : 5 h (Cinq) ou semaine, part utilisée, heure (UTC) de sa remise à zéro si l'IA
     // la donne.
-    public sealed record GroupeQuota(Boolean Cinq, Double Utilise, DateTime? Fin, Boolean Principal = false, String Groupe = null);
+    public sealed record GroupeQuota(Boolean Cinq, Double Utilise, DateTime? Fin, Boolean Principal = false, String? Groupe = null);
 
     // Conversations : la plus pressante d'abord. Ouvertes : nombre de conversations actives de chaque IA.
     // Devant : l'IA dont l'appli est au premier plan (celle que Capture, Photo et Dictée visent), -1 si aucune.
     // Dictee : une dictée lancée par le pad est en cours (Claude, Codex ou Antigravity) : la touche passe en rouge.
-    public sealed record Instantane(Conversation[][] Conversations, Int32[] Ouvertes, Quota[] Quotas, Boolean[] Ouverte, Boolean Eteint, Photo Photo, Int32 Devant)
+    public sealed record Instantane(Conversation[][] Conversations, Int32[] Ouvertes, Quota?[] Quotas, Boolean[] Ouverte, Boolean Eteint, Photo? Photo, Int32 Devant)
     {
         public Boolean Dictee { get; init; }
 
@@ -55,17 +55,17 @@ namespace Loupedeck.TrinitePlugin
 
 #if !POSTE
         // Null dans les aperçus historiques ; une liaison réellement vérifiée pour chaque IA sur le pad.
-        public Connexion[] Connexions { get; init; }
+        public Connexion[]? Connexions { get; init; }
 #endif
 
         public static readonly Instantane Vide = new([[], [], []], [0, 0, 0], [null, null, null], [false, false, false], false, null, -1);
 
-        public Conversation Premiere(Int32 agent) => this.Conversations[agent].Length > 0 ? this.Conversations[agent][0] : null;
+        public Conversation? Premiere(Int32 agent) => this.Conversations[agent].Length > 0 ? this.Conversations[agent][0] : null;
 
         // Conversation qui appelle l'utilisateur sur la touche de l'IA (anneau, cadence vive) : aucune appli fermée. Les
         // fiches de session restent sur disque après la fermeture : une fin non regardée la veille entourait Claude
         // d'un anneau au démarrage du PC, appli pas encore lancée (06/11).
-        public Conversation Alerte(Int32 agent) => this.Ouverte[agent] && this.Premiere(agent) is { Alerte: true } c ? c : null;
+        public Conversation? Alerte(Int32 agent) => this.Ouverte[agent] && this.Premiere(agent) is { Alerte: true } c ? c : null;
 
 #if !POSTE
         // Couples (source, ouvrier) où un ouvrier travaille pour une source par le relais.
@@ -99,5 +99,5 @@ namespace Loupedeck.TrinitePlugin
     }
 
     // Dernière photo du téléphone : chemin sur le téléphone, copie locale, miniature prête pour la touche.
-    public sealed record Photo(String SurTelephone, String Fichier, BitmapImage Miniature);
+    public sealed record Photo(String SurTelephone, String Fichier, BitmapImage? Miniature);
 }

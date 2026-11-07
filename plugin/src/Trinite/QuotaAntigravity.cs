@@ -98,7 +98,7 @@ namespace Loupedeck.TrinitePlugin
             """;
 
         // ouvrir : la page peut être ouverte un instant ; sinon seulement lue si l'utilisateur l'a déjà sous les yeux.
-        public static Quota Lire(Boolean ouvrir)
+        public static Quota? Lire(Boolean ouvrir)
         {
             var texte = Cdp.Evaluer(Cdp.PortAntigravity, ouvrir ? Actif : Passif, attente: 10);
             if (texte is not { ValueKind: JsonValueKind.String } t) { return null; }
@@ -114,9 +114,15 @@ namespace Loupedeck.TrinitePlugin
         // Jauge à l'instant : chaque groupe passé son heure de remise à zéro est à 0 % (sans heure connue : au bout de sa
         // durée, 5 h ou 7 jours, depuis la lecture lu). Sélection connue : sa famille seulement ; sinon le maximum
         // historique de chaque fenêtre. Un quota d'un autre modèle ne remplace jamais une fenêtre choisie inconnue.
-        public static Quota Actuel(Quota quota, DateTime lu)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(quota))]
+        public static Quota? Actuel(Quota? quota, DateTime lu)
         {
-            if (quota is null || quota.Groupes.Count == 0)
+            if (quota is null)
+            {
+                return null;
+            }
+
+            if (quota.Groupes.Count == 0)
             {
                 return quota;
             }
@@ -127,7 +133,7 @@ namespace Loupedeck.TrinitePlugin
             Double? Jauge(Boolean cinq) => groupes.Where(g => g.Cinq == cinq)
                 .Select(g => maintenant >= (g.Fin ?? lu + (cinq ? TimeSpan.FromHours(5) : TimeSpan.FromDays(7))) ? 0 : g.Utilise)
                 .Select(u => (Double?)u).DefaultIfEmpty(null).Max();
-            return new(Jauge(true), Jauge(false)) { Groupes = quota.Groupes, GroupeSelectionne = quota.GroupeSelectionne };
+            return new Quota(Jauge(true), Jauge(false)) { Groupes = quota.Groupes, GroupeSelectionne = quota.GroupeSelectionne };
         }
 
         // Dernière lecture gardée sur disque, avec son détail par groupe (lue au plus tous les quarts d'heure : sans elle, la
@@ -151,7 +157,8 @@ namespace Loupedeck.TrinitePlugin
                         quota = Actuel(actuelle with { GroupeSelectionne = quota.GroupeSelectionne }, recente);
                         lu = recente;
                     }
-                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Fichier));
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Fichier))
+                        ?? throw new System.IO.IOException("Chemin sans dossier parent."));
                     System.IO.File.WriteAllText(Fichier + ".tmp", JsonSerializer.Serialize(new
                     {
                         cinq = quota.Cinq,
@@ -175,7 +182,7 @@ namespace Loupedeck.TrinitePlugin
             return lu;
         }
 
-        public static Quota Garde(out DateTime lu)
+        public static Quota? Garde(out DateTime lu)
         {
             lu = DateTime.MinValue;
             try
@@ -201,7 +208,7 @@ namespace Loupedeck.TrinitePlugin
                     // finSemaine), sinon au bout de sa durée.
                     DateTime? Fin(String nom) => r.TryGetProperty(nom, out var f) && f.ValueKind == JsonValueKind.String ? f.GetDateTime().ToUniversalTime() : null;
                     groupes = [.. new[] { (true, Valeur("cinq"), Fin("finCinq")), (false, Valeur("semaine"), Fin("finSemaine")) }
-                        .Where(v => v.Item2 is not null).Select(v => new GroupeQuota(v.Item1, v.Item2.Value, v.Item3))];
+                        .Select(v => v.Item2 is Double part ? new GroupeQuota(v.Item1, part, v.Item3) : null).OfType<GroupeQuota>()];
                 }
 
                 return Actuel(new(Valeur("cinq"), Valeur("semaine")) { Groupes = groupes,
@@ -262,7 +269,7 @@ namespace Loupedeck.TrinitePlugin
         // Texte de la page (« Gemini Models », « Five Hour Limit Remaining », « … refresh in 2 hours, 42 minutes. »,
         // « 34% »…) → chaque groupe de modèles, sa part utilisée et son heure de remise à zéro par fenêtre ; jauge : le
         // groupe le plus entamé de chaque fenêtre ; null si rien n'est lisible.
-        public static String FamilleModele(String modele)
+        public static String? FamilleModele(String? modele)
         {
             if (String.IsNullOrWhiteSpace(modele)) { return null; }
             if (Regex.IsMatch(modele, @"\bGemini\s*(?:[0-9.]+\s*)?Argon\b", RegexOptions.IgnoreCase)) { return "argon"; }
@@ -270,7 +277,7 @@ namespace Loupedeck.TrinitePlugin
             return Regex.IsMatch(modele, @"\b(?:Claude|GPT|OpenAI)\b", RegexOptions.IgnoreCase) ? "claude-gpt" : null;
         }
 
-        public static Quota Analyser(String texte, String modele = null)
+        public static Quota? Analyser(String? texte, String? modele = null)
         {
             var groupes = new System.Collections.Generic.List<GroupeQuota>();
             TimeSpan? delai = null;
@@ -280,11 +287,11 @@ namespace Loupedeck.TrinitePlugin
             var groupe = false;
             var argon = false;
             var principal = false;
-            String famille = null;
+            String? famille = null;
             var premiereFenetre = true;
             Double? avantFenetre = null;
             var valeursAvant = 0;
-            String fragmentsDelai = null;
+            String? fragmentsDelai = null;
             var maintenant = DateTime.UtcNow;
             void Terminer()
             {

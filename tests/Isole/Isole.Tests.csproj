@@ -3,7 +3,6 @@
   <!-- Launchers and UI Automation proofs, compiled alone with test doubles (Doubles.cs) instead of the rest of the plugin:
        no Logi API loaded, and any attempt to launch an application fails the test. -->
   <PropertyGroup>
-    <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

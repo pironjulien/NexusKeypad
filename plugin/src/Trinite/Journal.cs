@@ -22,7 +22,7 @@ namespace Loupedeck.TrinitePlugin
         private const String Cadre = "logi";
 #endif
         // Version du paquet installé (Plugins/<nom>/metadata), sinon celle de l'assemblage (Stream Deck).
-        private static readonly String Outil = EtatPlugin.Version(
+        private static readonly String? Outil = EtatPlugin.Version(
             Path.GetDirectoryName(Path.GetDirectoryName(typeof(Journal).Assembly.Location)) ?? "") is { Length: > 0 } version
                 ? version
                 : typeof(Journal).Assembly.GetName().Version?.ToString(3);
@@ -38,7 +38,7 @@ namespace Loupedeck.TrinitePlugin
 
         // ia : 0 Claude, 1 Codex, 2 Antigravity (hors de 0..2 : rien, le journal est rangé par IA visée).
         // issue : ✓, ~, ✗ (FORMAT.md) ; erreur : cause courte et fixe, ou null.
-        public static void Ecrire(Int32 ia, String action, String issue, Double ms, String erreur = null)
+        public static void Ecrire(Int32 ia, String action, String issue, Double ms, String? erreur = null)
         {
             try
             {
@@ -54,20 +54,21 @@ namespace Loupedeck.TrinitePlugin
                     ts = maintenant.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture),
                     agent = Agents[ia],
                     outil = Outil,
-                    appel = (String)null,
+                    appel = (String?)null,
                     app = Applis[ia],
                     cadre = Cadre,
                     action,
-                    technique = (String)null,
+                    technique = (String?)null,
                     issue,
                     ms = (Int64)Math.Round(ms),
                     premier_plan = true, // une touche du pad amène l'appli de l'IA devant ou y tape
                     erreur,
                 });
-                var chemin = Path.Combine(Racine, Agents[ia], maintenant.ToString("yyyy-MM", CultureInfo.InvariantCulture) + ".jsonl");
+                var dossier = Path.Combine(Racine, Agents[ia]);
+                var chemin = Path.Combine(dossier, maintenant.ToString("yyyy-MM", CultureInfo.InvariantCulture) + ".jsonl");
                 lock (Verrou)
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(chemin));
+                    Directory.CreateDirectory(dossier);
                     File.AppendAllText(chemin, ligne + "\n");
                 }
             }

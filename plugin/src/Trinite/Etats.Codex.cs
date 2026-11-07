@@ -27,7 +27,10 @@ namespace Loupedeck.TrinitePlugin
                     try
                     {
                         using var doc = JsonDocument.Parse(ligne);
-                        noms[doc.RootElement.GetProperty("id").GetString()] = doc.RootElement.GetProperty("thread_name").GetString();
+                        if (doc.RootElement.GetProperty("id").GetString() is { } id && doc.RootElement.GetProperty("thread_name").GetString() is { } nom)
+                        {
+                            noms[id] = nom;
+                        }
                     }
                     catch (Exception)
                     {
@@ -207,7 +210,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Quota de Codex : celui de Codex LB, cumulé sur tous ses comptes (/api/usage/summary) ; sans LB, le dernier
         // « token_count » des journaux, qui ne reflète que le compte qui a servi la dernière réponse.
-        private Quota QuotaCodex()
+        private Quota? QuotaCodex()
         {
             try
             {
@@ -229,7 +232,7 @@ namespace Loupedeck.TrinitePlugin
         // de sessions\) et sans limite d'âge (une semaine entamée vaut encore ; une fenêtre passée se lit à 0 %).
         private static readonly String[] DossiersJournauxCodex = ["sessions", "archived_sessions"];
 
-        private static Quota QuotaCodexJournaux()
+        private static Quota? QuotaCodexJournaux()
         {
             var fichiers = DossiersJournauxCodex.Select(d => Path.Combine(DossierCodex, d)).Where(Directory.Exists)
                 .SelectMany(d => new DirectoryInfo(d).EnumerateFiles("rollout-*.jsonl", SearchOption.AllDirectories))
@@ -416,7 +419,7 @@ namespace Loupedeck.TrinitePlugin
             public DateTime Depuis = DateTime.MinValue;
             private Boolean _accord; // Attend un accord pendant le tour (pas une question de fin)
             private DateTime _debutTour = DateTime.MinValue;
-            private String _tour;
+            private String? _tour;
             private DateTime _dernierEvenement = DateTime.MinValue;
             private Boolean _tourTermine;
 
@@ -571,7 +574,12 @@ namespace Loupedeck.TrinitePlugin
                 try
                 {
                     using var doc = JsonDocument.Parse(ligne);
-                    using var arguments = JsonDocument.Parse(doc.RootElement.GetProperty("payload").GetProperty("arguments").GetString());
+                    if (doc.RootElement.GetProperty("payload").GetProperty("arguments").GetString() is not { } texte)
+                    {
+                        return 1;
+                    }
+
+                    using var arguments = JsonDocument.Parse(texte);
                     return arguments.RootElement.TryGetProperty("questions", out var q) && q.ValueKind == JsonValueKind.Array
                         ? Math.Max(1, q.GetArrayLength()) : 1;
                 }
@@ -603,7 +611,7 @@ namespace Loupedeck.TrinitePlugin
                     foreach (var c in contenu.EnumerateArray())
                     {
                         var texte = c.ValueKind == JsonValueKind.Object && c.TryGetProperty("text", out var x) && x.ValueKind == JsonValueKind.String
-                            ? x.GetString().TrimStart() : "";
+                            ? (x.GetString() ?? "").TrimStart() : "";
                         if (!texte.StartsWith(MarqueReponse, StringComparison.Ordinal))
                         {
                             continue;
@@ -614,9 +622,9 @@ namespace Loupedeck.TrinitePlugin
                         using var reponses = JsonDocument.Parse(finBalise >= 0 ? corps[..finBalise] : corps);
                         foreach (var item in reponses.RootElement.EnumerateArray())
                         {
-                            if (item.TryGetProperty("questionItemId", out var id) && id.ValueKind == JsonValueKind.String)
+                            if (item.TryGetProperty("questionItemId", out var id) && id.GetString() is { } cleTexte)
                             {
-                                using var cle = JsonDocument.Parse(id.GetString());
+                                using var cle = JsonDocument.Parse(cleTexte);
                                 if (cle.RootElement.ValueKind == JsonValueKind.Array && cle.RootElement.GetArrayLength() >= 2
                                     && cle.RootElement[0].GetString() == "request_user_input_async" && cle.RootElement[1].GetString() is String appel)
                                 {

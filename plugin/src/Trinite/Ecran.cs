@@ -16,7 +16,7 @@ namespace Loupedeck.TrinitePlugin
             Environment.GetEnvironmentVariable("USERPROFILE") ?? "", ".nexus", "trinite", "captures");
 
         // Rend le chemin du WebP de la capture, null si elle a échoué. Garde les 5 dernières captures.
-        public static String Capturer()
+        public static String? Capturer()
         {
             var avant = SetThreadDpiAwarenessContext(new IntPtr(-4)); // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
             var ecran = IntPtr.Zero;

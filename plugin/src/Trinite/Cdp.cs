@@ -23,7 +23,7 @@ namespace Loupedeck.TrinitePlugin
 
         // url : une page précise (sinon la page principale de l'appli).
         // attente : secondes au plus pour la réponse (un script qui ouvre une page et attend son rendu en prend plus).
-        public static JsonElement? Evaluer(Int32 port, String js, String url = null, Int32 attente = 4)
+        public static JsonElement? Evaluer(Int32 port, String js, String? url = null, Int32 attente = 4)
         {
             try
             {
@@ -82,7 +82,7 @@ namespace Loupedeck.TrinitePlugin
 
             private Session(Int32 attente) => this._annulation = new CancellationTokenSource(TimeSpan.FromSeconds(attente));
 
-            public static Session Ouvrir(Int32 port, String url, Int32 attente)
+            public static Session? Ouvrir(Int32 port, String? url, Int32 attente)
             {
                 using var liste = JsonDocument.Parse(Http.GetStringAsync($"http://127.0.0.1:{port}/json/list").GetAwaiter().GetResult());
 
@@ -91,7 +91,7 @@ namespace Loupedeck.TrinitePlugin
                     t.GetProperty("type").GetString() == "page"
                     && (url is not null ? t.GetProperty("url").GetString() == url
                         : port == PortCodex ? t.GetProperty("url").GetString() == "app://-/index.html"
-                        : !t.GetProperty("url").GetString().StartsWith("data:", StringComparison.Ordinal)));
+                        : t.GetProperty("url").GetString() is { } adresse && !adresse.StartsWith("data:", StringComparison.Ordinal)));
                 if (page.ValueKind != JsonValueKind.Object)
                 {
                     return null;
@@ -100,7 +100,9 @@ namespace Loupedeck.TrinitePlugin
                 var session = new Session(attente);
                 try
                 {
-                    session._ws.ConnectAsync(new Uri(page.GetProperty("webSocketDebuggerUrl").GetString()), session._annulation.Token).GetAwaiter().GetResult();
+                    var adresseWs = page.GetProperty("webSocketDebuggerUrl").GetString()
+                        ?? throw new InvalidDataException("Page sans adresse de débogage.");
+                    session._ws.ConnectAsync(new Uri(adresseWs), session._annulation.Token).GetAwaiter().GetResult();
                     return session;
                 }
                 catch (Exception)

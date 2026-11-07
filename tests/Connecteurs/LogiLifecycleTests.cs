@@ -40,8 +40,8 @@ public sealed class LogiLifecycleTests
                 info.ArgumentList.Add(argument);
             }
             using var processus = Process.Start(info)!;
-            var sortie = processus.StandardOutput.ReadToEndAsync();
-            var erreur = processus.StandardError.ReadToEndAsync();
+            var sortie = processus.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+            var erreur = processus.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
             using var limite = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
             limite.CancelAfter(TimeSpan.FromSeconds(30));
             try { await processus.WaitForExitAsync(limite.Token); }

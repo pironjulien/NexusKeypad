@@ -35,27 +35,27 @@ namespace Loupedeck.TrinitePlugin
 
         private readonly Object _copie = new();
         private readonly Object _connexion = new();
-        private String _adb;
+        private String? _adb;
         private DateTime _absentJusque = DateTime.MinValue;
-        private String _reconnue; // liaison Wi-Fi reconnue à son numéro de série, sur un port autre que celui noté
-        private Process _veilleur;
+        private String? _reconnue; // liaison Wi-Fi reconnue à son numéro de série, sur un port autre que celui noté
+        private Process? _veilleur;
         private volatile Boolean _fini;
 
-        public Photo Derniere { get; private set; }
+        public Photo? Derniere { get; private set; }
 
         // Notifications en attente sur le téléphone : mails (Gmail) et messages (Google Messages, SMS et RCS ; le fichier des
         // SMS ne voit pas les RCS), résumés de groupe exclus. Un seul appel adb, filtré sur le téléphone. Null : pas de
         // téléphone joignable.
         public (Int32 Mails, Int32 Messages)? Notifications()
         {
-            this._adb ??= TrouverAdb();
-            var serie = this._adb is null ? null : this.Connecter();
-            if (serie is null)
+            var adb = this._adb ??= TrouverAdb();
+            var serie = adb is null ? null : this.Connecter(adb);
+            if (adb is null || serie is null)
             {
                 return null;
             }
 
-            var (code, sortie) = Lancer(this._adb,
+            var (code, sortie) = Lancer(adb,
                 $"-s {serie} shell \"dumpsys notification --noredact | grep -E 'StatusBarNotification\\(pkg=com.google.android.(gm|apps.messaging) '\"", 8000);
             if (code is not (0 or 1)) // 1 : grep sans résultat
             {
@@ -79,15 +79,15 @@ namespace Loupedeck.TrinitePlugin
 
         public void Rafraichir()
         {
-            this._adb ??= TrouverAdb();
-            var serie = this._adb is null ? null : this.Connecter();
-            if (serie is null)
+            var adb = this._adb ??= TrouverAdb();
+            var serie = adb is null ? null : this.Connecter(adb);
+            if (adb is null || serie is null)
             {
                 this.Derniere = null; // plus de téléphone : la touche passe à l'heure
                 return;
             }
 
-            var (code, sortie) = Lancer(this._adb, $"-s {serie} shell \"{CommandeDerniere}\"", 8000);
+            var (code, sortie) = Lancer(adb, $"-s {serie} shell \"{CommandeDerniere}\"", 8000);
             var chemin = sortie.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.StartsWith("/sdcard/", StringComparison.Ordinal));
             if (chemin is null || chemin == this.Derniere?.SurTelephone)
             {
@@ -102,7 +102,7 @@ namespace Loupedeck.TrinitePlugin
             if (!File.Exists(local))
             {
                 var partiel = $"{local}.{Guid.NewGuid():N}.part";
-                if (Lancer(this._adb, $"-s {serie} pull \"{chemin}\" \"{partiel}\"", 60000).Code != 0)
+                if (Lancer(adb, $"-s {serie} pull \"{chemin}\" \"{partiel}\"", 60000).Code != 0)
                 {
                     File.Delete(partiel);
                     return;
@@ -170,13 +170,12 @@ namespace Loupedeck.TrinitePlugin
                 {
                     try
                     {
-                        this._adb ??= TrouverAdb();
-                        var serie = this._adb is null ? null : this.Connecter();
-                        var dossiers = serie is null ? [] : DossiersTelephone
-                            .Where(d => Lancer(this._adb, $"-s {serie} shell ls -d {d}", 5000).Sortie.Trim() == d).ToArray();
-                        if (dossiers.Length > 0)
+                        var adb = this._adb ??= TrouverAdb();
+                        var serie = adb is null ? null : this.Connecter(adb);
+                        if (adb is not null && serie is not null
+                            && DossiersTelephone.Where(d => Lancer(adb, $"-s {serie} shell ls -d {d}", 5000).Sortie.Trim() == d).ToArray() is { Length: > 0 } dossiers)
                         {
-                            this.Ecouter(serie, dossiers, nouvelle);
+                            this.Ecouter(adb, serie, dossiers, nouvelle);
                         }
                     }
                     catch (Exception e)
@@ -191,18 +190,18 @@ namespace Loupedeck.TrinitePlugin
             fil.Start();
         }
 
-        private void Ecouter(String serie, String[] dossiers, Action nouvelle)
+        private void Ecouter(String adb, String serie, String[] dossiers, Action nouvelle)
         {
             // w : écriture terminée ; m : fichier arrivé par renommage (photo écrite à part puis déplacée).
             var cibles = String.Join(" ", dossiers.Select(d => d + ":wm"));
-            using var p = Process.Start(new ProcessStartInfo(this._adb, $"-s {serie} shell inotifyd - {cibles}")
+            using var p = Process.Start(new ProcessStartInfo(adb, $"-s {serie} shell inotifyd - {cibles}")
             {
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
-            });
+            }) ?? throw new IOException("adb ne démarre pas.");
             this._veilleur = p;
-            String ligne;
+            String? ligne;
             while (!this._fini && (ligne = p.StandardOutput.ReadLine()) is not null)
             {
                 // « w<TAB>/sdcard/DCIM/Camera<TAB>20261023_163347.jpg » ; un fichier caché est une écriture en cours.
@@ -221,7 +220,7 @@ namespace Loupedeck.TrinitePlugin
 
 #if !POSTE
         // Image et fichier dans le presse-papiers (PressePapiers : API Win32, sans processus).
-        private String _copiee; // fichier publié dans le presse-papiers : jamais élagué
+        private String? _copiee; // fichier publié dans le presse-papiers : jamais élagué
 
         public Boolean Copier()
         {
@@ -238,7 +237,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Copie réduite pour l'IA (ImageIa : WebP, ≤ 2000 px, ≤ 3 Mo), toujours dans le cache (lisible des applis du
         // Store), jamais à côté d'une image du PC de l'utilisateur. L'original reste sur le téléphone. Null : illisible.
-        private static String Preparer(Photo photo)
+        private static String? Preparer(Photo photo)
         {
             try
             {
@@ -261,7 +260,7 @@ namespace Loupedeck.TrinitePlugin
         private static String BaseIa(String fichier) => Path.Combine(Cache, Path.GetFileNameWithoutExtension(fichier) + "-ia");
 
         // WebP déjà préparé pour cette photo (écrit après elle), sinon null.
-        private static String Preparee(String fichier)
+        private static String? Preparee(String fichier)
         {
             var webp = new FileInfo(BaseIa(fichier) + ".webp");
             return webp.Exists && webp.Length > 0 && webp.LastWriteTimeUtc >= File.GetLastWriteTimeUtc(fichier) ? webp.FullName : null;
@@ -302,7 +301,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Miniature carrée 116 px, recadrée au centre et redressée selon l'orientation EXIF.
-        public static BitmapImage Miniature(String fichier)
+        public static BitmapImage? Miniature(String fichier)
         {
             try
             {
@@ -368,17 +367,17 @@ namespace Loupedeck.TrinitePlugin
         // Le téléphone de l'utilisateur (numéro noté par nexus-android) : USB d'abord, sinon son adresse Wi-Fi notée.
         // Absent : nouvel essai dans 2 min, pour ne pas relancer un adb connect toutes les 3 s.
         // Une seule reconnexion à la fois : le veilleur et le tour de 3 s se coupaient la liaison (disconnect de l'un).
-        private String Connecter()
+        private String? Connecter(String adb)
         {
             lock (this._connexion)
             {
-                return this.ConnecterSeul();
+                return this.ConnecterSeul(adb);
             }
         }
 
-        private String ConnecterSeul()
+        private String? ConnecterSeul(String adb)
         {
-            String connu = null, adresse = null;
+            String? connu = null, adresse = null;
             try
             {
                 using var note = JsonDocument.Parse(File.ReadAllText(WifiNote));
@@ -391,9 +390,9 @@ namespace Loupedeck.TrinitePlugin
             }
 
             List<String[]> appareils = [];
-            String Present()
+            String? Present()
             {
-                appareils = Lancer(this._adb, "devices", 5000).Sortie.Split('\n').Skip(1)
+                appareils = Lancer(adb, "devices", 5000).Sortie.Split('\n').Skip(1)
                     .Select(l => l.Split('\t', StringSplitOptions.TrimEntries)).Where(l => l.Length == 2).ToList();
                 var prets = appareils.Where(l => l[1] == "device").Select(l => l[0]).ToList();
                 return prets.FirstOrDefault(l => l == connu) ?? prets.FirstOrDefault(l => l == adresse)
@@ -404,7 +403,7 @@ namespace Loupedeck.TrinitePlugin
                     // Liaison déjà reconnue retenue : un seul getprop par nouveau port, pas un par tour.
                     ?? prets.FirstOrDefault(l => connu is not null && l == this._reconnue)
                     ?? (this._reconnue = prets.FirstOrDefault(l => connu is not null && l.Contains(':', StringComparison.Ordinal)
-                        && Lancer(this._adb, $"-s {l} shell getprop ro.serialno", 5000).Sortie.Trim() == connu))
+                        && Lancer(adb, $"-s {l} shell getprop ro.serialno", 5000).Sortie.Trim() == connu))
                     ?? (connu is null ? prets.FirstOrDefault() : null);
             }
 
@@ -417,7 +416,7 @@ namespace Loupedeck.TrinitePlugin
             // Liaison Wi-Fi endormie (« offline », vu sur un téléphone après une veille) : la relancer d'abord.
             if (appareils.Any(l => l[1] == "offline"))
             {
-                Lancer(this._adb, "reconnect offline", 10000);
+                Lancer(adb, "reconnect offline", 10000);
                 System.Threading.Thread.Sleep(1500);
                 serie = Present();
             }
@@ -432,7 +431,7 @@ namespace Loupedeck.TrinitePlugin
 
             if (connu is not null)
             {
-                candidates.AddRange(Lancer(this._adb, "mdns services", 10000).Sortie.Split('\n')
+                candidates.AddRange(Lancer(adb, "mdns services", 10000).Sortie.Split('\n')
                     .Where(l => l.Contains($"adb-{connu}", StringComparison.Ordinal) && l.Contains("_adb-tls-connect", StringComparison.Ordinal))
                     .Select(l => System.Text.RegularExpressions.Regex.Match(l, @"(\d+\.\d+\.\d+\.\d+:\d+)").Value)
                     .Where(a => a.Length > 0 && a != adresse));
@@ -445,8 +444,8 @@ namespace Loupedeck.TrinitePlugin
                     continue; // liaison vivante (un autre appareil) : jamais coupée
                 }
 
-                Lancer(this._adb, $"disconnect {candidate}", 5000); // une liaison morte sur cette adresse bloquerait connect
-                Lancer(this._adb, $"connect {candidate}", 8000);
+                Lancer(adb, $"disconnect {candidate}", 5000); // une liaison morte sur cette adresse bloquerait connect
+                Lancer(adb, $"connect {candidate}", 8000);
                 serie = Present() ?? (appareils.Any(l => l[0] == candidate && l[1] == "device") ? candidate : null);
             }
 
@@ -459,7 +458,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Même adb que nexus-android (celui du PATH, sinon Platform Tools) : deux versions d'adb se coupent leur serveur.
-        private static String TrouverAdb()
+        private static String? TrouverAdb()
         {
             var chemin = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
                 .Select(d => Path.Combine(d.Trim(), "adb.exe")).FirstOrDefault(File.Exists);
@@ -479,7 +478,7 @@ namespace Loupedeck.TrinitePlugin
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                });
+                }) ?? throw new IOException("Le programme ne démarre pas.");
                 var sortie = p.StandardOutput.ReadToEndAsync();
                 _ = p.StandardError.ReadToEndAsync(); // lue et jetée : un tube d'erreurs plein bloquerait adb
                 if (!p.WaitForExit(delai))

@@ -61,7 +61,7 @@ if (args is ["animations", var dossierAnim])
                 Conversation[][] conversations = estRelais
                     ? [[E(0, Etat.Travaille)], [E(1, Etat.Travaille, true)], [E(2, Etat.Travaille, true)]]
                     : [.. Enumerable.Range(0, 3).Select(a => etat is Etat.Repos or Etat.Ferme ? Array.Empty<Conversation>() : [E(a, etat)])];
-                var jauges = etat == Etat.Limite ? new Quota[] { new(1, 0.5), new(1, 0.5), new(1, 0.5) } : [null, null, null];
+                var jauges = etat == Etat.Limite ? new Quota?[] { new(1, 0.5), new(1, 0.5), new(1, 0.5) } : [null, null, null];
                 var i = new Instantane(conversations, [1, 1, 1], jauges, Enumerable.Repeat(ouverte, 3).ToArray(), false, null, -1)
                 {
                     Dictee = dictee >= 0, DicteeIa = dictee >= 0 ? agent : -1,
@@ -174,7 +174,7 @@ if (args is ["sprites", _] or ["sprites", _, "--photo", _])
         var ecart = 0.0;
         if (boucle)
         {
-            Byte[] premiers = null;
+            Byte[]? premiers = null;
             var meilleur = (N: 0, Ecart: Double.MaxValue);
             for (var f = 0; f < 2 * MaxImages; f++)
             {
@@ -365,7 +365,7 @@ if (args is ["sprites", _] or ["sprites", _, "--photo", _])
 var sortie = args.Length > 0 ? args[0] : ".";
 Directory.CreateDirectory(sortie);
 var maintenant = DateTime.UtcNow;
-Photo photo = null;
+Photo? photo = null;
 if (args.Length > 1)
 {
     // La miniature du plugin lui-même (recadrage et orientation EXIF compris).
@@ -563,6 +563,7 @@ for (var ligne = 0; ligne < etats.Length; ligne++)
     }
 }
 
+Double[] lancementsParInstant = [0.3, 1.2, 2.0, 4.0];
 for (var ligne = 0; ligne < 2; ligne++)
 {
     var dictee = ligne == 0;
@@ -574,7 +575,7 @@ for (var ligne = 0; ligne < 2; ligne++)
             var scene = new Scene
             {
                 Instantane = i, Temps = instants[c], Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9,
-                Lancements = dictee ? [99, 99, 99] : Enumerable.Repeat(new[] { 0.3, 1.2, 2.0, 4.0 }[c], 3).ToArray(),
+                Lancements = dictee ? [99, 99, 99] : Enumerable.Repeat(lancementsParInstant[c], 3).ToArray(),
             };
             tableau.DrawImage(Rendu.Png(a, scene), ((a * instants.Length) + c) * 120, (etats.Length + ligne) * 120, BitmapRotation.None);
         }

@@ -9,6 +9,9 @@ public sealed class ConnecteursTests
 {
     private static void Vrai(Boolean condition, String regle) => Assert.True(condition, regle);
 
+    private static readonly String[] Agents = ["claude", "codex", "antigravity"];
+    private static readonly String[] AjoutCatalogue = ["plugin", "marketplace", "add"];
+
     private static String Depot => typeof(ConnecteursTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
         .Single(a => a.Key == "NexusKeypad.Repository").Value;
 
@@ -339,7 +342,7 @@ public sealed class ConnecteursTests
             var catalogue = Path.Combine(local, "NexusKeypad", "connecteurs", "claude");
             var registre = Path.Combine(maison, ".claude", "plugins");
             Directory.CreateDirectory(registre);
-            if (arguments.Take(3).SequenceEqual(new[] { "plugin", "marketplace", "add" }))
+            if (arguments.Take(3).SequenceEqual(AjoutCatalogue))
             {
                 File.WriteAllText(Path.Combine(registre, "known_marketplaces.json"), new JsonObject { ["nexuskeypad"] = new JsonObject {
                     ["source"] = new JsonObject { ["source"] = "directory", ["path"] = catalogue }, ["installLocation"] = catalogue } }.ToJsonString());
@@ -387,14 +390,14 @@ public sealed class ConnecteursTests
             if (agent == 2) { File.WriteAllText(Path.Combine(dossier, "hooks.json"), "{\"third-party\":{\"Stop\":[]}}"); }
             var resultat = Connecteurs.Activer(agent);
             Vrai(resultat.Etat == EtatConnexion.Pret, "install verified " + agent + ": " + resultat.Detail);
-            Vrai(Connecteurs.EvenementsActifs(new[] { "claude", "codex", "antigravity" }[agent]), "events enabled " + agent);
+            Vrai(Connecteurs.EvenementsActifs(Agents[agent]), "events enabled " + agent);
             Vrai(Connecteurs.Lire(agent, true, false).Etat == (agent == 0 ? EtatConnexion.Pret : EtatConnexion.Relancer), "port absent prevents ready " + agent);
             var anciennePreparation = VieillirPreparation(agent);
             var recuAvant = File.ReadAllBytes(Recu(agent));
             Vrai(Connecteurs.Activer(agent).PrepareLe == anciennePreparation, "identical enable preserves setup date " + agent);
             Vrai(File.ReadAllBytes(Recu(agent)).AsSpan().SequenceEqual(recuAvant), "identical enable leaves receipt unchanged " + agent);
             Vrai(Connecteurs.Desactiver(agent).Etat == EtatConnexion.Activer, "disable " + agent);
-            Vrai(!Connecteurs.EvenementsActifs(new[] { "claude", "codex", "antigravity" }[agent]), "events disabled " + agent);
+            Vrai(!Connecteurs.EvenementsActifs(Agents[agent]), "events disabled " + agent);
             if (agent == 1) { Vrai(File.ReadAllText(Path.Combine(dossier, "config.toml")).Contains("third-party@personal") && File.ReadAllText(Path.Combine(dossier, "config.toml")).Contains("model = 'keep'"), "Codex third party retained"); }
             if (agent == 2) { Vrai(JsonNode.Parse(File.ReadAllText(Path.Combine(dossier, "hooks.json")))["third-party"] is not null, "AGY third party hook retained"); }
             var reactive = Connecteurs.Activer(agent);
@@ -483,7 +486,7 @@ public sealed class ConnecteursTests
         {
             var commande = evenement.Value[0]["hooks"][0];
             Vrai(commande["async"].GetValue<Boolean>() == false, "Codex native event ordering " + evenement.Key);
-            Vrai(commande["command"].GetValue<String>().EndsWith(" codex " + evenement.Key), "Codex exact event command " + evenement.Key);
+            Vrai(commande["command"].GetValue<String>().EndsWith(" codex " + evenement.Key, StringComparison.Ordinal), "Codex exact event command " + evenement.Key);
             if (evenement.Key is "Interrupt" or "SessionEnd") { Vrai(commande["timeout"].GetValue<Int32>() <= 3, "Codex short terminal timeout " + evenement.Key); }
         }
 

@@ -5,6 +5,8 @@ using FsCheck;
 using FsCheck.Fluent;
 using Loupedeck.TrinitePlugin;
 
+namespace NexusKeypad.Tests;
+
 public static class Robustesse
 {
     private static readonly Config Essais = Config.QuickThrowOnFailure.WithMaxTest(2000).WithQuietOnSuccess(true);

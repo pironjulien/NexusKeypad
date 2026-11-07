@@ -48,6 +48,9 @@ namespace Loupedeck.TrinitePlugin
 
         private static String Choix => Path.Combine(Local, "NexusKeypad", "etats-en-direct.json");
 
+        private static void CreerParent(String chemin) => Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(chemin))
+            ?? throw new IOException("Chemin sans dossier parent."));
+
         public static String ReglagesClaude =>
             Path.Combine(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") is { Length: > 0 } d ? d : Path.Combine(Maison, ".claude"), "settings.json");
 
@@ -59,11 +62,11 @@ namespace Loupedeck.TrinitePlugin
 
         // nexuskeypad-hook.exe livré à côté de la DLL du plugin (donné au chargement : le service charge la DLL en mémoire,
         // sans chemin d'assemblage).
-        private static String _exePaquet;
+        private static String? _exePaquet;
 
         // Hook posé par le pad : il appelle etat.py des sources ou l'exécutable du paquet (pas un autre outil qui citerait
         // le projet).
-        public static Boolean DuPad(JsonNode hook) =>
+        public static Boolean DuPad(JsonNode? hook) =>
             Regex.IsMatch((hook?["command"]?.GetValue<String>() ?? "") + " ", @"(etat[\\/]etat\.py|nexuskeypad-hook(\.exe)?)'?\)? (claude|antigravity) ");
 
         public static JsonObject CommandeClaude(String evenement) => new()
@@ -131,9 +134,9 @@ namespace Loupedeck.TrinitePlugin
 
         // Catalogue local et mod du quota de Claude : posés (catalogue = son dossier) ou retirés (null), sans toucher aux
         // autres catalogues ni plugins ; un objet vidé disparaît.
-        public static void ArrangerQuota(JsonObject reglages, String catalogue)
+        public static void ArrangerQuota(JsonObject reglages, String? catalogue)
         {
-            void Poser(String cle, String nom, JsonNode valeur)
+            void Poser(String cle, String nom, JsonNode? valeur)
             {
                 var objet = reglages[cle] as JsonObject;
                 if (valeur is null)
@@ -162,7 +165,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Antigravity : événements d'outil dans une enveloppe { matcher, hooks } (« * » = tous les outils), PreInvocation et
         // Stop directement sous l'événement. Sa commande ne passe pas les guillemets : chemin sans espace (nom court sinon).
-        public static void ArrangerAntigravity(JsonObject hooks, String exeSansEspace)
+        public static void ArrangerAntigravity(JsonObject hooks, String? exeSansEspace)
         {
             if (exeSansEspace is null)
             {
@@ -191,7 +194,7 @@ namespace Loupedeck.TrinitePlugin
         // contient aussi un hook ajouté par l'utilisateur. Les autres groupes restent intacts.
         public static void RetirerAnciensHooksAntigravity(JsonObject hooks)
         {
-            Boolean DuProduit(JsonNode hook) => DuPad(hook) || Regex.IsMatch(hook?["command"]?.GetValue<String>() ?? "",
+            Boolean DuProduit(JsonNode? hook) => DuPad(hook) || Regex.IsMatch(hook?["command"]?.GetValue<String>() ?? "",
                 @"NexusKeypad[\\/]sons[\\/]jouer\.py\s+antigravity(?:\s|$)", RegexOptions.IgnoreCase);
             foreach (var cle in new[] { CleAntigravity, "nexus-keypad-sons", "son-fin-de-tache" })
             {
@@ -214,10 +217,10 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        public static Boolean ClaudeAvecPad(JsonObject reglages) =>
-            (reglages?["hooks"] as JsonObject)?.Any(p => p.Value is JsonArray g &&
-                g.OfType<JsonObject>().Any(x => x["hooks"] is JsonArray l && l.Any(DuPad))) == true ||
-            PluginComplet(reglages) == true;
+        public static Boolean ClaudeAvecPad(JsonObject? reglages) => reglages is not null
+            && ((reglages["hooks"] as JsonObject)?.Any(p => p.Value is JsonArray g &&
+                g.OfType<JsonObject>().Any(x => x["hooks"] is JsonArray l && l.Any(DuPad))) == true
+            || PluginComplet(reglages) == true);
 
         // Plugin Claude complet de NexusKeypad (hooks, note de fin de tâche et quota dans un seul plugin) : catalogue privé
         // nexus, ou catalogue public de NexusSystem (nexus-plugins). Là où il est déclaré, c'est lui qui porte les états en
@@ -229,14 +232,14 @@ namespace Loupedeck.TrinitePlugin
 
         // The currently enabled identity owns the hooks. A disabled legacy declaration cannot outrank that choice.
         // With no enabled identity, an explicit enable still uses the already declared catalog instead of adding one.
-        public static String PluginCompletDeclare(JsonObject reglages) =>
-            IdentitesNexus.FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean actif) && actif)
-                ?? IdentitesNexus.Reverse().FirstOrDefault(p => (reglages?["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean _));
+        public static String? PluginCompletDeclare(JsonObject reglages) =>
+            IdentitesNexus.FirstOrDefault(p => (reglages["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean actif) && actif)
+                ?? IdentitesNexus.Reverse().FirstOrDefault(p => (reglages["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean _));
 
         public static Boolean? PluginComplet(JsonObject reglages) =>
-            PluginCompletDeclare(reglages) is { } p && reglages["enabledPlugins"]![p] is JsonValue v && v.TryGetValue(out Boolean actif) ? actif : null;
+            PluginCompletDeclare(reglages) is { } p && (reglages["enabledPlugins"] as JsonObject)?[p] is JsonValue v && v.TryGetValue(out Boolean actif) ? actif : null;
 
-        private static JsonObject Lire(String chemin)
+        private static JsonObject? Lire(String chemin)
         {
             try
             {
@@ -286,8 +289,16 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Action « Live states » : propose de poser, ou de retirer s'ils le sont déjà.
-        public static void Basculer() =>
-            new Thread(() => Demander(_exePaquet, premiereFois: false)) { IsBackground = true, Name = "EtatsEnDirect" }.Start();
+        public static void Basculer()
+        {
+            if (_exePaquet is not { } exePaquet)
+            {
+                PluginLog.Warning("états en direct : plugin pas encore démarré");
+                return;
+            }
+
+            new Thread(() => Demander(exePaquet, premiereFois: false)) { IsBackground = true, Name = "EtatsEnDirect" }.Start();
+        }
 
         private static void Demander(String exePaquet, Boolean premiereFois)
         {
@@ -322,7 +333,7 @@ namespace Loupedeck.TrinitePlugin
                 var accord = Oui(poser);
                 if (premiereFois)
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(Choix));
+                    CreerParent(Choix);
                     File.WriteAllText(Choix, new JsonObject { ["choix"] = accord ? "oui" : "non" }.ToJsonString());
                 }
 
@@ -342,8 +353,8 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Pose ou retire chez Claude et chez Antigravity ; une erreur remet les deux fichiers tels qu'ils étaient.
-        public static Boolean Appliquer(String exePaquet, Boolean pose, String reglagesClaude = null, String hooksAntigravity = null, String exe = null,
-            String catalogue = null)
+        public static Boolean Appliquer(String? exePaquet, Boolean pose, String? reglagesClaude = null, String? hooksAntigravity = null, String? exe = null,
+            String? catalogue = null)
         {
             reglagesClaude ??= ReglagesClaude;
             hooksAntigravity ??= HooksAntigravity;
@@ -354,18 +365,21 @@ namespace Loupedeck.TrinitePlugin
             {
                 if (pose)
                 {
-                    Copier(exePaquet, exe);
-                    CopierCatalogue(exePaquet, catalogue);
+                    // Only a pose copies from the package; a removal (get.ps1 -Remove) has none.
+                    var paquet = exePaquet ?? throw new ArgumentException("L'exécutable du paquet est requis pour poser.", nameof(exePaquet));
+                    Copier(paquet, exe);
+                    CopierCatalogue(paquet, catalogue);
                 }
 
                 if (Directory.Exists(Path.GetDirectoryName(reglagesClaude)) && Lire(reglagesClaude) is { } reglages)
                 {
-                    if (PluginComplet(reglages) is not null)
+                    if (PluginComplet(reglages) is not null && PluginCompletDeclare(reglages) is { } complet
+                        && reglages["enabledPlugins"] is JsonObject actives)
                     {
                         // Le plugin complet porte tout : on l'active ou on le coupe, sans hooks ni mod de quota en double.
                         ArrangerClaude(reglages, false);
                         ArrangerQuota(reglages, null);
-                        reglages["enabledPlugins"]![PluginCompletDeclare(reglages)!] = pose;
+                        actives[complet] = pose;
                     }
                     else
                     {
@@ -384,7 +398,10 @@ namespace Loupedeck.TrinitePlugin
                 if (Directory.Exists(Path.GetDirectoryName(hooksAntigravity)) && Lire(hooksAntigravity) is { } hooks
                     && (pose || hooks.ContainsKey(CleAntigravity)))
                 {
-                    ArrangerAntigravity(hooks, pose ? SansEspace(exe) : null);
+                    // Antigravity's command takes no quotes: without a short form, the pose fails (rolled back) instead of
+                    // removing the hooks while reporting them set.
+                    ArrangerAntigravity(hooks, !pose ? null
+                        : SansEspace(exe) ?? throw new IOException("Le chemin du hook n'a pas de forme courte sans espace."));
                     Ecrire(hooksAntigravity, hooks);
                 }
 
@@ -436,14 +453,14 @@ namespace Loupedeck.TrinitePlugin
             foreach (var fichier in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
             {
                 var cible = Path.Combine(catalogue, Path.GetRelativePath(source, fichier));
-                Directory.CreateDirectory(Path.GetDirectoryName(cible));
+                CreerParent(cible);
                 File.Copy(fichier, cible, overwrite: true);
             }
         }
 
         // Copie l'exécutable du paquet à sa place fixe s'il a changé (un hook en cours le tient : réessayé au prochain
         // chargement).
-        private static void Copier(String exePaquet, String exe = null)
+        private static void Copier(String exePaquet, String? exe = null)
         {
             exe ??= Exe;
             if (!File.Exists(exePaquet))
@@ -456,7 +473,7 @@ namespace Loupedeck.TrinitePlugin
                 return;
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(exe));
+            CreerParent(exe);
             try
             {
                 File.Copy(exePaquet, exe, overwrite: true);
@@ -467,7 +484,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private static String SansEspace(String chemin)
+        private static String? SansEspace(String chemin)
         {
             if (!chemin.Contains(' '))
             {

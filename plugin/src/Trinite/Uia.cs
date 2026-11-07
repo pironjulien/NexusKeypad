@@ -49,12 +49,14 @@ namespace Loupedeck.TrinitePlugin
                 .Aggregate(uia.CreateOrCondition));
 
         private static IUIAutomation Nouveau() =>
-            (IUIAutomation)Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("ff48dba4-60ef-4201-aa87-54103eef594e")));
+            Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("ff48dba4-60ef-4201-aa87-54103eef594e"))
+                ?? throw new InvalidOperationException("UI Automation est absent de Windows.")) as IUIAutomation
+                ?? throw new InvalidOperationException("UI Automation ne répond pas.");
 
 #if !POSTE
         // Donne le focus au champ de la fenêtre de Claude ; renvoie null si c'est prêt, sinon la raison.
         // vide : refusé si l'utilisateur a déjà commencé à écrire ; sinon le texte s'ajoute au sien (Photo, Capture).
-        public static String PreparerSaisieClaude(IntPtr fenetre, Boolean vide)
+        public static String? PreparerSaisieClaude(IntPtr fenetre, Boolean vide)
         {
             var uia = Nouveau();
             var champs = uia.ElementFromHandle(fenetre)?.FindAll(TreeScopeDescendants,
@@ -64,7 +66,11 @@ namespace Loupedeck.TrinitePlugin
                 return champs is null || champs.Length == 0 ? "champ de saisie de Claude introuvable" : "plusieurs champs de saisie dans Claude";
             }
 
-            var champ = champs.GetElement(0);
+            if (champs.GetElement(0) is not { } champ)
+            {
+                return "champ de saisie de Claude introuvable";
+            }
+
             if (vide)
             {
                 if (champ.GetCurrentPropertyValue(ValeurPropriete) is not String texte)
@@ -108,7 +114,7 @@ namespace Loupedeck.TrinitePlugin
                 var onglets = uia.ElementFromHandle(fenetre)?.FindAll(TreeScopeDescendants, uia.CreatePropertyCondition(TypePropriete, 50019)); // TabItem
                 for (var i = 0; i < (onglets?.Length ?? 0); i++)
                 {
-                    if (onglets.GetElement(i).GetCurrentPropertyValue(NomPropriete) is String nom)
+                    if (onglets?.GetElement(i)?.GetCurrentPropertyValue(NomPropriete) is String nom)
                     {
                         noms.Add(nom);
                     }
@@ -194,7 +200,7 @@ namespace Loupedeck.TrinitePlugin
             Fenetres(processus).FirstOrDefault(h => Titre(h).StartsWith(debut, StringComparison.Ordinal));
 
         // Adresse de la page d'une fenêtre de Chrome : la valeur de son document (UI Automation) ; null si illisible.
-        public static String AdresseDocument(IntPtr fenetre)
+        public static String? AdresseDocument(IntPtr fenetre)
         {
             try
             {
@@ -244,7 +250,7 @@ namespace Loupedeck.TrinitePlugin
 #if !POSTE
         // Claude expose l'ID de sa session dans la valeur du document WebView. Le titre n'est qu'un affichage :
         // plusieurs conversations peuvent avoir le même nom. Une adresse absente, étrangère ou ambiguë ne prouve rien.
-        public static String SessionClaudeDepuisAdresses(System.Collections.Generic.IEnumerable<String> adresses)
+        public static String? SessionClaudeDepuisAdresses(System.Collections.Generic.IEnumerable<String> adresses)
         {
             var ids = adresses.Where(a => Uri.TryCreate(a, UriKind.Absolute, out var u)
                     && u.Scheme == Uri.UriSchemeHttps && u.Host.Equals("claude.ai", StringComparison.OrdinalIgnoreCase)
@@ -257,13 +263,13 @@ namespace Loupedeck.TrinitePlugin
             return ids.Length == 1 ? ids[0] : null;
         }
 
-        public static String SessionClaudeAffichee()
+        public static String? SessionClaudeAffichee()
         {
             try { return SessionClaudeFenetre(FenetrePrincipale("claude")); }
             catch (Exception) { return null; }
         }
 
-        private static String SessionClaudeFenetre(IntPtr fenetre)
+        private static String? SessionClaudeFenetre(IntPtr fenetre)
         {
             try
             {
@@ -274,7 +280,11 @@ namespace Loupedeck.TrinitePlugin
                 var adresses = new System.Collections.Generic.List<String>();
                 for (var i = 0; i < (documents?.Length ?? 0); i++)
                 {
-                    var document = documents.GetElement(i);
+                    if (documents?.GetElement(i) is not { } document)
+                    {
+                        continue;
+                    }
+
                     if (document.GetCurrentPropertyValue(HorsEcran) is false
                         && document.GetCurrentPropertyValue(ValeurPropriete) is String adresse) { adresses.Add(adresse); }
                 }
@@ -284,7 +294,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Titre de la conversation affichée dans Claude : son en-tête « <titre>, renommer la session » ; null si illisible.
-        public static String TitreClaudeAffiche()
+        public static String? TitreClaudeAffiche()
         {
             var uia = Nouveau();
             foreach (var fenetre in Fenetres("claude"))
@@ -347,10 +357,10 @@ namespace Loupedeck.TrinitePlugin
 
         // Lance la dictée de Claude (l'arrêt passe par ArreterDicteeClaude, avant) : son micro « Maintenez appuyé pour
         // enregistrer », basculé comme un clic, attendu 2 s au plus s'il n'est pas encore là (vue qui change).
-        public static String DicterClaude(IntPtr fenetre)
+        public static String? DicterClaude(IntPtr fenetre)
         {
             var uia = Nouveau();
-            IUIAutomationElement micro = null;
+            IUIAutomationElement? micro = null;
             for (var i = 0; i < 7 && (micro = uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, Micro))) is null; i++)
             {
                 System.Threading.Thread.Sleep(300);
@@ -420,7 +430,7 @@ namespace Loupedeck.TrinitePlugin
         // Le bouton « Utilisation » de la barre d'état de Claude est là (rien n'est cliqué).
         public static Boolean BoutonUtilisationClaude() => BoutonsUtilisation().Any(b => b is not null);
 
-        private static System.Collections.Generic.IEnumerable<IUIAutomationElement> BoutonsUtilisation()
+        private static System.Collections.Generic.IEnumerable<IUIAutomationElement?> BoutonsUtilisation()
         {
             var uia = Nouveau();
             return Fenetres("claude").Select(fenetre => uia.ElementFromHandle(fenetre)?.FindFirst(TreeScopeDescendants, Bouton(uia, Utilisation, sousChaine: true)));
@@ -431,7 +441,7 @@ namespace Loupedeck.TrinitePlugin
         {
             try
             {
-                var etats = BoutonsUtilisation().Where(b => b is not null).Select(b =>
+                var etats = BoutonsUtilisation().OfType<IUIAutomationElement>().Select(b =>
                     b.GetCurrentPattern(MotifDeplier) is IUIAutomationExpandCollapsePattern menu
                         ? menu.CurrentExpandCollapseState : -1).ToArray();
                 return etats.Length == 1 && etats[0] is 0 or 1 ? etats[0] == 1 : null;
@@ -442,7 +452,7 @@ namespace Loupedeck.TrinitePlugin
         // Relire une conséquence jusqu'à son échéance. Une lecture en échec reste inconnue, jamais « fermé ».
         // Horloge et pause injectables pour les scénarios de délai/erreur hors du poste, sans simuler une preuve native.
         public static Boolean ConfirmerEtat(Func<Boolean?> lire, Boolean voulu, Int32 delaiMs = 1618,
-            Action<Int32> pause = null, Func<Int64> horloge = null)
+            Action<Int32>? pause = null, Func<Int64>? horloge = null)
         {
             pause ??= System.Threading.Thread.Sleep;
             horloge ??= () => Environment.TickCount64;
@@ -458,7 +468,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Le geste part une fois ; ni lecture lente, ni erreur après son envoi ne provoque de second clic.
         public static Boolean GestePuisEtat(Action geste, Func<Boolean?> lire, Boolean voulu, Int32 delaiMs = 1618,
-            Action<Int32> pause = null, Func<Int64> horloge = null)
+            Action<Int32>? pause = null, Func<Int64>? horloge = null)
         {
             try { geste(); }
             catch (Exception) { return false; }
@@ -511,7 +521,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Une mesure courante n'appartient à une session que si son identité est relue avant ET après elle. Le lecteur
         // natif ci-dessous capture un seul HWND : une autre fenêtre ou un changement de compte/session reste inconnu.
-        public static Quota QuotaClaudeVerifiee(String sessionAttendue, Func<String> sessionCourante, Func<Quota> lire)
+        public static Quota? QuotaClaudeVerifiee(String? sessionAttendue, Func<String?> sessionCourante, Func<Quota?> lire)
         {
             try
             {
@@ -529,7 +539,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Secours courant, sans ouvrir le menu. La mesure reste partielle, mais aucune fenêtre ni jauge d'une autre
         // session ne peut être empruntée. Le sessionId attendu provient du relevé de l'organisation côté Observateur.
-        public static Quota QuotaClaude(String sessionAttendue)
+        public static Quota? QuotaClaude(String? sessionAttendue)
         {
             try
             {
@@ -540,7 +550,7 @@ namespace Loupedeck.TrinitePlugin
                     var uia = Nouveau();
                     var boutons = uia.ElementFromHandle(fenetre)?.FindAll(TreeScopeDescendants,
                         uia.CreateAndCondition(Bouton(uia, Utilisation, sousChaine: true), uia.CreatePropertyCondition(HorsEcran, false)));
-                    if (boutons?.Length != 1 || boutons.GetElement(0).GetCurrentPropertyValue(NomPropriete) is not String nom
+                    if (boutons?.Length != 1 || boutons.GetElement(0)?.GetCurrentPropertyValue(NomPropriete) is not String nom
                         || Regex.Match(nom, @"(\d+(?:[.,]\d+)?)\s*%") is not { Success: true } part) { return null; }
                     var valeur = Double.Parse(part.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture) / 100;
                     var estCinq = nom.Contains("session", StringComparison.OrdinalIgnoreCase)
@@ -563,7 +573,7 @@ namespace Loupedeck.TrinitePlugin
             void CompareElements();
             void CompareRuntimeIds();
             void GetRootElement();
-            IUIAutomationElement ElementFromHandle(IntPtr hwnd);
+            IUIAutomationElement? ElementFromHandle(IntPtr hwnd);
             void ElementFromPoint();
             void GetFocusedElement();
             void GetRootElementBuildCache();
@@ -593,20 +603,20 @@ namespace Loupedeck.TrinitePlugin
         {
             void SetFocus();
             void GetRuntimeId();
-            IUIAutomationElement FindFirst(Int32 portee, IUIAutomationCondition condition);
-            IUIAutomationElementArray FindAll(Int32 portee, IUIAutomationCondition condition);
+            IUIAutomationElement? FindFirst(Int32 portee, IUIAutomationCondition condition);
+            IUIAutomationElementArray? FindAll(Int32 portee, IUIAutomationCondition condition);
             void FindFirstBuildCache();
             void FindAllBuildCache();
             void BuildUpdatedCache();
             [return: MarshalAs(UnmanagedType.Struct)]
-            Object GetCurrentPropertyValue(Int32 propriete);
+            Object? GetCurrentPropertyValue(Int32 propriete);
             void GetCurrentPropertyValueEx();
             void GetCachedPropertyValue();
             void GetCachedPropertyValueEx();
             void GetCurrentPatternAs();
             void GetCachedPatternAs();
             [return: MarshalAs(UnmanagedType.IUnknown)]
-            Object GetCurrentPattern(Int32 motif);
+            Object? GetCurrentPattern(Int32 motif);
         }
 
         [ComImport, Guid("352ffba8-0973-437c-a61f-f64cafd81df9"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -619,7 +629,7 @@ namespace Loupedeck.TrinitePlugin
         {
             Int32 Length { get; }
 
-            IUIAutomationElement GetElement(Int32 index);
+            IUIAutomationElement? GetElement(Int32 index);
         }
 
         [ComImport, Guid("fb377fbe-8ea6-46d5-9c73-6499642d3059"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]

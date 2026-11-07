@@ -265,7 +265,7 @@ namespace Loupedeck.TrinitePlugin
 
         // Le raccourci créé par l'installation officielle est la source principale, sans reprendre ses arguments.
         // Les exécutables trouvés hors raccourci doivent aussi avoir une signature Google valide.
-        public static String AntigravityExecutable()
+        public static String? AntigravityExecutable()
         {
             foreach (var dossier in new[] { Environment.SpecialFolder.Programs, Environment.SpecialFolder.CommonPrograms,
                 Environment.SpecialFolder.DesktopDirectory, Environment.SpecialFolder.CommonDesktopDirectory })
@@ -309,12 +309,12 @@ namespace Loupedeck.TrinitePlugin
             return null;
         }
 
-        internal static Boolean IdentiteAntigravity(String nom, String produit, String societe) =>
+        internal static Boolean IdentiteAntigravity(String? nom, String? produit, String? societe) =>
             String.Equals(nom, "Antigravity.exe", StringComparison.OrdinalIgnoreCase)
             && String.Equals(produit, "Antigravity", StringComparison.OrdinalIgnoreCase)
             && (String.Equals(societe, "Google", StringComparison.OrdinalIgnoreCase) || String.Equals(societe, "Google LLC", StringComparison.OrdinalIgnoreCase));
 
-        private static Boolean ExecutableAntigravity(String exe)
+        private static Boolean ExecutableAntigravity([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] String? exe)
         {
             try
             {
@@ -332,14 +332,14 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private static String CibleRaccourci(String chemin)
+        private static String? CibleRaccourci(String chemin)
         {
-            Object shell = null, lien = null;
+            Object? shell = null, lien = null;
             try
             {
-                shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
-                lien = shell.GetType().InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [chemin], CultureInfo.InvariantCulture);
-                return lien.GetType().InvokeMember("TargetPath", BindingFlags.GetProperty, null, lien, null, CultureInfo.InvariantCulture) as String;
+                shell = Type.GetTypeFromProgID("WScript.Shell") is { } type ? Activator.CreateInstance(type) : null;
+                lien = shell?.GetType().InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, [chemin], CultureInfo.InvariantCulture);
+                return lien?.GetType().InvokeMember("TargetPath", BindingFlags.GetProperty, null, lien, null, CultureInfo.InvariantCulture) as String;
             }
             catch (Exception)
             {
@@ -499,7 +499,7 @@ namespace Loupedeck.TrinitePlugin
                 {
                     0 => p.ProcessName.Equals("claude", StringComparison.OrdinalIgnoreCase),
                     1 => exe is not null && Path.GetFileName(exe).Equals("ChatGPT.exe", StringComparison.OrdinalIgnoreCase)
-                        && Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(exe))).StartsWith("OpenAI.Codex_", StringComparison.OrdinalIgnoreCase),
+                        && Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(exe)))?.StartsWith("OpenAI.Codex_", StringComparison.OrdinalIgnoreCase) == true,
                     2 => ExecutableAntigravity(exe),
                     _ => false,
                 };

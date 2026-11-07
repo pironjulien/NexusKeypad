@@ -1,4 +1,3 @@
-#nullable enable
 namespace Loupedeck.TrinitePlugin
 {
     using System;
@@ -93,7 +92,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Une fenêtre de quota pleine (99,5 % ou plus utilisés).
-        private static Boolean QuotaPlein(Quota q) => q is not null && (q.Cinq >= 0.995 || q.Semaine >= 0.995);
+        private static Boolean QuotaPlein(Quota? q) => q is not null && (q.Cinq >= 0.995 || q.Semaine >= 0.995);
 
         // Écart entre deux touches voisines, en pixels du contenu (marges des deux touches et bord du pad entre elles).
         private const Int32 EcartTouches = 36;
@@ -289,7 +288,7 @@ namespace Loupedeck.TrinitePlugin
         // Clignotement d'une IA qui appelle l'utilisateur, sous le contenu, en anneau arrondi : jusqu'à ce qu'il ouvre la
         // conversation. Claude, le métronome de la Trinité, garde ses propres couleurs (rose pour une question ou une
         // autorisation, cyan pour une fin) ; une erreur pulse rouge, doucement.
-        private static void Signal(BitmapBuilder b, Int32 agent, Conversation c, Double t, Arrondis rayon)
+        private static void Signal(BitmapBuilder b, Int32 agent, Conversation? c, Double t, Arrondis rayon)
         {
             if (c?.Alerte != true)
             {

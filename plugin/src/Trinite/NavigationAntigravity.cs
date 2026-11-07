@@ -11,7 +11,7 @@ namespace Loupedeck.TrinitePlugin
         public static Boolean Ouvrir(String conversation)
         {
             var horloge = Stopwatch.StartNew();
-            String Lire() => Cdp.Evaluer(Cdp.PortAntigravity, Js.NavigationAntigravity(conversation), attente: 1)
+            String? Lire() => Cdp.Evaluer(Cdp.PortAntigravity, Js.NavigationAntigravity(conversation), attente: 1)
                 is { ValueKind: JsonValueKind.String } valeur ? valeur.GetString() : null;
             return Executer(Lire,
                 () => Cdp.Evaluer(Cdp.PortAntigravity, Js.OuvrirAntigravity(conversation, route: true), attente: 2)
@@ -19,10 +19,10 @@ namespace Loupedeck.TrinitePlugin
                 () => horloge.ElapsedMilliseconds, Thread.Sleep);
         }
 
-        public static Boolean Executer(Func<String> lire, Func<Boolean> ouvrir, Func<Int64> maintenant, Action<Int32> pause)
+        public static Boolean Executer(Func<String?> lire, Func<Boolean> ouvrir, Func<Int64> maintenant, Action<Int32> pause)
         {
             var fin = maintenant() + 5000;
-            String etat;
+            String? etat;
             do
             {
                 etat = lire();

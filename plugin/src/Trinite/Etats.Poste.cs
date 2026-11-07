@@ -87,7 +87,7 @@ namespace Loupedeck.TrinitePlugin
 
             this._recherche[agent] = DateTime.UtcNow;
             var trouves = Process.GetProcessesByName(Processus[agent]);
-            Process aine = null;
+            Process? aine = null;
             foreach (var p in trouves)
             {
                 try
@@ -125,12 +125,12 @@ namespace Loupedeck.TrinitePlugin
         // autre outil. Pris pour l'appli, il allumait la tête et le quota de Claude au démarrage du PC, appli pas encore
         // lancée (06/11). L'appli de bureau est une appli Electron : son exécutable a resources\app.asar à côté de lui.
         // Chemin illisible : pas l'appli (son processus principal tourne sous le compte de l'utilisateur, toujours lisible).
-        internal static Boolean AppliClaude(String executable, Func<String, Boolean> existe) =>
+        internal static Boolean AppliClaude(String? executable, Func<String, Boolean> existe) =>
             !String.IsNullOrEmpty(executable) && Path.GetDirectoryName(executable) is { Length: > 0 } dossier
                 && existe(Path.Combine(dossier, "resources", "app.asar"));
 
         // Chemin complet de l'exécutable d'un processus, lu par Windows ; null si illisible.
-        private static String CheminExecutable(Int32 pid)
+        private static String? CheminExecutable(Int32 pid)
         {
             var processus = OpenProcess(0x1000, false, (UInt32)pid); // PROCESS_QUERY_LIMITED_INFORMATION
             if (processus == IntPtr.Zero)

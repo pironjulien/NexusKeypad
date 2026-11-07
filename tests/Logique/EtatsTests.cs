@@ -36,7 +36,7 @@ public sealed class EtatsTests
     [InlineData(@"C:\Users\u\AppData\Local\Claude-Data\anthropicpbc.claude_x\claude-code\2.1.317\a33aa5518497\claude.exe", false)]
     [InlineData(@"C:\Users\u\.local\bin\claude.exe", false)]
     [InlineData(null, false)]
-    public void Seule_l_appli_de_bureau_rend_Claude_lance(String executable, Boolean attendu)
+    public void Seule_l_appli_de_bureau_rend_Claude_lance(String? executable, Boolean attendu)
     {
         // Boot on 06/11: NexusSystem's logon maintenance ran the Claude Code engine (claude.exe plugin update): the pad lit
         // Claude's head and quota, app not launched yet. Only the Electron app (resources\app.asar beside it) counts.

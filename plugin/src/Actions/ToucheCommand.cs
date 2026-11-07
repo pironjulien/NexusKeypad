@@ -61,7 +61,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        protected override BitmapImage GetCommandImage(String actionParameter, PluginImageSize imageSize)
+        protected override BitmapImage? GetCommandImage(String actionParameter, PluginImageSize imageSize)
         {
             var touche = Index(actionParameter);
             if (touche >= 0 && !this._dessinees[touche])
@@ -86,7 +86,7 @@ namespace Loupedeck.TrinitePlugin
                 : Rendu.Dessiner(touche, this.Moteur.Scene, imageSize);
         }
 
-        protected override String GetCommandDisplayName(String actionParameter, PluginImageSize imageSize) => null;
+        protected override String? GetCommandDisplayName(String actionParameter, PluginImageSize imageSize) => null;
 
         private static Int32 Index(String parametre) =>
             parametre is { Length: 2 or 3 } && parametre[0] == 't' && Int32.TryParse(parametre.AsSpan(1), out var n) && n is >= 1 and <= Moteur.Proposees

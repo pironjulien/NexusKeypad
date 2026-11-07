@@ -86,14 +86,14 @@ namespace Loupedeck.TrinitePlugin
         // Image d'une touche du pad (116 px) et ses pixels bruts, pour ne l'envoyer que si elle a changé.
         public static (BitmapImage Image, Byte[] Pixels) Image(Int32 touche, Scene scene)
         {
-            var pixels = Image(touche, scene, null, out var image);
-            return (image, pixels);
+            using var b = Construire(touche, scene, T);
+            return (b.ToImage(), b.ToArray(BitmapImageFormat.Rgb565));
         }
 
         // Pixels bruts d'une touche du pad ; l'image (encodée par le SDK, puis décodée par le service Logi) n'est produite
         // que si ces pixels diffèrent de « avant » : la plupart des tours ne changent rien, et l'encodage coûtait autant que
         // le dessin (profil du 06/11/2026).
-        public static Byte[] Image(Int32 touche, Scene scene, Byte[] avant, out BitmapImage image)
+        public static Byte[] Image(Int32 touche, Scene scene, Byte[]? avant, out BitmapImage? image)
         {
             using var b = Construire(touche, scene, T);
             var pixels = b.ToArray(BitmapImageFormat.Rgb565);

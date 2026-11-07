@@ -6,4 +6,12 @@
   <PropertyGroup>
     <NexusKeypadBuild>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine($([System.Environment]::GetFolderPath(SpecialFolder.UserProfile)), '.nexus', 'build', 'nexuskeypad'))))</NexusKeypadBuild>
   </PropertyGroup>
+
+  <!-- Without the Logi service (CI), the LogiPluginApi package pulls in the StyleCop analyzers (absent locally): they are
+       left out of every project, so the same analysis gate runs locally and in CI. -->
+  <Target Name="SansStyleCop" AfterTargets="ResolveLockFileAnalyzers">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="'%(Analyzer.NuGetPackageId)' == 'StyleCop.Analyzers'" />
+    </ItemGroup>
+  </Target>
 </Project>

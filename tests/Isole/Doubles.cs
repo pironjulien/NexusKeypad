@@ -10,7 +10,7 @@ namespace Loupedeck.TrinitePlugin
 
     public static class PluginLog
     {
-        public static void Warning(Exception erreur, String message) => throw new Exception("Les essais ne doivent pas lancer une application.");
+        public static void Warning(Exception erreur, String message) => throw new InvalidOperationException("Les essais ne doivent pas lancer une application.");
     }
 
     public sealed record Quota(Double? Cinq, Double? Semaine);

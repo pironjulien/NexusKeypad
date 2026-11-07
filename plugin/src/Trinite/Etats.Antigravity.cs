@@ -81,7 +81,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private Conversation ConversationAgy(String id, String titre, DateTime activite, Boolean relais, Int32 source = -1)
+        private Conversation? ConversationAgy(String id, String titre, DateTime activite, Boolean relais, Int32 source = -1)
         {
             var hook = Hook("antigravity", id);
             var etat = hook is { } h ? Traduire(h.Etat, h.Quand) : Etat.Repos;
@@ -108,7 +108,7 @@ namespace Loupedeck.TrinitePlugin
         private static String AnnotationsAgy => Path.Combine(Maison, ".gemini", "antigravity", "annotations");
 
         // Note entière : dernière vue, titre donné par l'utilisateur (renommage), archivée.
-        private static (DateTime Vue, String Titre, Boolean Archivee) NoteAntigravity(String id)
+        private static (DateTime Vue, String? Titre, Boolean Archivee) NoteAntigravity(String id)
         {
             try
             {
@@ -128,7 +128,7 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        internal static (DateTime Vue, String Titre, Boolean Archivee) LireNoteAgy(String pbtxt)
+        internal static (DateTime Vue, String? Titre, Boolean Archivee) LireNoteAgy(String? pbtxt)
         {
             // Champs sur une ligne (« title:"…" archived:true last_user_view_time:{…} »), texte en UTF-8 brut.
             var titre = Regex.Match(pbtxt ?? "", "(?<![a-z_])title\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
@@ -171,7 +171,7 @@ namespace Loupedeck.TrinitePlugin
             return Encoding.UTF8.GetString(octets.ToArray());
         }
 
-        internal static DateTime DerniereVueAgy(String pbtxt)
+        internal static DateTime DerniereVueAgy(String? pbtxt)
         {
             var m = Regex.Match(pbtxt ?? "", @"last_user_view_time\s*:?\s*\{\s*seconds\s*:\s*(\d+)(?:\s+nanos\s*:\s*(\d+))?");
             if (!m.Success)
@@ -229,26 +229,36 @@ namespace Loupedeck.TrinitePlugin
             var agy = Connecteurs.EvenementsActifs("antigravity") ? Cdp.Evaluer(Cdp.PortAntigravity, "({ lignes: [...document.querySelectorAll('[data-testid=conversation-row-sidebar]')].map(r => [r.getAttribute('data-cascade-id'), r.innerText, r.getAttribute('data-selected') === 'true']), affichee: (location.pathname.match(/^\\/c\\/([0-9a-f-]+)/) || [])[1] || null, modele: " + Js.ModeleAntigravity + " })") : null;
             if (agy is { ValueKind: JsonValueKind.Object } page)
             {
-                var lignes = page.GetProperty("lignes").EnumerateArray().Select(l =>
+                // A row without its conversation id cannot be opened: left out.
+                static (String Id, String Titre, DateTime Activite, Boolean Selection)? Ligne(JsonElement l)
                 {
+                    if (l[0].GetString() is not { } id)
+                    {
+                        return null;
+                    }
+
                     var morceaux = (l[1].GetString() ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    return (l[0].GetString(), morceaux.FirstOrDefault() ?? "Antigravity", AgeAffiche(morceaux.Skip(1).FirstOrDefault()), l[2].GetBoolean());
-                }).Where(l => l.Item1 is not null).ToList();
+                    return (id, morceaux.FirstOrDefault() ?? "Antigravity", AgeAffiche(morceaux.Skip(1).FirstOrDefault()), l[2].GetBoolean());
+                }
+
+                var lignes = page.GetProperty("lignes").EnumerateArray().Select(Ligne)
+                    .OfType<(String Id, String Titre, DateTime Activite, Boolean Selection)>().ToList();
                 var affichee = page.GetProperty("affichee").ValueKind == JsonValueKind.String ? page.GetProperty("affichee").GetString() : null;
                 if (lignes.Count > 0 || affichee is null)
                 {
                     this._lignesAgy = lignes;
                 }
 
-                this._selectionAgy = lignes.FirstOrDefault(l => l.Item4).Item1 ?? affichee;
+                this._selectionAgy = lignes.Where(l => l.Selection).Select(l => (String?)l.Id).FirstOrDefault() ?? affichee;
                 if (page.TryGetProperty("modele", out var modele) && modele.ValueKind == JsonValueKind.String && this._quotas[2] is { } quota)
                 {
                     var famille = QuotaAntigravity.FamilleModele(modele.GetString());
                     if (quota.GroupeSelectionne != famille)
                     {
-                        this._quotas[2] = QuotaAntigravity.Actuel(quota with { GroupeSelectionne = famille }, this._quotaAgyLu);
+                        var choisi = QuotaAntigravity.Actuel(quota with { GroupeSelectionne = famille }, this._quotaAgyLu);
+                        this._quotas[2] = choisi;
                         // Choisir un modèle ne rafraîchit pas les données de consommation : garder leur vraie date.
-                        QuotaAntigravity.Garder(this._quotas[2], this._quotaAgyLu);
+                        QuotaAntigravity.Garder(choisi, this._quotaAgyLu);
                         if (QuotaAntigravity.Garde(out var date) is { } partagee)
                         {
                             this._quotas[2] = partagee;
@@ -269,7 +279,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // « 10m », « 3h », « 2d », « now » : âge affiché par Antigravity → instant approximatif.
-        private static DateTime AgeAffiche(String texte)
+        private static DateTime AgeAffiche(String? texte)
         {
             var m = Regex.Match(texte ?? "", @"^(\d+)\s*([smhdw])");
             if (!m.Success)

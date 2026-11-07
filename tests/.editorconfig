@@ -1,0 +1,5 @@
+# Test projects (analysed with the recommended .NET analyzers, warnings as errors: tests/Directory.Build.props).
+[*.cs]
+
+# Test names read as sentences (Methode_Cas_Attendu): underscores are the xUnit convention there, never a public API.
+dotnet_diagnostic.CA1707.severity = none
