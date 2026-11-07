@@ -6,6 +6,9 @@
 # Everything built goes to ~\.nexus\build\nexuskeypad\test, nothing into OneDrive.
 [CmdletBinding()]
 param()
+# Nexus pre-push gate: on a Nexus workstation the run goes through ~\.nexus\git\Invoke-NexusTest.ps1 (NexusInfra), which
+# records the tested tree when it passes; the pre-push hook refuses a pushed tree that has not passed this script.
+if (-not $env:NEXUS_TEST_EMPREINTE -and (Test-Path -LiteralPath "$HOME\.nexus\git\Invoke-NexusTest.ps1")) { & "$HOME\.nexus\git\Invoke-NexusTest.ps1" -Script $PSCommandPath -Parametres $PSBoundParameters -Arguments $args; exit $LASTEXITCODE }
 $ErrorActionPreference = 'Stop'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $logi = 'C:\Program Files\Logi\LogiPluginService'
