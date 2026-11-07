@@ -1,6 +1,9 @@
 <Project>
-    <!-- Compilation hors de OneDrive. -->
+    <!-- Compilation hors de OneDrive (dossier commun : Directory.Build.props de la racine). -->
+    <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
     <PropertyGroup>
-        <BaseIntermediateOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\apercu\obj\</BaseIntermediateOutputPath>
+        <NexusApercu>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusKeypadBuild)', 'apercu'))))</NexusApercu>
+        <BaseIntermediateOutputPath>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusApercu)', 'obj'))))</BaseIntermediateOutputPath>
+        <BaseOutputPath>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusApercu)', 'bin'))))</BaseOutputPath>
     </PropertyGroup>
 </Project>

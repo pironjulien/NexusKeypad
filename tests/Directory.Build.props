@@ -1,10 +1,12 @@
 <Project>
   <!-- Test projects (xUnit v3, run by `dotnet test` from the repository root): every build and test output goes to
-       ~\.nexus\build\nexuskeypad\test, never into OneDrive. test.ps1 passes the same NexusBuild to the plugin builds. -->
+       ~/.nexus/build/nexuskeypad/test (root Directory.Build.props), never into OneDrive. test.ps1 passes the same
+       NexusBuild to the plugin builds. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
   <PropertyGroup>
-    <NexusBuild Condition="'$(NexusBuild)' == ''">$(USERPROFILE)\.nexus\build\nexuskeypad\test\</NexusBuild>
-    <BaseIntermediateOutputPath>$(NexusBuild)$(MSBuildProjectName)\obj\</BaseIntermediateOutputPath>
-    <BaseOutputPath>$(NexusBuild)$(MSBuildProjectName)\bin\</BaseOutputPath>
+    <NexusBuild Condition="'$(NexusBuild)' == ''">$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusKeypadBuild)', 'test'))))</NexusBuild>
+    <BaseIntermediateOutputPath>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusBuild)', '$(MSBuildProjectName)', 'obj'))))</BaseIntermediateOutputPath>
+    <BaseOutputPath>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusBuild)', '$(MSBuildProjectName)', 'bin'))))</BaseOutputPath>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>

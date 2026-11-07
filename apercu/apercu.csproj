@@ -9,7 +9,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Outils de contrôle : pas d'analyseurs de style (ceux du paquet LogiPluginApi en CI). -->
     <RunAnalyzers>false</RunAnalyzers>
-    <BaseOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\apercu\bin\</BaseOutputPath>
     <LogiService>C:\Program Files\Logi\LogiPluginService\</LogiService>
   </PropertyGroup>
 

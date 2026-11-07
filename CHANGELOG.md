@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   instead of StringBuilder.
 - Tomlyn 2.10.2.
 - The release workflow uses NexusSystem's shared release workflows at v1.6.54.
+- CodeQL runs from a workflow file (same languages and default queries) instead of the default setup, so OpenSSF
+  Scorecard credits the static analysis.
+
+### Fixed
+- Dependabot's NuGet updates silently found nothing: the build folders were built from `USERPROFILE`, unset on its
+  Linux runner. One root `Directory.Build.props` now takes the user profile from .NET for every project.
 
 ## [1.8.47] - 2026-11-07
 

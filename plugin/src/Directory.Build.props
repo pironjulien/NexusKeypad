@@ -1,8 +1,10 @@
 <Project>
-    <!-- Compilation hors de OneDrive : obj et bin vont dans ~\.nexus\build\nexuskeypad (hors AppData, que les applis MSIX dédoublent). -->
+    <!-- Compilation hors de OneDrive : obj et bin vont dans ~/.nexus/build/nexuskeypad (Directory.Build.props de la racine,
+         hors AppData, que les applis MSIX dédoublent). test.ps1 passe son propre NexusBuild. -->
+    <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../..'))" />
     <PropertyGroup>
         <LangVersion>latest</LangVersion>
-        <NexusBuild>$(USERPROFILE)\.nexus\build\nexuskeypad\</NexusBuild>
-        <BaseIntermediateOutputPath>$(NexusBuild)obj\</BaseIntermediateOutputPath>
+        <NexusBuild>$(NexusKeypadBuild)</NexusBuild>
+        <BaseIntermediateOutputPath>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusBuild)', 'obj'))))</BaseIntermediateOutputPath>
     </PropertyGroup>
 </Project>

@@ -1,0 +1,9 @@
+<Project>
+  <!-- Every build of the repository goes outside OneDrive, under ~/.nexus/build/nexuskeypad (imported by the
+       Directory.Build.props of plugin/src, hook, apercu and tests). The user profile comes from .NET, not $(USERPROFILE):
+       Dependabot restores on Linux, where USERPROFILE is unset and '/.nexus' at the file system root was denied, so its
+       NuGet updates silently found nothing. Paths are combined by .NET, without hard-coded separators. -->
+  <PropertyGroup>
+    <NexusKeypadBuild>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine($([System.Environment]::GetFolderPath(SpecialFolder.UserProfile)), '.nexus', 'build', 'nexuskeypad'))))</NexusKeypadBuild>
+  </PropertyGroup>
+</Project>

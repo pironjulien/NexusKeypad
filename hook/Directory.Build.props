@@ -1,6 +1,10 @@
 <Project>
-    <!-- Compilation hors de OneDrive, à part des autres projets (un dossier obj commun les mélangerait). -->
+    <!-- Compilation hors de OneDrive (dossier commun : Directory.Build.props de la racine), à part des autres projets (un
+         dossier obj commun les mélangerait). -->
+    <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
     <PropertyGroup>
-        <BaseIntermediateOutputPath>$(USERPROFILE)\.nexus\build\nexuskeypad\hook-build\obj\</BaseIntermediateOutputPath>
+        <NexusHook>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusKeypadBuild)', 'hook-build'))))</NexusHook>
+        <BaseIntermediateOutputPath>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusHook)', 'obj'))))</BaseIntermediateOutputPath>
+        <BaseOutputPath>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusHook)', 'bin'))))</BaseOutputPath>
     </PropertyGroup>
 </Project>
