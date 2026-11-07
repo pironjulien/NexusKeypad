@@ -208,24 +208,67 @@ namespace Loupedeck.TrinitePlugin
 
         private String Sujet(FileInfo f) => this.SujetEtSource(f).Sujet;
 
-        // Quota de Codex : celui de Codex LB, cumulé sur tous ses comptes (/api/usage/summary) ; sans LB, le dernier
-        // « token_count » des journaux, qui ne reflète que le compte qui a servi la dernière réponse.
+        // Quota de Codex : celui de Codex LB, cumulé sur ses comptes (/api/accounts) ; sans LB, le dernier « token_count »
+        // des journaux, qui ne reflète que le compte qui a servi la dernière réponse.
         private Quota? QuotaCodex()
         {
             try
             {
-                using var doc = JsonDocument.Parse(CodexLb.GetStringAsync("http://127.0.0.1:2455/api/usage/summary").GetAwaiter().GetResult());
-                Double? Part(String fenetre) =>
-                    doc.RootElement.TryGetProperty(fenetre, out var f) && f.ValueKind == JsonValueKind.Object
-                    && f.TryGetProperty("remainingPercent", out var r) && r.ValueKind == JsonValueKind.Number
-                        ? 1 - r.GetDouble() / 100
-                        : null;
-                return new(Part("primaryWindow"), Part("secondaryWindow"));
+                return QuotaCodexLb(CodexLb.GetStringAsync("http://127.0.0.1:2455/api/accounts").GetAwaiter().GetResult());
             }
             catch (Exception)
             {
                 return QuotaCodexJournaux(); // Codex LB arrêté
             }
+        }
+
+        // Ce que Codex peut encore réellement consommer, compte par compte. /api/usage/summary ne convient pas : il compte
+        // plein le 5 h d'un compte dont la fenêtre a expiré ou n'est plus rapportée, même quand sa semaine est presque
+        // vide ou qu'il est bloqué (07/11 : 83 % restants annoncés pour 0 utilisable). Ici :
+        // - semaine : crédits restants sur la capacité de tous les comptes utilisables (ni en pause ni désactivés) ;
+        // - 5 h : capacité des comptes dont la semaine n'est pas vide ; restant = 0 pour un compte bloqué (rate_limited,
+        //   quota_exceeded), sinon son 5 h restant (plein si non rapporté) plafonné par ce qui reste de sa semaine.
+        internal static Quota? QuotaCodexLb(String json)
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("accounts", out var comptes) || comptes.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            static Double? Nombre(JsonElement e, String nom) =>
+                e.TryGetProperty(nom, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : null;
+            Double capCinq = 0, resteCinq = 0, capSemaine = 0, resteSemaine = 0;
+            foreach (var c in comptes.EnumerateArray())
+            {
+                var statut = c.TryGetProperty("status", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
+                if (statut is "paused" or "deactivated")
+                {
+                    continue;
+                }
+
+                var actif = statut == "active";
+                var semaine = Nombre(c, "capacityCreditsSecondary");
+                var semaineReste = Nombre(c, "remainingCreditsSecondary") ?? (actif ? semaine : 0);
+                if (semaine is { } cs)
+                {
+                    capSemaine += cs;
+                    resteSemaine += Math.Clamp(semaineReste ?? 0, 0, cs);
+                }
+                // Pro Lite : pas de plafond 5 h (fenêtre non rapportée) ; ses crédits 5 h, ceux que Codex LB lui prête, ne
+                // sont limités que par sa semaine, ce que fait le plafond ci-dessous.
+                if (Nombre(c, "capacityCreditsPrimary") is not { } cinq || semaineReste is <= 0)
+                {
+                    continue;
+                }
+
+                capCinq += cinq;
+                if (actif)
+                {
+                    resteCinq += Math.Clamp(Math.Min(Nombre(c, "remainingCreditsPrimary") ?? cinq, semaineReste ?? cinq), 0, cinq);
+                }
+            }
+            return new(capCinq > 0 ? 1 - resteCinq / capCinq : null, capSemaine > 0 ? 1 - resteSemaine / capSemaine : null);
         }
 
         // Sans Codex LB (Codex tel qu'installé) : les journaux les plus récents, chats archivés compris (l'archivage les sort

@@ -231,7 +231,7 @@ flowchart LR
   values. The displayed conversation identifies the account/organization, so quotas from different accounts are not mixed.
 - **Codex**: native lifecycle hooks bundled in its NexusKeypad plugin, subject to Codex's own review and trust,
   plus `~/.codex/session_index.jsonl` and `~/.codex/sessions/**/rollout-*.jsonl` for history, asynchronous questions
-  and fallback. Quota: the last `token_count` of its logs, or the `/api/usage/summary` of a local
+  and fallback. Quota: the last `token_count` of its logs, or the `/api/accounts` of a local
   [codex-lb](https://github.com/Soju06/codex-lb) when one runs on port 2455. Conversations are opened through the
   app's debugging port 9223.
 - **Antigravity**: its sidebar read through the debugging port 9227, plus its NexusKeypad plugin's hooks

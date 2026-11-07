@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.49] - 2026-11-07
+
+### Fixed
+- Codex quota with codex-lb: the gauges are computed from each account (`/api/accounts`) instead of
+  `/api/usage/summary`, which counted a Pro Lite account's 5-hour window as full even with its week almost spent.
+  A blocked account (rate limited, quota exceeded) now counts as empty, and an available account's 5-hour credits never
+  exceed what is left of its week (Pro Lite accounts have a weekly limit only).
+
 ## [1.8.48] - 2026-11-07
 
 ### Changed
