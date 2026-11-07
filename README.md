@@ -12,6 +12,7 @@ doing, how much quota is left, and one press to the conversation that needs you.
 [![Release](https://img.shields.io/github/v/release/pironjulien/NexusKeypad?style=flat-square&label=release)](https://github.com/pironjulien/NexusKeypad/releases/latest)
 [![Tests](https://img.shields.io/github/actions/workflow/status/pironjulien/NexusKeypad/tests.yml?branch=main&style=flat-square&label=tests)](https://github.com/pironjulien/NexusKeypad/actions/workflows/tests.yml)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/pironjulien/NexusKeypad?style=flat-square&label=scorecard)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusKeypad)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16439/badge)](https://www.bestpractices.dev/projects/16439)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![C# .NET 10](https://img.shields.io/badge/C%23-.NET%2010-512BD4?style=flat-square)](plugin/src/TrinitePadPlugin.csproj)
 [![Windows 11](https://img.shields.io/badge/Windows-11-0078D4?style=flat-square)](#requirements)
