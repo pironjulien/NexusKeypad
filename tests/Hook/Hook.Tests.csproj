@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\NoErrorBoxes.cs" Link="NoErrorBoxes.cs" />
     <Compile Include="..\..\hook\*.cs" Link="Hook\%(Filename)%(Extension)" />
     <Compile Include="..\..\plugin\src\Trinite\Connecteurs.cs" Link="Plugin\Connecteurs.cs" />
     <Compile Include="..\..\plugin\src\Trinite\EtatsEnDirect.cs" Link="Plugin\EtatsEnDirect.cs" />

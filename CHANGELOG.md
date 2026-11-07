@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tests: FsCheck 3.6.0 (was 3.4.0). The preview tool (`apercu`) enforces the code-style rules at build time, like the
   plugin and the hook. The changelog carries its comparison links.
 
+### Fixed
+- Tests: no test can show a Windows error box. The test process sets the error mode (no critical-error, crash or
+  missing-file box) when it loads, and every process it starts inherits it; a test checks it in a child process.
+
 ## [1.8.49] - 2026-11-07
 
 ### Fixed
