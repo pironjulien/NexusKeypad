@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.48] - 2026-11-07
+
 ### Changed
 - The Logi plugin and the native hook build with the recommended .NET analyzers and the build-time code style, every
   warning an error (as NexusWpp). The same gate runs locally and in CI: the StyleCop analyzers pulled in by the
