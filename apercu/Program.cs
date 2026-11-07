@@ -2,6 +2,7 @@
 // Langue des jours et des mois : celle du poste, ou NEXUS_APERCU_CULTURE (en-US pour les captures du README anglais).
 using System.Globalization;
 using System.Runtime.Loader;
+
 using Loupedeck;
 using Loupedeck.TrinitePlugin;
 
@@ -53,7 +54,7 @@ if (args is ["animations", var dossierAnim])
         Directory.CreateDirectory(dossier);
         for (var f = 0; f < (estRelais ? 58 : 32); f++) // le relais : un aller-retour complet (3,6 s)
         {
-            using var image = new BitmapBuilder((3 * Cote) + (2 * Ecart) + 48, Cote + 48);
+            using var image = new BitmapBuilder(3 * Cote + 2 * Ecart + 48, Cote + 48);
             image.Clear(new BitmapColor(24, 24, 28));
             for (var k = 0; k < 3; k++)
             {
@@ -68,11 +69,11 @@ if (args is ["animations", var dossierAnim])
                 };
                 var scene = new Scene
                 {
-                    Instantane = i, Temps = 10 + (f / 8.0), Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9,
+                    Instantane = i, Temps = 10 + f / 8.0, Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9,
                     CaptureCollee = -9, Maintenant = d.AddSeconds(f / 8.0).ToLocalTime(),
-                    Lancements = Enumerable.Repeat(lance + (f / 8.0), 3).ToArray(),
+                    Lancements = Enumerable.Repeat(lance + f / 8.0, 3).ToArray(),
                 };
-                image.DrawImage(BitmapImage.FromArray(Rendu.Png(agent, scene, Cote)), 24 + (k * (Cote + Ecart)), 24, Cote, Cote, BitmapRotation.None);
+                image.DrawImage(BitmapImage.FromArray(Rendu.Png(agent, scene, Cote)), 24 + k * (Cote + Ecart), 24, Cote, Cote, BitmapRotation.None);
             }
 
             File.WriteAllBytes(Path.Combine(dossier, $"{f:D3}.png"), image.ToArray(BitmapImageFormat.Png));
@@ -90,18 +91,18 @@ if (args is ["animations", var dossierAnim])
 // Écrit <sprites>/planches/page2/NNN.png et l'ajoute à <sprites>/index.json. Usage : dotnet run -- planche-page2 <sprites>
 if (args is ["planche-page2", var dossierSp])
 {
-    const Int32 Tp2 = 116, Ep2 = 16, Grille2 = (3 * Tp2) + (2 * Ep2), N2 = 300;
+    const Int32 Tp2 = 116, Ep2 = 16, Grille2 = 3 * Tp2 + 2 * Ep2, N2 = 300;
     var sortie2 = Path.Combine(dossierSp, "planches", "page2");
     Directory.CreateDirectory(sortie2);
     var calme = new Instantane([[], [], []], [0, 0, 0], new Quota[3], [true, true, true], false, null, 0);
-    var appuiStore = 20 + (225 / 30.0);
+    var appuiStore = 20 + 225 / 30.0;
     for (var f = 0; f < N2; f++)
     {
-        var temps = 20 + (f / 30.0);
+        var temps = 20 + f / 30.0;
         var appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray();
         appuis[Moteur.Disposition[9 + 7]] = appuiStore;
-        var poste = new Poste(0.52, false, 0.35 + (0.3 * Math.Abs(Math.Sin(f / 30.0 * 5.3))) + (0.1 * Math.Sin(f / 30.0 * 13)),
-            0.18 + (0.1 * Math.Abs(Math.Sin(f / 30.0 * 1.7))), 0.61)
+        var poste = new Poste(0.52, false, 0.35 + 0.3 * Math.Abs(Math.Sin(f / 30.0 * 5.3)) + 0.1 * Math.Sin(f / 30.0 * 13),
+            0.18 + 0.1 * Math.Abs(Math.Sin(f / 30.0 * 1.7)), 0.61)
         { Mails = f < 130 ? 2 : 3, Messages = f < 150 ? 0 : 1 };
         var scene = new Scene
         {
@@ -178,7 +179,7 @@ if (args is ["sprites", _] or ["sprites", _, "--photo", _])
             var meilleur = (N: 0, Ecart: Double.MaxValue);
             for (var f = 0; f < 2 * MaxImages; f++)
             {
-                var png = dessin(10 + ((Double)f / Fps));
+                var png = dessin(10 + (Double)f / Fps);
                 natifs.Add(png);
                 using var bmp = SkiaSharp.SKBitmap.Decode(png);
                 var octets = bmp.Bytes;
@@ -337,7 +338,7 @@ if (args is ["sprites", _] or ["sprites", _, "--photo", _])
         ("relais", new([[S(0, "Revue", Etat.Travaille)], [S(1, "Relais · nexuskeypad", Etat.Travaille, 60, true)], [S(2, "Relais · nexuskeypad", Etat.Travaille, 60, true)]], [1, 1, 1], q, [true, true, true], false, null, -1)),
         ("calme", new([[S(0, "Configuration", Etat.Fini, 300)], [S(1, "Relais · nexuswindows", Etat.Travaille, 120, true)], []], [3, 0, 0], [q[0], q[1], null], [true, true, false], false, null, -1)),
     };
-    const Int32 Tp = 116, Ep = 16, Grille = (3 * Tp) + (2 * Ep);
+    const Int32 Tp = 116, Ep = 16, Grille = 3 * Tp + 2 * Ep;
     foreach (var (nom, instantane) in planches)
     {
         Suite(Path.Combine("planches", nom), Grille, Grille, 2, false, t =>
@@ -406,15 +407,15 @@ var situations = new (String Nom, Instantane I, Double[] Temps)[]
 foreach (var (nom, instantane, temps) in situations)
 {
     // Planche : 4 colonnes d'instants, chacune une grille 3 × 3 de touches de 116 px séparées de 16 px.
-    const Int32 T = 116, E = 16, Grille = (3 * T) + (2 * E), Marge = 24;
-    using var planche = new BitmapBuilder((temps.Length * (Grille + Marge)) + Marge, Grille + (2 * Marge));
+    const Int32 T = 116, E = 16, Grille = 3 * T + 2 * E, Marge = 24;
+    using var planche = new BitmapBuilder(temps.Length * (Grille + Marge) + Marge, Grille + 2 * Marge);
     planche.Clear(new BitmapColor(217, 214, 207));
     for (var c = 0; c < temps.Length; c++)
     {
         var scene = new Scene { Instantane = instantane, Temps = temps[c], Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9 };
         for (var k = 0; k < 9; k++)
         {
-            planche.DrawImage(Rendu.Png(Moteur.Disposition[k], scene), Marge + (c * (Grille + Marge)) + (k % 3 * (T + E)), Marge + (k / 3 * (T + E)), BitmapRotation.None);
+            planche.DrawImage(Rendu.Png(Moteur.Disposition[k], scene), Marge + c * (Grille + Marge) + k % 3 * (T + E), Marge + k / 3 * (T + E), BitmapRotation.None);
         }
     }
 
@@ -438,11 +439,11 @@ EtatConnexion[] connexions = [EtatConnexion.Activer, EtatConnexion.Relancer, Eta
     EtatConnexion.EnCours, EtatConnexion.Erreur, EtatConnexion.Pret];
 String[] libellesConnexion = ["Activate", "Restart", "Repair", "Missing", "Connecting", "Error", "Ready"];
 const Int32 ConnexionMarge = 16, ConnexionLegende = 130, ConnexionPas = 248;
-using var plancheConnexion = new BitmapBuilder(ConnexionLegende + (3 * 132) + 24 + (3 * ConnexionPas) + ConnexionMarge,
-    (connexions.Length * ConnexionPas) + 48);
+using var plancheConnexion = new BitmapBuilder(ConnexionLegende + 3 * 132 + 24 + 3 * ConnexionPas + ConnexionMarge,
+    connexions.Length * ConnexionPas + 48);
 plancheConnexion.Clear(new BitmapColor(217, 214, 207));
 plancheConnexion.DrawText("116 px", ConnexionLegende, 4, 3 * 132, 28, new BitmapColor(26, 26, 26), 18);
-plancheConnexion.DrawText("232 px", ConnexionLegende + (3 * 132) + 24, 4, 3 * ConnexionPas, 28, new BitmapColor(26, 26, 26), 18);
+plancheConnexion.DrawText("232 px", ConnexionLegende + 3 * 132 + 24, 4, 3 * ConnexionPas, 28, new BitmapColor(26, 26, 26), 18);
 for (var ligne = 0; ligne < connexions.Length; ligne++)
 {
     var connexion = connexions[ligne];
@@ -456,13 +457,13 @@ for (var ligne = 0; ligne < connexions.Length; ligne++)
         Instantane = i, Temps = 0.35, Maintenant = maintenant.ToLocalTime(),
         Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9,
     };
-    var y = 40 + (ligne * ConnexionPas);
+    var y = 40 + ligne * ConnexionPas;
     plancheConnexion.DrawText(libellesConnexion[ligne], 2, y + 84, ConnexionLegende - 4, 40, new BitmapColor(26, 26, 26), 17);
     for (var a = 0; a < 3; a++)
     {
         var agent = Moteur.Disposition[a];
-        plancheConnexion.DrawImage(Rendu.Png(agent, scene), ConnexionLegende + (a * 132), y + 58, BitmapRotation.None);
-        plancheConnexion.DrawImage(Rendu.Png(agent, scene, 232), ConnexionLegende + (3 * 132) + 24 + (a * ConnexionPas), y, BitmapRotation.None);
+        plancheConnexion.DrawImage(Rendu.Png(agent, scene), ConnexionLegende + a * 132, y + 58, BitmapRotation.None);
+        plancheConnexion.DrawImage(Rendu.Png(agent, scene, 232), ConnexionLegende + 3 * 132 + 24 + a * ConnexionPas, y, BitmapRotation.None);
     }
 }
 
@@ -481,10 +482,10 @@ for (var ligne = 0; ligne < expressionsEtats.Length; ligne++)
         Connexions = [.. Enumerable.Range(0, 3).Select(_ => new Connexion(expressionsEtats[ligne], "preview"))],
     };
     var scene = new Scene { Instantane = i, Temps = 0.35, Maintenant = maintenant.ToLocalTime(), Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray() };
-    expressions.DrawText(expressionsLibelles[ligne], 8, 51 + (ligne * 138), 100, 28, new BitmapColor(26, 26, 26), 17);
+    expressions.DrawText(expressionsLibelles[ligne], 8, 51 + ligne * 138, 100, 28, new BitmapColor(26, 26, 26), 17);
     for (var a = 0; a < 3; a++)
     {
-        expressions.DrawImage(Rendu.Png(Moteur.Disposition[a], scene), 112 + (a * 132), 12 + (ligne * 138), BitmapRotation.None);
+        expressions.DrawImage(Rendu.Png(Moteur.Disposition[a], scene), 112 + a * 132, 12 + ligne * 138, BitmapRotation.None);
     }
 }
 File.WriteAllBytes(Path.Combine(sortie, "connexion-expressions.png"), expressions.ToArray(BitmapImageFormat.Png));
@@ -510,8 +511,8 @@ foreach (var etat in new[] { Etat.Repos, Etat.Travaille, Etat.Attend, Etat.Autor
 }
 
 const Int32 VoieRelay = 89; // y=92 du contenu, après la translation et l'échelle habituelles vers la touche 116 px.
-const Int32 RevuePas = (3 * 116) + (2 * 36) + 24;
-using var revueConnexionRelay = new BitmapBuilder((4 * RevuePas) + 24, 164);
+const Int32 RevuePas = 3 * 116 + 2 * 36 + 24;
+using var revueConnexionRelay = new BitmapBuilder(4 * RevuePas + 24, 164);
 revueConnexionRelay.Clear(new BitmapColor(24, 24, 28));
 for (var f = 0; f < 4; f++)
 {
@@ -534,7 +535,7 @@ for (var f = 0; f < 4; f++)
             }
         }
 
-        revueConnexionRelay.DrawImage(png, 12 + (f * RevuePas) + (a * 152), 24, BitmapRotation.None);
+        revueConnexionRelay.DrawImage(png, 12 + f * RevuePas + a * 152, 24, BitmapRotation.None);
     }
 }
 
@@ -558,7 +559,7 @@ for (var ligne = 0; ligne < etats.Length; ligne++)
         for (var c = 0; c < instants.Length; c++)
         {
             var scene = new Scene { Instantane = i, Temps = instants[c], Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9 };
-            tableau.DrawImage(Rendu.Png(a, scene), ((a * instants.Length) + c) * 120, ligne * 120, BitmapRotation.None);
+            tableau.DrawImage(Rendu.Png(a, scene), (a * instants.Length + c) * 120, ligne * 120, BitmapRotation.None);
         }
     }
 }
@@ -577,7 +578,7 @@ for (var ligne = 0; ligne < 2; ligne++)
                 Instantane = i, Temps = instants[c], Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9, CaptureCollee = -9,
                 Lancements = dictee ? [99, 99, 99] : Enumerable.Repeat(lancementsParInstant[c], 3).ToArray(),
             };
-            tableau.DrawImage(Rendu.Png(a, scene), ((a * instants.Length) + c) * 120, (etats.Length + ligne) * 120, BitmapRotation.None);
+            tableau.DrawImage(Rendu.Png(a, scene), (a * instants.Length + c) * 120, (etats.Length + ligne) * 120, BitmapRotation.None);
         }
     }
 }
@@ -591,13 +592,13 @@ Console.WriteLine("etats.png");
     (new(0.42, false, 0.55, 0.23, 0.61) { Mails = 3, Messages = 1 }, true),
     (new(0.42, true, 0, 0.88, 0.93), false),
 ];
-using var page2 = new BitmapBuilder(2 * 2 * ((3 * 116) + 40), (3 * 116) + 32);
+using var page2 = new BitmapBuilder(2 * 2 * (3 * 116 + 40), 3 * 116 + 32);
 page2.Clear(new BitmapColor(217, 214, 207));
 for (var v = 0; v < postes.Length; v++)
 {
     for (var c = 0; c < 2; c++)
     {
-        var temps = 20 + (c * 0.4);
+        var temps = 20 + c * 0.4;
         var scene = new Scene
         {
             Instantane = situations[0].I, Temps = temps, Appuis = Enumerable.Repeat(-9.0, Moteur.Touches).ToArray(), PhotoCopiee = -9,
@@ -605,8 +606,8 @@ for (var v = 0; v < postes.Length; v++)
         };
         for (var k = 0; k < 9; k++)
         {
-            var x = (((v * 2) + c) * ((3 * 116) + 40)) + 16 + (k % 3 * 118);
-            page2.DrawImage(Rendu.Png(Moteur.Disposition[9 + k], scene), x, 16 + (k / 3 * 118), BitmapRotation.None);
+            var x = (v * 2 + c) * (3 * 116 + 40) + 16 + k % 3 * 118;
+            page2.DrawImage(Rendu.Png(Moteur.Disposition[9 + k], scene), x, 16 + k / 3 * 118, BitmapRotation.None);
         }
     }
 }
@@ -617,7 +618,7 @@ Console.WriteLine("page2.png");
 // Les 18 touches d'un coup d'œil, par situation : page 1 à gauche, page 2 à droite (pour les planches avant/après).
 foreach (var (nom, instantane, temps) in situations)
 {
-    using var pad = new BitmapBuilder((2 * ((3 * 116) + 32)) + 24, (3 * 116) + 64);
+    using var pad = new BitmapBuilder(2 * (3 * 116 + 32) + 24, 3 * 116 + 64);
     pad.Clear(new BitmapColor(217, 214, 207));
     var scene = new Scene
     {
@@ -626,8 +627,8 @@ foreach (var (nom, instantane, temps) in situations)
     };
     for (var k = 0; k < 18; k++)
     {
-        var x = 16 + (k / 9 * ((3 * 116) + 40)) + (k % 3 * 118);
-        pad.DrawImage(Rendu.Png(Moteur.Disposition[k], scene), x, 16 + (k % 9 / 3 * 118), BitmapRotation.None);
+        var x = 16 + k / 9 * (3 * 116 + 40) + k % 3 * 118;
+        pad.DrawImage(Rendu.Png(Moteur.Disposition[k], scene), x, 16 + k % 9 / 3 * 118, BitmapRotation.None);
     }
 
     File.WriteAllBytes(Path.Combine(sortie, $"pad-{nom}.png"), pad.ToArray(BitmapImageFormat.Png));

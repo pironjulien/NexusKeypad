@@ -1,11 +1,11 @@
 // État immédiat de Codex, complément des journaux : aucun contenu de prompt ni de réponse n'est conservé.
 // La preuve du transcript est volontairement stricte : un format inconnu laisse les journaux faire foi.
+namespace NexusKeypad.Hook;
+
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
-
-namespace NexusKeypad.Hook;
 
 public static class Codex
 {
@@ -38,7 +38,7 @@ public static class Codex
             var morceau = new char[8192];
             while (texte.Length < 1024 * 1024)
             {
-                var lus = lecteur.Read(morceau, 0, Math.Min(morceau.Length, (1024 * 1024) - texte.Length));
+                var lus = lecteur.Read(morceau, 0, Math.Min(morceau.Length, 1024 * 1024 - texte.Length));
                 if (lus == 0) { break; }
                 var fin = Array.IndexOf(morceau, '\n', 0, lus);
                 texte.Append(morceau, 0, fin < 0 ? lus : fin);

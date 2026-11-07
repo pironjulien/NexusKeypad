@@ -6,11 +6,11 @@
 // remplacer un état noté par un événement parti après lui (la liste des sous-agents Claude en arrière-plan, « agents »,
 // suit pourtant chaque événement) ; rend « {} » sur stdout (« {"decision": "allow"} » au
 // PreToolUse d'Antigravity, qui refuse l'outil sans décision) ; ne lève jamais.
+namespace NexusKeypad.Hook;
+
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-
-namespace NexusKeypad.Hook;
 
 public static class Program
 {
@@ -609,7 +609,7 @@ public static class Program
                     attend = false;
                 }
 
-                if (etat is null && (!listeChangee && attend == attendait || precedent["state"] is null))
+                if (etat is null && ((!listeChangee && attend == attendait) || precedent["state"] is null))
                 {
                     return false;
                 }
@@ -639,9 +639,9 @@ public static class Program
             // Le son suit la même activation et le même verrou que l'état, une seule fois par fin de tour.
             // Un PreInvocation/outil du tour suivant réarme naturellement le son. Ne jamais annoncer une annulation
             // ou un arrêt laissant des sous-agents travailler ; une question terminale garde sa note d'attention.
-            return agent is ("claude" or "antigravity") && evenement == "Stop" && brut.Length > 0 && etat is ("done" or "wait")
+            return agent is "claude" or "antigravity" && evenement == "Stop" && brut.Length > 0 && etat is "done" or "wait"
                 && Texte(charge["terminationReason"]) != "USER_CANCELED"
-                && !(Texte(precedent["event"]) == "Stop" && Texte(precedent["state"]) is ("done" or "wait"));
+                && !(Texte(precedent["event"]) == "Stop" && Texte(precedent["state"]) is "done" or "wait");
         }
         finally
         {

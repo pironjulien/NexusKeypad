@@ -4,11 +4,11 @@
 // passent d'une page à l'autre. Le service Logi doit être arrêté (sinon il réécrit le profil) ; la sauvegarde est faite
 // par get.ps1.
 // Usage : nexuskeypad-hook keys <ProfileInfo.json> <plugin> [--remove]
+namespace NexusKeypad.Hook;
+
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-
-namespace NexusKeypad.Hook;
 
 public static class Touches
 {
@@ -54,8 +54,7 @@ public static class Touches
         for (var p = 0; p < 2; p++)
         {
             var page = pages[p]!.AsObject();
-            var controles = page["controls"] as JsonArray;
-            if (controles is null)
+            if (page["controls"] is not JsonArray controles)
             {
                 page["controls"] = controles = new JsonArray();
             }
@@ -69,7 +68,7 @@ public static class Touches
                     controles.Add((JsonNode)controle);
                 }
 
-                controle["pressAction"] = Action(plugin, (p * 9) + c + 1);
+                controle["pressAction"] = Action(plugin, p * 9 + c + 1);
                 placees++;
             }
         }

@@ -3,7 +3,9 @@
 namespace Loupedeck.TrinitePlugin
 {
     using System;
+    using System.Diagnostics.CodeAnalysis;
 
+    [SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Same signatures as the plugin's PluginLog, called by the shared files; the hook writes no log.")]
     public static class PluginLog
     {
         public static void Info(String text)

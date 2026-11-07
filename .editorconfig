@@ -1,4 +1,5 @@
-# Remove the line below if you want to inherit .editorconfig settings from higher directories
+# Code style of every C# project of the repository (plugin, hook, apercu), enforced at build time (EnforceCodeStyleInBuild).
+# The test projects keep their own rules (tests/.editorconfig, root = true).
 root = true
 
 # C# files

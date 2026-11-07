@@ -1,10 +1,10 @@
 // Notes distinctes de Claude et d'Antigravity, livrées dans le même exécutable public, sans Python ni chemin privé.
+namespace NexusKeypad.Hook;
+
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
-
-namespace NexusKeypad.Hook;
 
 internal static class Son
 {

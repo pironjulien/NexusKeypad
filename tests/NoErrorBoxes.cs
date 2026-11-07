@@ -9,15 +9,27 @@ namespace NexusKeypad.Tests;
 /// No test may ever show a Windows error box: a process started on a file that is not a valid image (the "16-bit
 /// application not supported" box), a missing DLL or drive, a crash. Set once when the test assembly loads; every
 /// process a test starts inherits the error mode (no CREATE_DEFAULT_ERROR_MODE), and so do theirs.
+/// The process error mode is not stable while other threads run: native loading code saves it, sets exactly
+/// SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX (0x8001) for a moment and restores it, so a process started or
+/// measured in that window lacks SEM_NOGPFAULTERRORBOX (CI run 42416308907: 32769 instead of 32771).
+/// Those two bits are always there, so they are what a child process is checked for.
 /// </summary>
 internal static class NoErrorBoxes
 {
-    internal const uint Mode = 0x0001 /* SEM_FAILCRITICALERRORS */ | 0x0002 /* SEM_NOGPFAULTERRORBOX */ | 0x8000 /* SEM_NOOPENFILEERRORBOX */;
+    internal const uint Mode = Inherited | 0x0002 /* SEM_NOGPFAULTERRORBOX */;
+    internal const uint Inherited = 0x0001 /* SEM_FAILCRITICALERRORS */ | 0x8000 /* SEM_NOOPENFILEERRORBOX */;
+
+    /// <summary>The process error mode right after <see cref="Set"/>, before any test runs.</summary>
+    internal static uint Applied { get; private set; }
 
 #pragma warning disable CA2255 // A module initializer is the only hook that runs before every test and every process a test starts.
     [ModuleInitializer]
 #pragma warning restore CA2255
-    internal static void Set() => _ = SetErrorMode(GetErrorMode() | Mode);
+    internal static void Set()
+    {
+        _ = SetErrorMode(GetErrorMode() | Mode);
+        Applied = GetErrorMode();
+    }
 
     [DllImport("kernel32.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -33,7 +45,7 @@ public sealed class NoErrorBoxesTests
     [Fact]
     public async Task ProcessesStartedByTestsInheritTheNoErrorBoxMode()
     {
-        Assert.Equal(NoErrorBoxes.Mode, NoErrorBoxes.GetErrorMode() & NoErrorBoxes.Mode);
+        Assert.Equal(NoErrorBoxes.Mode, NoErrorBoxes.Applied & NoErrorBoxes.Mode);
         var start = new ProcessStartInfo("pwsh.exe")
         {
             UseShellExecute = false,
@@ -53,7 +65,7 @@ public sealed class NoErrorBoxesTests
             string output = await child.StandardOutput.ReadToEndAsync(timeout.Token);
             await child.WaitForExitAsync(timeout.Token);
             Assert.True(child.ExitCode == 0, await error + output);
-            Assert.Equal(NoErrorBoxes.Mode, uint.Parse(output.Trim(), CultureInfo.InvariantCulture) & NoErrorBoxes.Mode);
+            Assert.Equal(NoErrorBoxes.Inherited, uint.Parse(output.Trim(), CultureInfo.InvariantCulture) & NoErrorBoxes.Inherited);
         }
         finally
         {

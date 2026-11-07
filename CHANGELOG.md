@@ -7,11 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - Tests: FsCheck 3.6.0 (was 3.4.0). The preview tool (`apercu`) enforces the code-style rules at build time, like the
-  plugin and the hook. The changelog carries its comparison links.
+  plugin and the hook: the plugin's `.editorconfig` moves to the repository root so that it covers them too (it only
+  covered `plugin/src` before). The changelog carries its comparison links.
 
 ### Fixed
 - Tests: no test can show a Windows error box. The test process sets the error mode (no critical-error, crash or
-  missing-file box) when it loads, and every process it starts inherits it; a test checks it in a child process.
+  missing-file box) when it loads, and every process it starts inherits it; a test checks it in a child process. The
+  child is checked for the two bits that are always inherited: native loading code briefly replaces the process mode
+  with exactly those two (0x8001), which once made the check fail in CI.
 
 ## [1.8.49] - 2026-11-07
 

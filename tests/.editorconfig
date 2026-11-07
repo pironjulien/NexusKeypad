@@ -1,3 +1,5 @@
+root = true
+
 # Test projects (analysed with the recommended .NET analyzers, warnings as errors: tests/Directory.Build.props).
 [*.cs]
 
