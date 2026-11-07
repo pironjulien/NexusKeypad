@@ -11,6 +11,7 @@
          paquet LogiPluginApi en CI sont retirés par le Directory.Build.props de la racine). -->
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <LogiService>C:\Program Files\Logi\LogiPluginService\</LogiService>
   </PropertyGroup>
 

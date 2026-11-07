@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Tests: FsCheck 3.6.0 (was 3.4.0). The preview tool (`apercu`) enforces the code-style rules at build time, like the
+  plugin and the hook. The changelog carries its comparison links.
+
 ## [1.8.49] - 2026-11-07
 
 ### Fixed
@@ -936,3 +940,75 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   when one runs.
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
+
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.49...HEAD
+[1.8.49]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.48...v1.8.49
+[1.8.48]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.47...v1.8.48
+[1.8.47]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.46...v1.8.47
+[1.8.46]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.45...v1.8.46
+[1.8.45]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.44...v1.8.45
+[1.8.44]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.43...v1.8.44
+[1.8.43]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.42...v1.8.43
+[1.8.42]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.41...v1.8.42
+[1.8.41]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.40...v1.8.41
+[1.8.40]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.39...v1.8.40
+[1.8.39]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.38...v1.8.39
+[1.8.38]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.37...v1.8.38
+[1.8.37]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.36...v1.8.37
+[1.8.36]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.35...v1.8.36
+[1.8.35]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.34...v1.8.35
+[1.8.34]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.33...v1.8.34
+[1.8.33]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.32...v1.8.33
+[1.8.32]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.31...v1.8.32
+[1.8.31]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.30...v1.8.31
+[1.8.30]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.29...v1.8.30
+[1.8.29]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.28...v1.8.29
+[1.8.28]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.27...v1.8.28
+[1.8.27]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.26...v1.8.27
+[1.8.26]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.25...v1.8.26
+[1.8.25]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.24...v1.8.25
+[1.8.24]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.23...v1.8.24
+[1.8.23]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.22...v1.8.23
+[1.8.22]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.21...v1.8.22
+[1.8.21]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.20...v1.8.21
+[1.8.20]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.19...v1.8.20
+[1.8.19]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.18...v1.8.19
+[1.8.18]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.17...v1.8.18
+[1.8.17]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.16...v1.8.17
+[1.8.16]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.15...v1.8.16
+[1.8.15]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.14...v1.8.15
+[1.8.14]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.13...v1.8.14
+[1.8.13]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.12...v1.8.13
+[1.8.12]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.11...v1.8.12
+[1.8.11]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.10...v1.8.11
+[1.8.10]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.9...v1.8.10
+[1.8.9]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.8...v1.8.9
+[1.8.8]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.7...v1.8.8
+[1.8.7]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.6...v1.8.7
+[1.8.6]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.5...v1.8.6
+[1.8.5]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.4...v1.8.5
+[1.8.4]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.3...v1.8.4
+[1.8.3]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.2...v1.8.3
+[1.8.2]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.1...v1.8.2
+[1.8.1]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.0...v1.8.1
+[1.8.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.7.7...v1.8.0
+[1.7.7]: https://github.com/pironjulien/NexusKeypad/compare/v1.7.6...v1.7.7
+[1.7.6]: https://github.com/pironjulien/NexusKeypad/compare/v1.7.5...v1.7.6
+[1.7.5]: https://github.com/pironjulien/NexusKeypad/compare/v1.7.4...v1.7.5
+[1.7.4]: https://github.com/pironjulien/NexusKeypad/compare/v1.7.3...v1.7.4
+[1.7.3]: https://github.com/pironjulien/NexusKeypad/compare/v1.7.2...v1.7.3
+[1.7.2]: https://github.com/pironjulien/NexusKeypad/compare/v1.7.1...v1.7.2
+[1.7.1]: https://github.com/pironjulien/NexusKeypad/compare/v1.7.0...v1.7.1
+[1.7.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.6.2...v1.7.0
+[1.6.2]: https://github.com/pironjulien/NexusKeypad/compare/v1.6.1...v1.6.2
+[1.6.1]: https://github.com/pironjulien/NexusKeypad/compare/v1.6.0...v1.6.1
+[1.6.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.4.4...v1.5.0
+[1.4.4]: https://github.com/pironjulien/NexusKeypad/compare/v1.4.3...v1.4.4
+[1.4.3]: https://github.com/pironjulien/NexusKeypad/compare/v1.4.2...v1.4.3
+[1.4.2]: https://github.com/pironjulien/NexusKeypad/compare/v1.4.1...v1.4.2
+[1.4.1]: https://github.com/pironjulien/NexusKeypad/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.0.0...v1.2.0
+[1.0.0]: https://github.com/pironjulien/NexusKeypad/releases/tag/v1.0.0
