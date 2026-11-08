@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.3] - 2026-11-08
+
+### Fixed
+- Codex gets back his "?" and padlock above the head: the question mark and blocked cursor in his terminal are too
+  small to read on the pad. The three AIs now show the same sign for a question and for a permission.
+
 ## [1.9.2] - 2026-11-08
 
 ### Changed
@@ -976,7 +982,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.2...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.3...HEAD
+[1.9.3]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.2...v1.9.3
 [1.9.2]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.49...v1.9.0

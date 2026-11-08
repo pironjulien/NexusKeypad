@@ -333,26 +333,26 @@ namespace Loupedeck.TrinitePlugin
 
             if (signe)
             {
-                Signe(b, i, x0 + 8 * p, y0 - 4 * p, p, etat, t);
+                Signe(b, x0 + 8 * p, y0 - 4 * p, p, etat, t);
             }
         }
 
         // Signe d'état au-dessus de la tête, centré en cx, haut en y ; il pulse ou flotte. Seulement quand le personnage
         // ne dit pas déjà l'état (08/11) : endormi et gris (fermé), lunettes noires (fini), yeux en croix (erreur) se
-        // passent de signe, comme le terminal de Codex qui affiche sa question ou son curseur bloqué. Restent le « ? » et
-        // le cadenas de Clawd et d'Antigravity (seuls, leurs gestes ne distinguent pas une question d'une autorisation)
-        // et la jauge vide de la limite, qui dit pourquoi l'IA ne peut plus travailler.
-        private static void Signe(BitmapBuilder b, Int32 agent, Int32 cx, Int32 y, Int32 p, Etat etat, Double t)
+        // passent de signe. Restent, pour les trois, le « ? » et le cadenas (seuls, les gestes ne distinguent pas une
+        // question d'une autorisation, et ceux du terminal de Codex sont trop petits sur le pad) et la jauge vide de la
+        // limite, qui dit pourquoi l'IA ne peut plus travailler.
+        private static void Signe(BitmapBuilder b, Int32 cx, Int32 y, Int32 p, Etat etat, Double t)
         {
             var flotte = (Int32)Math.Round(Math.Sin(t * 3) * p / 3);
             y = Math.Max(0, y);
             switch (etat)
             {
-                case Etat.Attend when agent != 1:
+                case Etat.Attend:
                     var q = Math.Max(2, p * 4 / 5);
                     Carte(b, Question, cx - 3 * q / 2, y + flotte, q, Ambre);
                     break;
-                case Etat.Autorisation when agent != 1:
+                case Etat.Autorisation:
                     Cadenas(b, cx, y + flotte, p, t);
                     break;
                 case Etat.Limite:
