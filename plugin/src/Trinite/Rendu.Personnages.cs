@@ -317,7 +317,8 @@ namespace Loupedeck.TrinitePlugin
         public static void Personnage(BitmapBuilder b, Int32 i, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Boolean dort = false, Double depuis = 99, Boolean signe = true)
         {
             var teinte = etat == Etat.Ferme ? Teinte.Eteinte : dort ? Teinte.Dort : etat == Etat.Limite ? Teinte.Lasse : Teinte.Vive;
-            var dessin = teinte is Teinte.Dort or Teinte.Eteinte ? Etat.Repos : etat;
+            // En fond : il ne réfléchit pas (pose du repos), la roue au-dessus de sa tête tourne pour lui.
+            var dessin = teinte is Teinte.Dort or Teinte.Eteinte || etat == Etat.EnFond ? Etat.Repos : etat;
             switch (i)
             {
                 case 0: DessinerClawd(b, x0, y0, p, dessin, t, teinte, depuis); break;
@@ -365,6 +366,9 @@ namespace Loupedeck.TrinitePlugin
                     break;
                 case Etat.Ferme:
                     Arret(b, cx, Math.Max(0, y - 3));
+                    break;
+                case Etat.EnFond: // un processus tourne pour lui : roue cyan, plus lente que celle, grise, du réveil
+                    Roue(b, cx, Math.Max(2 * p, y + p), p, t * 0.6, Cyan, 3);
                     break;
             }
         }

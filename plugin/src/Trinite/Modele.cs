@@ -5,7 +5,9 @@ namespace Loupedeck.TrinitePlugin
 
     // Autorisation : attend l'accord de l'utilisateur pour une action (commande, fichier) ; Attend : une question.
     // Erreur : le tour s'est arrêté sur une erreur ; Limite : limite d'usage atteinte, l'IA ne peut plus travailler.
-    public enum Etat { Ferme, Repos, Travaille, Attend, Fini, Autorisation, Erreur, Limite }
+    // EnFond : l'IA ne réfléchit pas, un processus tourne pour elle (commande longue, tâche ou sous-agent en arrière-plan)
+    // et elle reprendra seule à sa fin (08/11).
+    public enum Etat { Ferme, Repos, Travaille, Attend, Fini, Autorisation, Erreur, Limite, EnFond }
 
     // Un seul à la fois : un geste du pad, ou un relevé qui ouvre une interface (page Models d'Antigravity). Une interface
     // ouverte pendant un geste lui prenait le clavier (menu Utilisation de Claude pendant un geste, 23/10).
@@ -76,7 +78,7 @@ namespace Loupedeck.TrinitePlugin
             {
                 foreach (var c in this.Conversations[w])
                 {
-                    if (c is { Relais: true, Etat: Etat.Travaille })
+                    if (c is { Relais: true, Etat: Etat.Travaille or Etat.EnFond })
                     {
                         var s = c.Source >= 0 && c.Source < 3 && c.Source != w ? c.Source : (w == 0 ? 1 : 0);
                         if (!paires.Contains((s, w)))
@@ -90,7 +92,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Pour compatibilité : Codex ou Antigravity travaille pour Claude par le relais.
-        public Boolean PourClaude(Int32 agent) => this.Conversations[agent].Any(c => c is { Relais: true, Etat: Etat.Travaille } && (c.Source == 0 || c.Source < 0));
+        public Boolean PourClaude(Int32 agent) => this.Conversations[agent].Any(c => c is { Relais: true, Etat: Etat.Travaille or Etat.EnFond } && (c.Source == 0 || c.Source < 0));
 #endif
 
         // État d'ensemble d'une IA : sa conversation la plus pressante.

@@ -137,10 +137,10 @@ public sealed class ExecutableTests : IDisposable
         { "antigravity", "PreInvocation", "{}", "done", null, "run" },
         { "antigravity", "PostToolUse", "{}", "wait", null, "run" },
         { "antigravity", "Stop", """{"terminationReason":"USER_CANCELED"}""", "run", null, "repos" },
-        { "antigravity", "Stop", """{"terminationReason":"USER_CANCELED","fullyIdle":false}""", "run", null, "run" },
+        { "antigravity", "Stop", """{"terminationReason":"USER_CANCELED","fullyIdle":false}""", "run", null, "bg" },
         { "antigravity", "PreToolUse", """{"toolCall":{"name":"ask_question"}}""", null, null, "wait" },
         { "antigravity", "PreToolUse", """{"toolCall":{"name":"run_command"}}""", null, null, "run" },
-        { "antigravity", "Stop", """{"fullyIdle":false}""", null, null, "run" }, // a sub-agent is still working
+        { "antigravity", "Stop", """{"fullyIdle":false}""", null, null, "bg" }, // a sub-agent is still working: in the background
         { "antigravity", "Stop", """{"transcriptPath":"<morceaux>"}""", null, null, "wait" }, // PLANNER_RESPONSE ending with "?"
         { "antigravity", "Inconnu", "{}", "run", null, "run" },
     };

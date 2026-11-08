@@ -43,7 +43,7 @@ if (args is ["animations", var dossierAnim])
         ("repos", Etat.Repos, true, -1, 99), ("travaille", Etat.Travaille, true, -1, 99), ("question", Etat.Attend, true, -1, 99),
         ("autorisation", Etat.Autorisation, true, -1, 99), ("fini", Etat.Fini, true, -1, 99), ("erreur", Etat.Erreur, true, -1, 99),
         ("limite", Etat.Limite, true, -1, 99), ("ferme", Etat.Ferme, false, -1, 99), ("ecoute", Etat.Repos, true, 0, 99),
-        ("reveil", Etat.Ferme, false, -1, 0), ("relais", Etat.Travaille, true, -1, 99),
+        ("reveil", Etat.Ferme, false, -1, 0), ("relais", Etat.Travaille, true, -1, 99), ("enfond", Etat.EnFond, true, -1, 99),
     };
     const Int32 Cote = 232, Ecart = 72; // touches × 2, écart entre touches à la même échelle
     foreach (var (nom, etat, ouverte, dictee, lance) in lignes)
@@ -284,7 +284,7 @@ if (args is ["sprites", _] or ["sprites", _, "--photo", _])
     var etatsSprites = new (String Nom, Etat Etat, Boolean Dort)[]
     {
         ("repos", Etat.Repos, false), ("travaille", Etat.Travaille, false), ("attend", Etat.Attend, false), ("fini", Etat.Fini, false),
-        ("autorisation", Etat.Autorisation, false), ("erreur", Etat.Erreur, false), ("limite", Etat.Limite, false), ("dort", Etat.Repos, true),
+        ("autorisation", Etat.Autorisation, false), ("erreur", Etat.Erreur, false), ("limite", Etat.Limite, false), ("enfond", Etat.EnFond, false), ("dort", Etat.Repos, true),
     };
     const Int32 Cadre = 160;
     for (var a = 0; a < 3 && tout; a++)
@@ -493,7 +493,7 @@ Console.WriteLine("connexion-expressions.png");
 
 // Vraies activités : le personnage reste celui de l'activité, mais un connecteur à réparer garde sa clé devant lui
 // (une IA qui travaille sans arrêt ne cache jamais ce besoin). La scène prête reste identique à la scène sans suivi.
-foreach (var etat in new[] { Etat.Repos, Etat.Travaille, Etat.Attend, Etat.Autorisation, Etat.Fini, Etat.Erreur, Etat.Limite })
+foreach (var etat in new[] { Etat.Repos, Etat.Travaille, Etat.EnFond, Etat.Attend, Etat.Autorisation, Etat.Fini, Etat.Erreur, Etat.Limite })
 {
     var priorite = new Instantane([.. Enumerable.Range(0, 3).Select(a => new[] { C(a, "priority", etat) })],
         [1, 1, 1], [null, null, null], [true, true, true], false, null, -1);
@@ -544,7 +544,7 @@ Console.WriteLine("connexion-relais.png (Relay lane and activity priority verifi
 
 // Planche des états : une ligne par état, pour chaque IA 4 instants ; puis la dictée (il écoute) et le réveil (appli
 // lancée par le pad, en cours de démarrage).
-Etat[] etats = [Etat.Repos, Etat.Travaille, Etat.Attend, Etat.Autorisation, Etat.Fini, Etat.Erreur, Etat.Limite, Etat.Ferme];
+Etat[] etats = [Etat.Repos, Etat.Travaille, Etat.EnFond, Etat.Attend, Etat.Autorisation, Etat.Fini, Etat.Erreur, Etat.Limite, Etat.Ferme];
 Double[] instants = [0.0, 0.35, 0.7, 1.3];
 using var tableau = new BitmapBuilder(3 * instants.Length * 120, (etats.Length + 2) * 120);
 tableau.Clear(new BitmapColor(217, 214, 207));

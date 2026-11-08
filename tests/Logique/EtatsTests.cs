@@ -77,6 +77,24 @@ public sealed class EtatsTests
     }
 
     [Fact]
+    public void En_fond_quand_un_processus_tourne_pour_l_IA()
+    {
+        // A tool that lasts (command, MCP wait): the agent no longer thinks, it waits for a process.
+        Vrai(Observateur.Traduire("run", Maintenant.AddSeconds(-5), null, "PreToolUse", "PowerShell") == Etat.Travaille, "outil de 5 s → travaille");
+        Vrai(Observateur.Traduire("run", Maintenant.AddSeconds(-40), null, "PreToolUse", "PowerShell") == Etat.EnFond, "commande de 40 s → en fond");
+        Vrai(Observateur.Traduire("run", Maintenant.AddSeconds(-40), null, "PreToolUse", "run_command") == Etat.EnFond, "commande d'Antigravity → en fond");
+        Vrai(Observateur.Traduire("run", Maintenant.AddMinutes(-5), null, "PreToolUse", "Agent") == Etat.Travaille, "sous-agent au premier plan : il réfléchit → travaille");
+        Vrai(Observateur.Traduire("run", Maintenant.AddMinutes(-5), null, "PostToolUse") == Etat.Travaille, "après un outil, il réfléchit → travaille");
+        Vrai(Observateur.Traduire("run", Maintenant.AddHours(-3), null, "PreToolUse", "PowerShell") == Etat.Repos, "outil de 3 h → repos");
+        var outil = Maintenant.AddMinutes(-1);
+        Vrai(Observateur.Traduire("run", outil, outil.AddSeconds(5), "PreToolUse", "PowerShell") == Etat.Repos, "tour arrêté (Échap) pendant l'outil → repos");
+        // Claude's Stop with background tasks or agents: it resumes by itself at their end.
+        Vrai(Observateur.Traduire("bg", Maintenant.AddMinutes(-10), Maintenant.AddMinutes(-9)) == Etat.EnFond, "Stop avec tâches en fond → en fond, même après le bord de fin de tour");
+        Vrai(Observateur.Traduire("bg", Maintenant.AddHours(-3)) == Etat.Repos, "en fond depuis 3 h → repos");
+        Vrai(Observateur.Rang(C(0, Etat.EnFond)) == Observateur.Rang(C(0, Etat.Travaille)), "en fond : même rang que le travail");
+    }
+
+    [Fact]
     public void Vue_notee_par_Antigravity_lue_sans_son_port()
     {
         // annotations/<id>.pbtxt written by Antigravity when the user opens a conversation.

@@ -142,7 +142,7 @@ public sealed class SonTests : IDisposable
         this.Noter("PreToolUse", Agent("PreToolUse", "toolu_1", true), "claude");
         this.Noter("PostToolUse", Agent("PostToolUse", "toolu_1", true, "a111"), "claude");
         Verifier(!this.Noter("Stop", Claude(), "claude"), "A turn ending while a background agent works plays no note.");
-        Verifier(this.EtatClaude() == "run", "Stop with one running background agent keeps the pad working.");
+        Verifier(this.EtatClaude() == "bg", "Stop with one running background agent puts the pad in the background state.");
         this.Noter("PreToolUse", new JsonObject { ["session_id"] = "claude-main", ["tool_name"] = "Bash", ["agent_id"] = "a111" }, "claude");
         Verifier(this.EtatClaude() == "run", "The background agent's own tools keep the pad working.");
         Verifier(!this.Noter("SubagentStop", FinAgent("a111"), "claude"), "The last agent's end plays no note: Claude resumes to read its report.");
@@ -161,9 +161,9 @@ public sealed class SonTests : IDisposable
             ["type"] = "text", ["text"] = "Async agent launched successfully.\nagentId: a333 (internal ID)",
         });
         this.Noter("PostToolUse", texte, "claude");
-        Verifier(!this.Noter("Stop", Claude(), "claude") && this.EtatClaude() == "run", "Two background agents: working.");
+        Verifier(!this.Noter("Stop", Claude(), "claude") && this.EtatClaude() == "bg", "Two background agents: in the background.");
         this.Noter("SubagentStop", FinAgent("a222"), "claude");
-        Verifier(this.EtatClaude() == "run", "One agent still works: still working.");
+        Verifier(this.EtatClaude() == "bg", "One agent still works: still in the background.");
         this.Noter("SubagentStop", FinAgent("agent-a333"), "claude");
         Verifier(this.EtatClaude() == "done", "The last of them ends the wait.");
 
@@ -201,6 +201,79 @@ public sealed class SonTests : IDisposable
         agy["tool_use_id"] = "x";
         this.Noter("PreToolUse", agy);
         Verifier(this.Noter("Stop", Charge("agy-agents")), "Antigravity's Stop is unchanged.");
+    }
+
+    // Lines of a Claude Code transcript (shapes read in its .jsonl files): a background command's launch, a later
+    // tool result that only quotes the same words, and the notification of its end.
+    private static String Lancement(String id, DateTimeOffset quand) => new JsonObject
+    {
+        ["type"] = "user", ["timestamp"] = quand.ToString("O"),
+        ["message"] = new JsonObject
+        {
+            ["role"] = "user",
+            ["content"] = new JsonArray(new JsonObject
+            {
+                ["type"] = "tool_result", ["tool_use_id"] = "toolu_" + id,
+                ["content"] = $"Command running in background with ID: {id}. Output is being written to: C:\\x\\{id}.output.",
+            }),
+        },
+    }.ToJsonString();
+
+    private static String Fin(String id, Boolean file) => file
+        ? new JsonObject { ["type"] = "queue-operation", ["operation"] = "enqueue", ["content"] = $"<task-notification>\n<task-id>{id}</task-id>\n<status>completed</status>" }.ToJsonString()
+        : new JsonObject { ["type"] = "user", ["message"] = new JsonObject { ["role"] = "user", ["content"] = $"<task-notification>\n<task-id>{id}</task-id>\n<status>failed</status>" } }.ToJsonString();
+
+    private static String Citation(String id) => new JsonObject
+    {
+        ["type"] = "user",
+        ["message"] = new JsonObject
+        {
+            ["role"] = "user",
+            ["content"] = new JsonArray(new JsonObject { ["type"] = "tool_result", ["content"] = $"grep: <task-id>{id}</task-id> found" }),
+        },
+    }.ToJsonString();
+
+    [Fact]
+    public void Commandes_en_arriere_plan_de_Claude()
+    {
+        var journal = Path.Combine(this._racine, "transcript.jsonl");
+        var maintenant = DateTimeOffset.UtcNow;
+        File.WriteAllLines(journal, [Lancement("b1", maintenant.AddMinutes(-5)), Lancement("b2", maintenant.AddMinutes(-4)), Citation("b1")]);
+        Verifier(HookProgram.TachesEnFond(journal, maintenant) == 2, "Two launched commands, a quoted id is not an end: two running.");
+        File.AppendAllLines(journal, [Fin("b1", file: true)]);
+        Verifier(HookProgram.TachesEnFond(journal, maintenant) == 1, "A queued notification ends its command.");
+        Verifier(HookProgram.TachesEnFond(journal, maintenant.AddHours(3)) == 0, "A launch older than 2 h no longer counts.");
+        Verifier(HookProgram.TachesEnFond(Path.Combine(this._racine, "absent.jsonl"), maintenant) == 0, "No transcript: nothing running.");
+
+        var stop = Claude();
+        stop["transcript_path"] = journal;
+        this.Noter("UserPromptSubmit", Claude(), "claude");
+        Verifier(!this.Noter("Stop", stop, "claude") && this.EtatClaude() == "bg",
+            "A turn ending while a background command runs plays no note and shows the background state.");
+        File.AppendAllLines(journal, [Fin("b2", file: false)]);
+        this.Noter("PreToolUse", new JsonObject { ["session_id"] = "claude-main", ["tool_name"] = "Read" }, "claude");
+        Verifier(this.Noter("Stop", stop, "claude") && this.EtatClaude() == "done", "Once every command has ended, the next Stop is a real end, with its note.");
+
+        // A background agent ending while a command still runs keeps the background state.
+        File.AppendAllLines(journal, [Lancement("b3", maintenant)]);
+        this.Noter("UserPromptSubmit", Claude(), "claude");
+        this.Noter("PostToolUse", Agent("PostToolUse", "toolu_7", true, "a777"), "claude");
+        this.Noter("Stop", stop, "claude");
+        var fin = FinAgent("a777");
+        fin["transcript_path"] = journal;
+        Verifier(!this.Noter("SubagentStop", fin, "claude") && this.EtatClaude() == "bg", "The agent ended, the command still runs: background.");
+    }
+
+    [Fact]
+    public void L_outil_lance_est_note()
+    {
+        this.Noter("PreToolUse", new JsonObject { ["session_id"] = "claude-main", ["tool_name"] = "PowerShell" }, "claude");
+        var fichier = JsonNode.Parse(File.ReadAllText(Path.Combine(this._racine, "claude", "claude-main.json")))!;
+        Verifier(fichier["tool"]?.GetValue<String>() == "PowerShell" && fichier["event"]?.GetValue<String>() == "PreToolUse",
+            "PreToolUse records the tool it started, for the pad's background state.");
+        this.Noter("PostToolUse", new JsonObject { ["session_id"] = "claude-main", ["tool_name"] = "PowerShell" }, "claude");
+        fichier = JsonNode.Parse(File.ReadAllText(Path.Combine(this._racine, "claude", "claude-main.json")))!;
+        Verifier(fichier["tool"] is null, "The tool's end clears it.");
     }
 
     [Fact]

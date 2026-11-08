@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-08
+
+### Added
+- A "background" state for the three AIs: the AI is not thinking, a process runs for it and it will resume on its own.
+  Its head rests while a cyan wheel turns above it. Claude: a turn that ends while commands it started in the
+  background are still running (read from its transcript: the launch, and the notification of their end) or while
+  background sub-agents work, instead of "done" or "working". Claude and Antigravity: a tool that has been running for
+  more than 15 seconds (a foreground sub-agent, which thinks, stays "working"); the hook now records the tool a
+  `PreToolUse` started. Codex: a tool call that has had no output for more than 15 seconds in its journal (command, wait
+  for its agents). Antigravity's end of turn with a sub-agent still working is "background" too.
+
 ### Changed
 - Tests: FsCheck 3.6.0 (was 3.4.0). The preview tool (`apercu`) enforces the code-style rules at build time, like the
   plugin and the hook: the plugin's `.editorconfig` moves to the repository root so that it covers them too (it only
@@ -948,7 +959,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.49...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.49...v1.9.0
 [1.8.49]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.48...v1.8.49
 [1.8.48]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.47...v1.8.48
 [1.8.47]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.46...v1.8.47

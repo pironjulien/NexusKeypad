@@ -36,6 +36,32 @@ public sealed class JournalCodexTests
 
     private static (Etat, DateTime) Journal(String[] lignes, Boolean relais, DateTime quand) => Observateur.EtatJournalCodex(lignes, relais, quand);
 
+    private static String Appel(String h, String id, String nom = "exec") => L(h, $$"""
+        "type":"response_item","payload":{"type":"custom_tool_call","status":"completed","call_id":"{{id}}","name":"{{nom}}","input":"Get-ChildItem"}
+        """.Trim());
+
+    private static String Sortie(String h, String id) => L(h, $$"""
+        "type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"{{id}}","output":"ok"}
+        """.Trim());
+
+    [Fact]
+    public void En_fond_pendant_un_outil_qui_dure()
+    {
+        // The journal writes a tool call at its start and its output at its end (rollout format of 07/11).
+        var debut = L("20:59:00.000", "\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\"}");
+        Vrai(Journal([debut, Appel("20:59:55.000", "c1")], false, InstantJournal).Item1 == Etat.Travaille, "commande de 5 s → travaille");
+        Vrai(Journal([debut, Appel("20:59:30.000", "c1")], false, InstantJournal) is (Etat.EnFond, var depuis) && depuis.Second == 30,
+            "commande de 30 s → en fond, depuis son départ");
+        Vrai(Journal([debut, Appel("20:59:30.000", "c1"), Sortie("20:59:50.000", "c1")], false, InstantJournal).Item1 == Etat.Travaille,
+            "commande finie → il réfléchit de nouveau");
+        Vrai(Journal([debut, Appel("20:59:10.000", "c1"), Appel("20:59:20.000", "c2"), Sortie("20:59:50.000", "c2")], false, InstantJournal).Item1 == Etat.EnFond,
+            "une des deux commandes parallèles dure encore → en fond");
+        Vrai(Journal([debut, Appel("20:59:10.000", "c1", "request_user_input")], false, InstantJournal).Item1 != Etat.EnFond,
+            "une question n'est pas un processus");
+        var fin = L("20:59:40.000", "\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":\"Fait.\"}");
+        Vrai(Journal([debut, Appel("20:59:10.000", "c1"), fin], false, InstantJournal).Item1 == Etat.Fini, "tour fini → l'appel ouvert ne compte plus");
+    }
+
     [Fact]
     public void Questions_async_jusqu_a_leur_reponse()
     {

@@ -446,8 +446,8 @@ namespace Loupedeck.TrinitePlugin
         {
             { Alerte: true, Etat: Etat.Attend or Etat.Autorisation or Etat.Erreur } => 5,
             { Alerte: true } => 4,
-            { Etat: Etat.Travaille, Relais: false } => 3,
-            { Etat: Etat.Travaille } => 2,
+            { Etat: Etat.Travaille or Etat.EnFond, Relais: false } => 3,
+            { Etat: Etat.Travaille or Etat.EnFond } => 2,
             { Relais: false } => 1,
             _ => 0,
         };
@@ -455,7 +455,8 @@ namespace Loupedeck.TrinitePlugin
         private Boolean Vu(Int32 agent, String id, DateTime depuis) => this._vues.TryGetValue($"{agent}:{id}", out var quand) && quand > depuis;
 
         // État noté par les hooks (nexuskeypad-hook.exe) pour une session ; null si aucun.
-        private static (String Etat, DateTime Quand)? Hook(String agent, String session)
+        // Evenement et Outil : l'événement qui a noté l'état et, pour un PreToolUse, l'outil lancé (null si absents).
+        private static (String Etat, DateTime Quand, String? Evenement, String? Outil)? Hook(String agent, String session)
         {
             try
             {
@@ -468,8 +469,10 @@ namespace Loupedeck.TrinitePlugin
                 // Partage complet : le hook remplace le fichier pendant qu'on le lit, sans échec ni perte.
                 using var flux = new FileStream(fichier, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using var doc = JsonDocument.Parse(flux);
-                var quand = DateTimeOffset.FromUnixTimeMilliseconds((Int64)(doc.RootElement.GetProperty("at").GetDouble() * 1000)).UtcDateTime;
-                return doc.RootElement.GetProperty("state").GetString() is { } etat ? (etat, quand) : null;
+                var racine = doc.RootElement;
+                var quand = DateTimeOffset.FromUnixTimeMilliseconds((Int64)(racine.GetProperty("at").GetDouble() * 1000)).UtcDateTime;
+                String? Chaine(String nom) => racine.TryGetProperty(nom, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+                return racine.GetProperty("state").GetString() is { } etat ? (etat, quand, Chaine("event"), Chaine("tool")) : null;
             }
             catch (Exception)
             {
@@ -494,9 +497,15 @@ namespace Loupedeck.TrinitePlugin
 
         // finTour : dernier début ou fin de tour noté par l'appli (lastTurnEdgeAt de Claude). Un arrêt par Échap n'envoie
         // aucun hook : un « run » plus ancien que ce bord est un tour fini, même sans Stop (31/10).
-        internal static Etat Traduire(String etat, DateTime quand, DateTime? finTour = null) => (etat, DateTime.UtcNow - quand) switch
+        // evenement, outil : un « run » noté par le PreToolUse d'un outil qui dure (commande, attente d'un serveur MCP) passe
+        // « en fond » après DelaiEnFond : l'IA ne réfléchit plus, elle attend la fin d'un processus. Un sous-agent au
+        // premier plan, lui, réfléchit : il reste au travail. « bg » : le Stop de Claude a laissé des tâches ou des
+        // sous-agents en arrière-plan, qui le réveilleront (08/11).
+        internal static Etat Traduire(String etat, DateTime quand, DateTime? finTour = null, String? evenement = null, String? outil = null) => (etat, DateTime.UtcNow - quand) switch
         {
             ("run" or "ask", _) when finTour > quand => Etat.Repos,
+            ("run", var age) when evenement == "PreToolUse" && !OutilsQuiReflechissent.Contains(outil ?? "") && age >= DelaiEnFond && age < TimeSpan.FromHours(2) => Etat.EnFond,
+            ("bg", var age) when age < TimeSpan.FromHours(2) => Etat.EnFond,
             ("wait", var age) when age < TimeSpan.FromHours(12) => Etat.Attend,
             ("perm", var age) when age < TimeSpan.FromHours(12) => Etat.Autorisation,
             ("error", var age) when age < TimeSpan.FromHours(12) => Etat.Erreur,
@@ -506,6 +515,12 @@ namespace Loupedeck.TrinitePlugin
             ("done", var age) when age < TimeSpan.FromHours(12) => Etat.Fini,
             _ => Etat.Repos,
         };
+
+        // Durée d'un outil au-delà de laquelle l'IA est « en fond » : une lecture ou une petite commande n'y arrive pas.
+        internal static readonly TimeSpan DelaiEnFond = TimeSpan.FromSeconds(15);
+
+        // Outils où l'IA (ou son sous-agent) réfléchit pendant qu'ils tournent : jamais « en fond ».
+        private static readonly HashSet<String> OutilsQuiReflechissent = new(StringComparer.Ordinal) { "Agent", "Task" };
 
         public static Int32 SourceDuNomDeFichier(String nom)
         {

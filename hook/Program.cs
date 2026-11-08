@@ -335,7 +335,7 @@ public static class Program
             {
                 if (charge["fullyIdle"] is JsonValue idle && idle.TryGetValue<bool>(out var b) && !b)
                 {
-                    return "run"; // Antigravity : un sous-agent travaille encore
+                    return "bg"; // Antigravity : fin de tour, un sous-agent travaille encore pour lui (« en fond »)
                 }
 
                 if (Texte(charge["terminationReason"]) == "USER_CANCELED")
@@ -479,6 +479,116 @@ public static class Program
         }
     }
 
+    // Tâches que Claude a lancées en arrière-plan (commande run_in_background) et dont le journal n'a pas encore noté la
+    // fin : à leur fin, l'appli le réveille (<task-notification>), il n'a donc pas fini son travail. Lancement : réponse
+    // d'outil « Command running in background with ID: <id> » ; fin : <task-id><id></task-id> d'une notification (file
+    // d'attente ou message), quel que soit son statut. Seules les lignes de ces deux formes comptent (pas le texte d'une
+    // commande qui citerait ces mots) ; un lancement de plus de 2 h ne compte plus, comme un « run » (08/11).
+    private const string MarqueLancement = "Command running in background with ID: ";
+
+    public static int TachesEnFond(string journal, DateTimeOffset maintenant)
+    {
+        if (string.IsNullOrEmpty(journal) || !File.Exists(journal))
+        {
+            return 0;
+        }
+
+        var lancees = new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal);
+        var finies = new HashSet<string>(StringComparer.Ordinal);
+        try
+        {
+            using var flux = new FileStream(journal, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var lecteur = new StreamReader(flux, new UTF8Encoding(false));
+            while (lecteur.ReadLine() is { } ligne)
+            {
+                var lancement = ligne.Contains(MarqueLancement, StringComparison.Ordinal);
+                // « task-id » seul : un journal peut échapper les chevrons (<), lus ensuite par le parseur JSON.
+                if (!lancement && !ligne.Contains("task-id", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (JsonNode.Parse(ligne) is not JsonObject o)
+                {
+                    continue;
+                }
+
+                var type = Texte(o["type"]);
+                if (type == "queue-operation")
+                {
+                    NoterFins(Texte(o["content"]), finies);
+                    continue;
+                }
+
+                if (type != "user" || Objet(o["message"])["content"] is not { } contenu)
+                {
+                    continue;
+                }
+
+                if (contenu is JsonValue)
+                {
+                    NoterFins(Texte(contenu), finies);
+                    continue;
+                }
+
+                if (contenu is not JsonArray blocs)
+                {
+                    continue;
+                }
+
+                var quand = DateTimeOffset.TryParse(Texte(o["timestamp"]), out var t) ? t : maintenant;
+                foreach (var bloc in blocs.OfType<JsonObject>())
+                {
+                    var genre = Texte(bloc["type"]);
+                    if (genre == "text")
+                    {
+                        NoterFins(Texte(bloc["text"]), finies); // notification jointe à un message
+                        continue;
+                    }
+
+                    if (genre != "tool_result" || !lancement)
+                    {
+                        continue; // une réponse d'outil qui cite <task-id> n'est pas une fin
+                    }
+
+                    var texte = new StringBuilder();
+                    Textes(bloc["content"], texte);
+                    var s = texte.ToString();
+                    if (s.StartsWith(MarqueLancement, StringComparison.Ordinal))
+                    {
+                        var id = new string(s[MarqueLancement.Length..].TakeWhile(char.IsLetterOrDigit).ToArray());
+                        if (id.Length > 0)
+                        {
+                            lancees[id] = quand;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            return 0; // journal illisible : rien n'est supposé en cours
+        }
+
+        return lancees.Count(l => !finies.Contains(l.Key) && maintenant - l.Value < TimeSpan.FromHours(2));
+    }
+
+    private static void NoterFins(string texte, HashSet<string> finies)
+    {
+        var i = 0;
+        while ((i = texte.IndexOf("<task-id>", i, StringComparison.Ordinal)) >= 0)
+        {
+            i += "<task-id>".Length;
+            var fin = texte.IndexOf("</task-id>", i, StringComparison.Ordinal);
+            if (fin < 0)
+            {
+                return;
+            }
+
+            finies.Add(texte[i..fin].Trim());
+        }
+    }
+
     // Écrit l'état sous son verrou ; ignore un événement parti avant celui déjà noté. Renvoie true uniquement
     // lorsqu'un nouveau Stop terminal Claude/AGY justifie sa note. La lecture/écriture seule ne joue aucun son.
     public static bool Noter(string agent, string evenement, JsonObject charge, double debut, string? racine = null)
@@ -567,6 +677,11 @@ public static class Program
 
             var attendait = Vrai(precedent["awaiting"]);
             var listeChangee = !JsonNode.DeepEquals(agents, anciens);
+            // Commandes de Claude en arrière-plan, lues dans son journal seulement quand une fin de tour en dépend.
+            int? taches = null;
+            int Taches() => taches ??= agent == "claude"
+                ? TachesEnFond(Texte(charge["transcript_path"]), DateTimeOffset.FromUnixTimeMilliseconds((long)(debut * 1000)))
+                : 0;
             string? etat;
             var attend = attendait;
             JsonObject contenu;
@@ -579,10 +694,11 @@ public static class Program
 
                 etat = null;
                 contenu = new JsonObject { ["state"] = precedent["state"]!.DeepClone(), ["at"] = precedent["at"]!.DeepClone(), ["event"] = precedent["event"]?.DeepClone() };
-                if (attendait && agents.Count == 0)
+                if (attendait && agents.Count == 0 && Taches() == 0)
                 {
-                    // Seule exception : l'état plus récent n'était « run » que pour ces agents (le tour de Claude est fini,
-                    // un nouveau tour aurait effacé « awaiting ») ; sans eux, la fin attendue est atteinte.
+                    // Seule exception : l'état plus récent n'était « en fond » que pour ces agents (le tour de Claude est
+                    // fini, un nouveau tour aurait effacé « awaiting ») ; sans eux ni commande en arrière-plan, la fin
+                    // attendue est atteinte.
                     contenu["state"] = "done";
                     contenu["event"] = evenement;
                     attend = false;
@@ -597,16 +713,18 @@ public static class Program
                     attend = false; // le tour (re)part ou se termine : la fin attendue est décidée ici
                 }
 
-                if (agent == "claude" && evenement == "Stop" && etat == "done" && agents.Count > 0)
+                if (agent == "claude" && evenement == "Stop" && etat == "done" && (agents.Count > 0 || Taches() > 0))
                 {
-                    etat = "run"; // fin de tour, mais des sous-agents en arrière-plan travaillent encore pour Claude
+                    // Fin de tour, mais des sous-agents ou des commandes en arrière-plan travaillent encore pour Claude :
+                    // il ne réfléchit pas, il reprendra seul à leur fin (« en fond »).
+                    etat = "bg";
                     attend = true;
                 }
                 else if (evenement == "SubagentStop" && attendait && agents.Count == 0)
                 {
                     // Le dernier a fini : Claude reprend aussitôt pour lire son rapport ; la fin de ce tour-là sonnera.
-                    etat = "done";
-                    attend = false;
+                    // Une commande en arrière-plan encore en cours le garde « en fond ».
+                    (etat, attend) = Taches() > 0 ? ("bg", true) : ("done", false);
                 }
 
                 if (etat is null && ((!listeChangee && attend == attendait) || precedent["state"] is null))
@@ -617,6 +735,10 @@ public static class Program
                 contenu = etat is null
                     ? new JsonObject { ["state"] = precedent["state"]!.DeepClone(), ["at"] = precedent["at"]?.DeepClone(), ["event"] = precedent["event"]?.DeepClone() }
                     : new JsonObject { ["state"] = etat, ["at"] = debut, ["event"] = evenement };
+                if (etat is not null && evenement == "PreToolUse" && Outil(charge) is { Length: > 0 } outil)
+                {
+                    contenu["tool"] = outil; // un outil qui dure fait passer l'IA « en fond » côté pad
+                }
                 if (agent == "claude" && evenement == "Stop" && reponse.Length > 0)
                 {
                     contenu["reply"] = reponse; // rattache le résumé de fin de tour de l'appli à ce tour-ci

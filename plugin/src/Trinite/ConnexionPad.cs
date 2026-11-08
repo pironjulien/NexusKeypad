@@ -241,7 +241,7 @@ namespace Loupedeck.TrinitePlugin
         }
 
         internal static Boolean RelanceOccupee(Int32 agent, Instantane? instantane) => instantane is null
-            || instantane.DicteeIa == agent || instantane.Conversations[agent].Any(c => c.Etat is Etat.Travaille or Etat.Autorisation or Etat.Attend);
+            || instantane.DicteeIa == agent || instantane.Conversations[agent].Any(c => c.Etat is Etat.Travaille or Etat.EnFond or Etat.Autorisation or Etat.Attend);
 
         private static Boolean Oui(String texte) => MessageBoxW(IntPtr.Zero, texte, "NexusKeypad", 0x4 | 0x20 | 0x100 | 0x40000) == 6;
         private static void Informer(String texte) => _ = MessageBoxW(IntPtr.Zero, texte, "NexusKeypad", 0x40 | 0x40000);

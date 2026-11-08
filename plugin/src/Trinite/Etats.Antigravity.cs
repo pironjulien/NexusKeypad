@@ -84,8 +84,8 @@ namespace Loupedeck.TrinitePlugin
         private Conversation? ConversationAgy(String id, String titre, DateTime activite, Boolean relais, Int32 source = -1)
         {
             var hook = Hook("antigravity", id);
-            var etat = hook is { } h ? Traduire(h.Etat, h.Quand) : Etat.Repos;
-            if (relais && etat is not (Etat.Travaille or Etat.Attend or Etat.Autorisation))
+            var etat = hook is { } h ? Traduire(h.Etat, h.Quand, null, h.Evenement, h.Outil) : Etat.Repos;
+            if (relais && etat is not (Etat.Travaille or Etat.EnFond or Etat.Attend or Etat.Autorisation))
             {
                 return null;
             }
