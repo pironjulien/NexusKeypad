@@ -333,38 +333,30 @@ namespace Loupedeck.TrinitePlugin
 
             if (signe)
             {
-                Signe(b, x0 + 8 * p, y0 - 4 * p, p, etat, t);
+                Signe(b, i, x0 + 8 * p, y0 - 4 * p, p, etat, t);
             }
         }
 
-        // Signe d'état au-dessus de la tête, centré en cx, haut en y ; il pulse ou flotte, sans jamais disparaître.
-        private static void Signe(BitmapBuilder b, Int32 cx, Int32 y, Int32 p, Etat etat, Double t)
+        // Signe d'état au-dessus de la tête, centré en cx, haut en y ; il pulse ou flotte. Seulement quand le personnage
+        // ne dit pas déjà l'état (08/11) : endormi et gris (fermé), lunettes noires (fini), yeux en croix (erreur) se
+        // passent de signe, comme le terminal de Codex qui affiche sa question ou son curseur bloqué. Restent le « ? » et
+        // le cadenas de Clawd et d'Antigravity (seuls, leurs gestes ne distinguent pas une question d'une autorisation)
+        // et la jauge vide de la limite, qui dit pourquoi l'IA ne peut plus travailler.
+        private static void Signe(BitmapBuilder b, Int32 agent, Int32 cx, Int32 y, Int32 p, Etat etat, Double t)
         {
             var flotte = (Int32)Math.Round(Math.Sin(t * 3) * p / 3);
             y = Math.Max(0, y);
             switch (etat)
             {
-                case Etat.Attend:
+                case Etat.Attend when agent != 1:
                     var q = Math.Max(2, p * 4 / 5);
                     Carte(b, Question, cx - 3 * q / 2, y + flotte, q, Ambre);
                     break;
-                case Etat.Autorisation:
+                case Etat.Autorisation when agent != 1:
                     Cadenas(b, cx, y + flotte, p, t);
-                    break;
-                case Etat.Fini:
-                    Carte(b, Coche, cx - 12, y + p + flotte, 2, Vert);
-                    break;
-                case Etat.Erreur: // un peu plus haut : il touchait la tête
-                    var haut = Math.Max(0, y - 3);
-                    Carte(b, Triangle, cx - 10, haut, 2, Rouge);
-                    b.FillRectangle(cx - 1, haut + 5, 2, 6, BitmapColor.White);
-                    b.FillRectangle(cx - 1, haut + 13, 2, 2, BitmapColor.White);
                     break;
                 case Etat.Limite:
                     JaugeVide(b, cx, Math.Max(3, y - 3));
-                    break;
-                case Etat.Ferme:
-                    Arret(b, cx, Math.Max(0, y - 3));
                     break;
             }
         }
@@ -379,12 +371,6 @@ namespace Loupedeck.TrinitePlugin
         };
 
         private static readonly String[] Question = ["###", "..#", ".##", "...", ".#."];
-
-        private static readonly String[] Triangle =
-        [
-            "....##....", "...####...", "...####...", "..######..", "..######..", ".########.", ".########.", "##########",
-            "##########",
-        ];
 
         private static readonly String[] Anse = [".###.", "#...#", "#...#"];
 
@@ -423,19 +409,6 @@ namespace Loupedeck.TrinitePlugin
             {
                 b.FillRectangle(cx + 12 - k * 3, y - 3 + k * 3, 5, 5, sourd); // barre épaisse en travers
             }
-        }
-
-        // Bouton marche/arrêt éteint, gris : l'appli est fermée.
-        private static void Arret(BitmapBuilder b, Int32 cx, Int32 y)
-        {
-            var gris = new BitmapColor(120, 120, 126);
-            for (var k = 0; k < 12; k++)
-            {
-                var angle = -Math.PI / 2 + 0.55 + k * (2 * Math.PI - 1.1) / 11;
-                b.FillRectangle(cx + (Int32)(Math.Cos(angle) * 7) - 1, y + 8 + (Int32)(Math.Sin(angle) * 7) - 1, 3, 3, gris);
-            }
-
-            b.FillRectangle(cx - 1, y, 3, 8, gris);
         }
 
         // Clawd sans ses bras (colonnes 0-1 et 14-15 des rangées 4-5), dessinés à part selon l'état.

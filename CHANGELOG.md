@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-11-08
+
+### Changed
+- No sign above a head when the character already says the state: an app that is closed (grey, asleep, its "z") loses
+  its power button, a finished turn (sunglasses, fireworks) its green check mark, an error (crossed eyes, red ring) its
+  red triangle, and Codex keeps its question and its blocked cursor in his own terminal. The "?" and the padlock stay
+  above Clawd and Antigravity, whose gestures alone do not tell a question from a permission, and the empty gauge
+  stays above an AI that reached its usage limit.
+
 ## [1.9.1] - 2026-11-08
 
 ### Changed
@@ -967,7 +976,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.1...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.2...HEAD
+[1.9.2]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.49...v1.9.0
 [1.8.49]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.48...v1.8.49

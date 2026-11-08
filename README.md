@@ -125,11 +125,11 @@ one or the other. The [Marketplace editions](#other-editions) are the same code,
   is not thinking: a command has been running for more than 15 seconds, or it ended its turn while background tasks or
   sub-agents keep working for it, and it will resume on its own): Clawd taps his foot and follows a cyan spark with his
   eyes, Codex watches a progress bar fill in his terminal, Antigravity lands and follows her orbiting satellite. A
-  question for you: Clawd
-  waves, Codex tilts its head while its terminal types "?", Antigravity sways under radar waves; a permission request
-  adds a padlock. Done: Clawd's sunglasses, Codex's check mark and confetti, Antigravity's landing and fireworks.
-  Error: crossed eyes and a red bolt. Usage limit reached: faded, heavy eyelids, empty battery. Dictation in its app:
-  it listens. App closed: it sleeps ("z"); a press starts it and it wakes up.
+  question for you: Clawd raises his arm and Antigravity sways under a "?", Codex tilts its head while its terminal
+  types "?"; a permission request: a padlock (Codex: a blocked cursor). Done: sunglasses for all three and fireworks.
+  Error: crossed eyes and a short shake. Usage limit reached: faded, heavy eyelids, an empty gauge above. Dictation in
+  its app: it listens. App closed: it sleeps, grey ("z"); a press starts it and it wakes up. A sign appears above a
+  head only when the character does not already say the state.
 - **Alerts.** A question blinks clearly, a finished turn breathes slowly, until you open that conversation.
 - **One press** opens the conversation that blinks (full screen, scrolled to the last message), otherwise the app.
   App already in front: each press moves to the next conversation, urgent ones first, then most recent first.
