@@ -25,6 +25,11 @@
 
     <PluginShortName>TrinitePad</PluginShortName>
     <Paquet>package</Paquet>
+    <!-- No packages.lock.json: the packages differ by machine (LogiPluginApi only without the Logi service, as in CI) and by edition
+         (Tomlyn left out of PC Dashboard),
+         so no single lock file can hold for both. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <RestoreLockedMode>false</RestoreLockedMode>
   </PropertyGroup>
 
   <!-- Édition « AI Coding Agents » du Logi Marketplace (outils\paquet_marketplace.ps1) : page 1 seule, sans tube d'essais,

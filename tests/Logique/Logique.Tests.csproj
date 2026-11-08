@@ -11,6 +11,10 @@
          journal writes in `outil` when no installed package gives it (as in the Stream Deck edition). -->
     <DefineConstants>$(DefineConstants);NEXUS</DefineConstants>
     <Version>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\plugin\src\TrinitePadPlugin.csproj')), '&lt;Version&gt;([^&lt;]+)&lt;/Version&gt;').Groups[1].Value)</Version>
+    <!-- No packages.lock.json: the packages differ by machine (LogiPluginApi only without the Logi service, as in CI),
+         so no single lock file can hold for both. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <RestoreLockedMode>false</RestoreLockedMode>
   </PropertyGroup>
 
   <ItemGroup>

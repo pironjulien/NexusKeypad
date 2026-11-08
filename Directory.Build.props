@@ -7,6 +7,14 @@
     <NexusKeypadBuild>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine($([System.Environment]::GetFolderPath(SpecialFolder.UserProfile)), '.nexus', 'build', 'nexuskeypad'))))</NexusKeypadBuild>
   </PropertyGroup>
 
+  <!-- NuGet restore pinned by packages.lock.json (direct and transitive packages, content hashes); CI and release
+       restore in locked mode, so a dependency never changes without a committed lock file. The projects whose packages
+       depend on the machine (Logi service installed or not) opt out in their own file. -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
+
   <!-- Without the Logi service (CI), the LogiPluginApi package pulls in the StyleCop analyzers (absent locally): they are
        left out of every project, so the same analysis gate runs locally and in CI. -->
   <Target Name="SansStyleCop" AfterTargets="ResolveLockFileAnalyzers">
