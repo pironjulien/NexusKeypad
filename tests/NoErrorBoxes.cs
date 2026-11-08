@@ -9,10 +9,11 @@ namespace NexusKeypad.Tests;
 /// No test may ever show a Windows error box: a process started on a file that is not a valid image (the "16-bit
 /// application not supported" box), a missing DLL or drive, a crash. Set once when the test assembly loads; every
 /// process a test starts inherits the error mode (no CREATE_DEFAULT_ERROR_MODE), and so do theirs.
-/// The process error mode is not stable while other threads run: native loading code saves it, sets exactly
-/// SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX (0x8001) for a moment and restores it, so a process started or
-/// measured in that window lacks SEM_NOGPFAULTERRORBOX (CI run 42416308907: 32769 instead of 32771).
-/// Those two bits are always there, so they are what a child process is checked for.
+/// The process error mode is not stable while other threads run: the runtime loads each native library between
+/// SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX) and a restore of the previous mode, so a process
+/// started or measured in that window lacks SEM_NOGPFAULTERRORBOX (0x8001 instead of 0x8003), and setting the mode
+/// again right before Process.Start does not close that window. Those two bits are always there, so they are what a
+/// child process is checked for; the full mode is checked right after it is set, before any test runs.
 /// </summary>
 internal static class NoErrorBoxes
 {
