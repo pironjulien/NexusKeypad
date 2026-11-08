@@ -559,8 +559,7 @@ namespace Loupedeck.TrinitePlugin
                 finally
                 {
 #if NEXUS || STREAMDECK
-                    // Sans cause : réussi ; cause d'un abandon sans échec explicite (copie, collage) : échec.
-                    Journal.Ecrire(cible, geste, cause is null ? "✓" : reussi == "✓" ? "✗" : reussi, chrono.Elapsed.TotalMilliseconds, cause);
+                    Journaliser(cible, geste, reussi, cause, chrono.Elapsed.TotalMilliseconds);
 #endif
                     issue.TrySetResult(ResultatGeste(reussi, cause));
                 }
@@ -572,6 +571,14 @@ namespace Loupedeck.TrinitePlugin
 
             return issue.Task;
         }
+
+#if NEXUS || STREAMDECK
+        // Ligne du journal commun pour un geste fini (Journal.cs), appelée par chaque appui ; testée telle quelle (les
+        // gestes eux-mêmes touchent de vraies fenêtres). Sans cause : réussi ; cause d'un abandon sans échec explicite
+        // (copie, collage) : échec.
+        internal static void Journaliser(Int32 cible, String geste, String reussi, String? cause, Double ms) =>
+            Journal.Ecrire(cible, geste, cause is null ? "✓" : reussi == "✓" ? "✗" : reussi, ms, cause);
+#endif
 
         // Réponse du pilote : un refus ou un résultat inconnu ne peut jamais être annoncé comme « fait ».
         public static String ResultatGeste(String issue, String? cause) => cause is null && issue == "✓" ? "fait"

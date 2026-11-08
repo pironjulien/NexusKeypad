@@ -7,6 +7,10 @@
     <!-- WinForms only for the opt-in real clipboard test (saves and restores the user's clipboard). -->
     <UseWindowsForms>true</UseWindowsForms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- The NexusKeypad edition's sources (common Nexus journal, Journal.cs), and the plugin's own version, which the
+         journal writes in `outil` when no installed package gives it (as in the Stream Deck edition). -->
+    <DefineConstants>$(DefineConstants);NEXUS</DefineConstants>
+    <Version>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\plugin\src\TrinitePadPlugin.csproj')), '&lt;Version&gt;([^&lt;]+)&lt;/Version&gt;').Groups[1].Value)</Version>
   </PropertyGroup>
 
   <ItemGroup>
