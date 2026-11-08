@@ -245,7 +245,7 @@ flowchart LR
   otherwise its own *Settings › Models* page is opened briefly at most every 15 minutes when idle conditions allow it.
   There is no call to its internal language server or reuse of its token.
 - **Drawing**: pixel art computed from the clock, so a late frame still shows the right instant. Only key images that
-  changed are sent to the Logi service (each one costs it more than drawing it): busy heads 8 frames per second, the
+  changed are sent to the Logi service (each one costs it more than drawing it): busy heads 12 frames per second, the
   rest 4 at most.
 
 </details>
@@ -344,7 +344,7 @@ with every key in place. Your own profiles are left as they are; switch between 
 
 <details><summary><b>Packages from a GitHub release</b></summary>
 
-Each [release](https://github.com/pironjulien/NexusKeypad/releases) carries the three packages (`.lplug4`), built by
+Each [release](https://github.com/pironjulien/NexusKeypad/releases) carries the four packages (`.lplug4`: the three Marketplace editions and the complete edition), built by
 GitHub Actions from `main` (first published as a development pre-release `vX.Y.Z-dev.N`, then promoted unchanged to the
 stable `vX.Y.Z`), with `SHA256SUMS.txt` and a build provenance attestation
 (`gh attestation verify <file> --repo pironjulien/NexusKeypad`). Logi Options+ does not install a package opened

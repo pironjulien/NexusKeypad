@@ -45,8 +45,8 @@ counts, the date and time, the processor and memory load, and does only what the
 - **PC health**: opens Windows Task Manager; a second press while it is in front closes it.
 - **Store and Windows Update**: one press updates your PC the way you would by hand. The Plugin opens the Microsoft
   Store "Downloads and updates" page and the Settings "Windows Update" page behind your other windows, clicks their own
-  **check for updates** and **update all / download and install all** buttons when they appear, then minimizes them; the
-  key animates until both are done and shows the result. It uses no administrator rights, changes no setting, and
+  **check for updates** and **update all / download and install all** buttons when they appear, then closes a page that
+  is up to date and leaves one that is installing on screen; the key animates until both are done and shows the result. It uses no administrator rights, changes no setting, and
   **never clicks restart**: Windows may still restart on its own schedule, according to your Windows Update settings.
   If Windows has suspended the Store app, the Plugin resumes it through the documented Windows interface used by
   debuggers (`IPackageDebugSettings::Resume`), without any persistent change. The buttons are recognized in English
