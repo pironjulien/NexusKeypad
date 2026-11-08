@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-11-08
+
+### Changed
+- The background state is acted by each head instead of a wheel above it: Clawd waits, tapping his foot, his eyes
+  following a cyan spark that runs back and forth on the ground; Codex takes his paws off the keyboard and watches a
+  progress bar fill by itself in his terminal; Antigravity lands, engines off, and follows with her eyes her satellite,
+  which keeps orbiting slowly.
+
 ## [1.9.0] - 2026-11-08
 
 ### Added
@@ -959,7 +967,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.1...HEAD
+[1.9.1]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.49...v1.9.0
 [1.8.49]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.48...v1.8.49
 [1.8.48]: https://github.com/pironjulien/NexusKeypad/compare/v1.8.47...v1.8.48

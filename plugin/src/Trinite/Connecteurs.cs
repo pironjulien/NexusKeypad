@@ -38,7 +38,7 @@ namespace Loupedeck.TrinitePlugin
     {
         public const String Nom = "nexus-keypad";
         // The product's version: the connector folder is also NexusSystem's catalog plugin, pinned at the release tag.
-        public const String Version = "1.9.0";
+        public const String Version = "1.9.1";
         private const String ProgrammeHook = "__NEXUS_KEYPAD_HOOK__";
         private static readonly String[] Agents = ["claude", "codex", "antigravity"];
         private static readonly Object Verrou = new();

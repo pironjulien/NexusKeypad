@@ -317,8 +317,7 @@ namespace Loupedeck.TrinitePlugin
         public static void Personnage(BitmapBuilder b, Int32 i, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Boolean dort = false, Double depuis = 99, Boolean signe = true)
         {
             var teinte = etat == Etat.Ferme ? Teinte.Eteinte : dort ? Teinte.Dort : etat == Etat.Limite ? Teinte.Lasse : Teinte.Vive;
-            // En fond : il ne réfléchit pas (pose du repos), la roue au-dessus de sa tête tourne pour lui.
-            var dessin = teinte is Teinte.Dort or Teinte.Eteinte || etat == Etat.EnFond ? Etat.Repos : etat;
+            var dessin = teinte is Teinte.Dort or Teinte.Eteinte ? Etat.Repos : etat;
             switch (i)
             {
                 case 0: DessinerClawd(b, x0, y0, p, dessin, t, teinte, depuis); break;
@@ -366,9 +365,6 @@ namespace Loupedeck.TrinitePlugin
                     break;
                 case Etat.Ferme:
                     Arret(b, cx, Math.Max(0, y - 3));
-                    break;
-                case Etat.EnFond: // un processus tourne pour lui : roue cyan, plus lente que celle, grise, du réveil
-                    Roue(b, cx, Math.Max(2 * p, y + p), p, t * 0.6, Cyan, 3);
                     break;
             }
         }
@@ -452,7 +448,8 @@ namespace Loupedeck.TrinitePlugin
         // Clawd : il respire au repos ; au travail, ses yeux moulinent et il trotte ;
         // en question, il lève un bras ; en autorisation, il tend les deux bras ouverts ; fini, lunettes noires (petit bond
         // à l'arrivée, un reflet passe sur les verres) ; erreur, yeux en croix et une secousse à l'arrivée ; limite,
-        // affaissé, paupières lourdes.
+        // affaissé, paupières lourdes ; en fond, il attend en tapant du pied et suit des yeux l'étincelle cyan qui fait
+        // le travail au sol devant lui.
         private static void DessinerClawd(BitmapBuilder b, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Teinte teinte, Double depuis)
         {
             var corps = Ton(Orange, teinte);
@@ -464,7 +461,7 @@ namespace Loupedeck.TrinitePlugin
                 Etat.Travaille => (Int32)Math.Round(Math.Sin(t * 10)) * p / 2,
                 Etat.Limite => p / 2,
                 Etat.Fini when depuis < 4 => -(Int32)(Math.Max(0, Math.Sin(t * 6)) * p),
-                Etat.Repos => (Int32)Math.Round(Math.Sin(t * 1.6)) * p / 3, // respiration, comme les deux autres
+                Etat.Repos or Etat.EnFond => (Int32)Math.Round(Math.Sin(t * 1.6)) * p / 3, // respiration, comme les deux autres
                 _ => 0,
             });
             Pixels(b, ClawdCorps, x0, y, p, (ch, _, _) => ch == 'o' ? corps : encre);
@@ -523,6 +520,16 @@ namespace Loupedeck.TrinitePlugin
                     }
                 }
             }
+            else if (etat == Etat.EnFond && t % 4 >= 0.25)
+            {
+                // Le regard suit l'étincelle : les yeux glissent d'une case vers elle.
+                var regard = Etincelle(t) switch { < 0.3 => -1, > 0.7 => 1, _ => 0 };
+                foreach (var ex in new[] { 4, 10 })
+                {
+                    b.FillRectangle(x0 + ex * p, y + 2 * p, 2 * p, 2 * p, corps);
+                    b.FillRectangle(x0 + (ex + regard) * p, y + 2 * p, 2 * p, 2 * p, encre);
+                }
+            }
             else if (t % 4 < 0.25)
             {
                 b.FillRectangle(x0 + 4 * p, y + 2 * p, 2 * p, p + p / 2, corps); // clignement
@@ -531,9 +538,22 @@ namespace Loupedeck.TrinitePlugin
 
             var pas = vive && etat == Etat.Travaille && Math.Floor(t * 4) % 2 == 1 ? 1 : 0; // il trotte
             var sol = vive && etat == Etat.Fini ? y : y0; // un bond emporte les jambes (relecture de Codex, 25/10)
+            var tape = vive && etat == Etat.EnFond && Math.Floor(t * 3) % 2 == 0 ? p : 0; // il tape du pied droit, patient
             foreach (var lx in new[] { 3 + pas, 5 + pas, 10 - pas, 12 - pas })
             {
-                b.FillRectangle(x0 + lx * p, sol + 8 * p, p, 2 * p, corps);
+                b.FillRectangle(x0 + lx * p, sol + 8 * p - (lx == 12 ? tape : 0), p, 2 * p, corps);
+            }
+
+            if (vive && etat == Etat.EnFond)
+            {
+                // L'étincelle cyan court au sol d'un bord à l'autre, suivie de sa traîne : le processus qui travaille.
+                var e = Math.Max(3, p * 4 / 5);
+                var k = Etincelle(t);
+                for (var r = 0; r < 3; r++)
+                {
+                    var kk = Math.Clamp(k - r * 0.06 * Math.Sign(Math.Sin(t * 1.4)), 0, 1); // la traîne suit le mouvement
+                    b.FillRectangle(x0 - p + (Int32)(kk * 17 * p), y0 + 10 * p + p / 2, e, e, new BitmapColor(Cyan, 255 - r * 80));
+                }
             }
 
             if (vive && etat == Etat.Attend)
@@ -542,6 +562,9 @@ namespace Loupedeck.TrinitePlugin
                 b.FillRectangle(x0, y + 2 * p - h, p, 2 * p + h, corps); // un bras levé
             }
         }
+
+        // Position (0 à 1, de gauche à droite) de l'étincelle de Clawd en fond : un aller-retour en 4,5 s.
+        private static Double Etincelle(Double t) => 0.5 - 0.5 * Math.Cos(t * 1.4);
 
         // Croix dans un carré de côté c (yeux sonnés).
         private static void Croix(BitmapBuilder b, Int32 x, Int32 y, Int32 c, BitmapColor couleur)
@@ -587,6 +610,7 @@ namespace Loupedeck.TrinitePlugin
                 {
                     Etat.Travaille => (Math.Sin(t * 3) > 0 ? 1 : 0, 1), // vers la feuille, le terminal, le code
                     Etat.Attend or Etat.Autorisation => (Math.Floor(t * 1.5) % 2 == 0 ? 0 : 1, 0),
+                    Etat.EnFond => (Math.Cos(t * 1.8) > 0 ? 1 : 0, 1), // il suit des yeux ce qui travaille pour lui
                     Etat.Limite => (0, 1),
                     _ => ((Int32)(t / 2.5) % 3 == 0 ? 0 : 1, 1),
                 };
@@ -622,7 +646,8 @@ namespace Loupedeck.TrinitePlugin
         // Codex : son logo-nuage prend des yeux. Au repos, il respire et flâne du regard ; au travail, il sautille et tape
         // une ligne de code bien visible après son « > » (le curseur avance), des bits montent. En question, il penche la
         // tête et son terminal affiche un « ? » ; en autorisation, son terminal attend, curseur plein bloqué. Fini : coche
-        // dans le terminal, petits bonds à l'arrivée. Erreur : yeux en croix, une secousse à l'arrivée.
+        // dans le terminal, petits bonds à l'arrivée. Erreur : yeux en croix, une secousse à l'arrivée. En fond : il lâche
+        // le clavier et regarde une barre de progression se remplir seule dans son terminal.
         private static void DessinerCodex(BitmapBuilder b, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Teinte teinte, Double depuis)
         {
             var haut = new BitmapColor(177, 167, 255);
@@ -658,6 +683,10 @@ namespace Loupedeck.TrinitePlugin
             {
                 Terminal(b, x + 4 * p, y + 9 * p, p, t);
             }
+            else if (vive && etat == Etat.EnFond)
+            {
+                Terminal(b, x + 4 * p, y + 9 * p, p, t, enFond: true);
+            }
             else if (vive && etat == Etat.Attend)
             {
                 Carte(b, Question, x + 8 * p, y + 6 * p + p / 2, Math.Max(2, p * 3 / 5), trait); // le terminal demande
@@ -678,7 +707,9 @@ namespace Loupedeck.TrinitePlugin
 
         // Codex au travail : un petit terminal posé devant lui (plaque sombre, contour cyan), un gros « > » et une ligne
         // qui s'écrit, curseur qui avance ; deux pattes tapent à tour de rôle sur son bord.
-        private static void Terminal(BitmapBuilder b, Int32 x, Int32 y, Int32 p, Double t)
+        // En fond : ses pattes reposent sur le bord et une barre de progression se remplit seule, puis repart (une case
+        // toutes les 0,4 s), la dernière case clignote.
+        private static void Terminal(BitmapBuilder b, Int32 x, Int32 y, Int32 p, Double t, Boolean enFond = false)
         {
             var (l, h) = (8 * p, 4 * p);
             var cyan = new BitmapColor(125, 211, 252);
@@ -687,6 +718,21 @@ namespace Loupedeck.TrinitePlugin
             foreach (var (cx, cy) in new[] { (1, 1), (2, 2), (1, 3) })
             {
                 b.FillRectangle(x + cx * p / 2 + p / 2, y + cy * p * 3 / 4, Math.Max(2, p * 3 / 5), Math.Max(2, p * 3 / 5), cyan); // « > »
+            }
+
+            var patte = new BitmapColor(200, 200, 255);
+            if (enFond)
+            {
+                var plein = (Int32)(t * 2.5) % 6; // 0 à 5 cases
+                for (var k = 0; k < 5; k++)
+                {
+                    var allume = k < plein || (k == plein && Math.Floor(t * 5) % 2 == 0);
+                    b.FillRectangle(x + 3 * p + k * p, y + h / 2 - p / 2, p - 2, p, allume ? cyan : new BitmapColor(cyan, 45));
+                }
+
+                b.FillRectangle(x + p, y - p / 2, 2 * p, p / 2 + 1, patte); // pattes posées, immobiles
+                b.FillRectangle(x + l - 3 * p, y - p / 2, 2 * p, p / 2 + 1, patte);
+                return;
             }
 
             var n = 1 + (Int32)(t * 5) % 4;
@@ -702,7 +748,6 @@ namespace Loupedeck.TrinitePlugin
 
             // Les pattes : deux ronds clairs sur le bord haut, qui tapent l'un après l'autre.
             var tape = Math.Floor(t * 8) % 2 == 0;
-            var patte = new BitmapColor(200, 200, 255);
             b.FillRectangle(x + p, y - p + (tape ? p / 2 : 0), 2 * p, p, patte);
             b.FillRectangle(x + l - 3 * p, y - p + (tape ? 0 : p / 2), 2 * p, p, patte);
         }
@@ -727,17 +772,19 @@ namespace Loupedeck.TrinitePlugin
         // Antigravity : son logo-arche prend des yeux et flotte sur deux réacteurs. Au repos, elle plane doucement ; au
         // travail, ses réacteurs crachent bleu, elle vole plus vite et un satellite gravite autour d'elle. En question,
         // elle se balance en regardant l'utilisateur ; en autorisation, elle reste en vol stationnaire. Fini : elle se
-        // pose, réacteurs coupés. Erreur et limite : posée.
+        // pose, réacteurs coupés. Erreur et limite : posée. En fond : posée, réacteurs coupés, elle suit des yeux son
+        // satellite qui continue de graviter, plus lentement, et travaille pour elle.
         private static void DessinerArche(BitmapBuilder b, Int32 x0, Int32 y0, Int32 p, Etat etat, Double t, Teinte teinte, Double depuis)
         {
             var vive = teinte is Teinte.Vive or Teinte.Lasse;
-            var posee = etat is Etat.Fini or Etat.Limite or Etat.Erreur;
+            var posee = etat is Etat.Fini or Etat.Limite or Etat.Erreur or Etat.EnFond;
             var vol = !vive || posee || etat == Etat.Autorisation ? 0
                 : (Int32)Math.Round(Math.Sin(t * (etat == Etat.Travaille ? 6 : 2)) * (etat == Etat.Travaille ? 1.5 : 1));
             var secousse = vive && etat == Etat.Erreur && depuis < 1 ? (Int32)(Math.Sin(t * 60) * p / 2) : 0;
             var x = x0 + secousse + (vive && etat == Etat.Attend ? (Int32)Math.Round(Math.Sin(t * 3) * p / 2) : 0);
             var y = y0 + vol * p / 2 + (posee ? p : 0);
-            var orbite = vive && etat == Etat.Travaille ? t * 3.2 : Double.NaN;
+            // En fond, l'orbite tourne au rythme du regard (Yeux : cos(t × 1,8)) : elle le suit vraiment.
+            var orbite = !vive ? Double.NaN : etat switch { Etat.Travaille => t * 3.2, Etat.EnFond => t * 1.8, _ => Double.NaN };
             var satellite = new BitmapColor(125, 211, 252);
             var taille = Math.Max(4, p * 6 / 5);
             Int32 Sx() => x + 8 * p + (Int32)(Math.Cos(orbite) * 9 * p);

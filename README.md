@@ -123,7 +123,9 @@ one or the other. The [Marketplace editions](#other-editions) are the same code,
 - **Characters.** Each head is animated after the state of its most urgent conversation. Idle: it breathes, blinks and
   looks around. Working: Clawd (Claude's mascot) trots, Codex types code, Antigravity flies. In the background (the AI
   is not thinking: a command has been running for more than 15 seconds, or it ended its turn while background tasks or
-  sub-agents keep working for it, and it will resume on its own): it rests while a cyan wheel turns above its head. A question for you: Clawd
+  sub-agents keep working for it, and it will resume on its own): Clawd taps his foot and follows a cyan spark with his
+  eyes, Codex watches a progress bar fill in his terminal, Antigravity lands and follows her orbiting satellite. A
+  question for you: Clawd
   waves, Codex tilts its head while its terminal types "?", Antigravity sways under radar waves; a permission request
   adds a padlock. Done: Clawd's sunglasses, Codex's check mark and confetti, Antigravity's landing and fireworks.
   Error: crossed eyes and a red bolt. Usage limit reached: faded, heavy eyelids, empty battery. Dictation in its app:
