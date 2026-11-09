@@ -29,6 +29,22 @@ public sealed class ConnecteursTests
     }
 
     [Fact]
+    public void Une_seule_version_partout_comme_la_CI()
+    {
+        // Same check as the Release workflow's "One version everywhere" step, run locally before a push (09/11/2026:
+        // 1.9.6 was pushed with the four Loupedeck packages still at 1.9.5, and only the CI build caught it).
+        var csproj = File.ReadAllText(Path.Combine(Depot, "plugin", "src", "TrinitePadPlugin.csproj"));
+        var version = System.Text.RegularExpressions.Regex.Match(csproj, "<Version>([^<]+)</Version>").Groups[1].Value;
+        Assert.Equal(Connecteurs.Version, version);
+        foreach (var paquet in new[] { "package", "package-poste", "package-complete", "package-nexus" })
+        {
+            var yaml = File.ReadAllText(Path.Combine(Depot, "plugin", "src", paquet, "metadata", "LoupedeckPackage.yaml"));
+            Assert.Equal(version, System.Text.RegularExpressions.Regex.Match(yaml, @"(?m)^version:\s*(\S+)").Groups[1].Value);
+        }
+        Assert.Contains($"## [{version}]", File.ReadAllText(Path.Combine(Depot, "CHANGELOG.md")), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Paquet_Marketplace_Antigravity_conforme_au_connecteur()
     {
         // marketplace/antigravity is what the Antigravity Marketplace installs, outside the Logi package: the same
