@@ -15,6 +15,7 @@ public sealed class LogiLifecycleTests
     [InlineData("stop-control-timeout")]
     [InlineData("stop-unconfirmed")]
     [InlineData("agent-restart")]
+    [InlineData("agent-restart-ignores-stop")]
     [InlineData("agent-restart-forever")]
     [InlineData("start-refused")]
     [InlineData("start-unconfirmed")]

@@ -69,7 +69,9 @@ function Start-Process([string]$FilePath, [string]$ArgumentList, [string]$Window
     Assert ($ArgumentList -ceq 'stop' -and $WindowStyle -ceq 'Hidden' -and $PassThru) 'Stop must be cooperative and hidden.'
     $script:events.Add('stop')
     # The Logi Options+ agent restarts a stopped service with new processes: once, or every time.
-    if ($Case -eq 'agent-restart-forever' -or ($Case -eq 'agent-restart' -and $script:restarts -eq 0)) { $script:restarts++ }
+    # A service restarted by the agent may ignore a stop sent while it is still starting (09/11/2026).
+    if ($Case -eq 'agent-restart-forever' -or ($Case -in 'agent-restart', 'agent-restart-ignores-stop' -and $script:restarts -eq 0)) { $script:restarts++ }
+    elseif ($Case -eq 'agent-restart-ignores-stop' -and $script:events.Count -eq 2) { }
     elseif ($Case -notin 'stop-failed', 'stop-unconfirmed') { $script:running = $false }
     $process = [pscustomobject]@{ ExitCode = $(if ($Case -in 'stop-failed', 'stop-failed-after-stop') { 1 } else { 0 }); Completed = ($Case -ne 'stop-control-timeout') }
     $process | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value { param($Milliseconds) return $Milliseconds -eq 30000 -and $this.Completed }
@@ -93,7 +95,7 @@ function Set-Connectors([string]$Hook) { return 'isolated fixture' }
 # remain unchanged; no fixture can wait for or control a real process because every provider is isolated here.
 $stop = ${function:Stop-Logi}
 $start = ${function:Start-Logi}
-function Stop-Logi { & $stop -TimeoutSeconds 0 }
+function Stop-Logi { & $stop -TimeoutSeconds 0 -QuietSeconds 0 }
 function Start-Logi { & $start -TimeoutSeconds 0 }
 $Plugin = 'NexusKeypad'
 $Sandbox = $false
@@ -116,10 +118,10 @@ $work = Join-Path ([IO.Path]::GetTempPath()) "nexuskeypad-$PID"
 Assert ($work.StartsWith([IO.Path]::GetFullPath($Root) + '\', [StringComparison]::OrdinalIgnoreCase)) 'The installer work folder must remain inside this fixture.'
 $failure = $null
 try { $null = Install-NexusKeypad } catch { $failure = $_.Exception.Message }
-if ($Case -in 'success', 'agent-restart') {
+if ($Case -in 'success', 'agent-restart', 'agent-restart-ignores-stop') {
     Assert (-not $failure) "Isolated successful installation failed: $failure"
     Assert (Test-Path -LiteralPath (Join-Path $Target 'bin\NexusKeypadPlugin.dll')) 'Successful copy is absent.'
-    $expected = if ($Case -eq 'agent-restart') { 'stop,stop,copy,start' } else { 'stop,copy,start' }
+    $expected = switch ($Case) { 'agent-restart' { 'stop,stop,copy,start' } 'agent-restart-ignores-stop' { 'stop,stop,stop,copy,start' } default { 'stop,copy,start' } }
     Assert (($script:events -join ',') -ceq $expected) "Cooperative stops ($expected) must precede copy and one detached start."
 } else {
     $pattern = switch ($Case) {

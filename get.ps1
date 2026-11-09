@@ -192,14 +192,16 @@ function Wait-LogiPluginService($Runtime, [bool]$Stopped, [int]$TimeoutSeconds =
     } while ($true)
 }
 
-function Stop-Logi([int]$TimeoutSeconds = 30) {
+function Stop-Logi([int]$TimeoutSeconds = 15, [int]$QuietSeconds = 5, [int]$Attempts = 6) {
     if ($Sandbox) { return }
     $runtime = Get-LogiPluginRuntime
     $before = @(Get-LogiPluginProcesses $runtime)
     if ($before.Count -eq 0) { return }
     # The official control bus stops only the plugin service cooperatively. Never stop the keyboard/mouse agent.
-    # The Logi Options+ agent restarts a just-stopped plugin service once, about a second later: a service that comes
-    # back with new processes is stopped again (three stops at most).
+    # The Logi Options+ agent restarts a just-stopped plugin service about a second later, sometimes twice (the
+    # restarted service can exit by itself some 15 s later and come back again). A restarted service that is still
+    # starting may also ignore a stop: its processes outlive the wait, and the stop is sent again (09/11/2026: two
+    # maintenance runs refused 1.9.4 with "did not stop in 30 seconds"). Stopped means no process during $QuietSeconds.
     $seen = @($before.ProcessId)
     $completed = $false
     $control = $null
@@ -211,18 +213,36 @@ function Stop-Logi([int]$TimeoutSeconds = 30) {
             $completed = $control.WaitForExit(30000)
             if (-not $completed) { throw 'The official Logi stop command is still running; its outcome is unknown. Installation refused.' }
             if ($control.ExitCode -ne 0) { throw 'The official Logi plugin service stop command failed. Installation refused.' }
-            # The stopped processes exit (a restarted service may already run beside them), then the agent gets time
-            # to restart it.
+            # The stopped processes exit (a restarted service may already run beside them).
             $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+            $ignored = $false
             while (@(Get-LogiPluginProcesses $runtime | Where-Object { $_.ProcessId -in $seen }).Count -gt 0) {
-                if ([DateTime]::UtcNow -ge $deadline) { throw "Logi plugin service did not stop in $TimeoutSeconds seconds. Installation refused." }
+                if ([DateTime]::UtcNow -ge $deadline) { $ignored = $true; break }
                 Start-Sleep -Milliseconds 100
             }
-            Start-Sleep -Seconds 3
-            $back = @(Get-LogiPluginProcesses $runtime)
+            if ($ignored) {
+                if ($attempt -ge $Attempts) { throw "Logi plugin service did not stop after $attempt stop commands. Installation refused." }
+                $seen += @(Get-LogiPluginProcesses $runtime | ForEach-Object ProcessId)
+                continue
+            }
+            # Then the agent gets time to restart it.
+            $back = @()
+            $quiet = [DateTime]::UtcNow.AddSeconds($QuietSeconds)
+            do {
+                $back = @(Get-LogiPluginProcesses $runtime)
+                if ($back.Count -gt 0) { break }
+                Start-Sleep -Milliseconds 250
+            } while ([DateTime]::UtcNow -lt $quiet)
             if ($back.Count -eq 0) { break }
-            if ($attempt -ge 3) { throw 'Logi Options+ keeps restarting the plugin service. Installation refused.' }
+            if ($attempt -ge $Attempts) { throw 'Logi Options+ keeps restarting the plugin service. Installation refused.' }
             $seen += @($back.ProcessId)
+            # Let the restarted service finish starting (its extension process appears last) before stopping it.
+            $ready = [DateTime]::UtcNow.AddSeconds($QuietSeconds)
+            while (@($back | Where-Object Name -eq 'LogiPluginServiceExt.exe').Count -eq 0 -and [DateTime]::UtcNow -lt $ready) {
+                Start-Sleep -Milliseconds 250
+                $back = @(Get-LogiPluginProcesses $runtime)
+                $seen += @($back.ProcessId)
+            }
         }
         $script:LogiStoppedProcessIds = $seen
     } catch {

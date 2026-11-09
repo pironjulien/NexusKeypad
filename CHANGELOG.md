@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.5] - 2026-11-09
+
+### Fixed
+- Updates no longer fail with "Logi plugin service did not stop in 30 seconds": when Logi Options+ restarts its
+  plugin service right after a stop, sometimes twice, or a just-restarted service ignores the stop, the installer
+  waits for it to finish starting and sends the stop again, then checks that nothing comes back for 5 seconds.
+
 ## [1.9.4] - 2026-11-09
 
 ### Fixed
@@ -988,7 +995,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.4...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.5...HEAD
+[1.9.5]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.4...v1.9.5
 [1.9.4]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.3...v1.9.4
 [1.9.3]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.2...v1.9.3
 [1.9.2]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.1...v1.9.2
