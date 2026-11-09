@@ -442,12 +442,16 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Ordre d'une touche : ce qui appelle l'utilisateur (question, puis fin), puis ce qui travaille pour lui, puis le reste.
+        // Une conversation qui travaille passe avant une autre « en fond » : la touche ne montre « en fond » que si plus
+        // aucune ne réfléchit (09/11).
         internal static Int32 Rang(Conversation c) => c switch
         {
-            { Alerte: true, Etat: Etat.Attend or Etat.Autorisation or Etat.Erreur } => 5,
-            { Alerte: true } => 4,
-            { Etat: Etat.Travaille or Etat.EnFond, Relais: false } => 3,
-            { Etat: Etat.Travaille or Etat.EnFond } => 2,
+            { Alerte: true, Etat: Etat.Attend or Etat.Autorisation or Etat.Erreur } => 7,
+            { Alerte: true } => 6,
+            { Etat: Etat.Travaille, Relais: false } => 5,
+            { Etat: Etat.EnFond, Relais: false } => 4,
+            { Etat: Etat.Travaille } => 3,
+            { Etat: Etat.EnFond } => 2,
             { Relais: false } => 1,
             _ => 0,
         };

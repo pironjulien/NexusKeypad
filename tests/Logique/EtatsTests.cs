@@ -91,7 +91,9 @@ public sealed class EtatsTests
         // Claude's Stop with background tasks or agents: it resumes by itself at their end.
         Vrai(Observateur.Traduire("bg", Maintenant.AddMinutes(-10), Maintenant.AddMinutes(-9)) == Etat.EnFond, "Stop avec tâches en fond → en fond, même après le bord de fin de tour");
         Vrai(Observateur.Traduire("bg", Maintenant.AddHours(-3)) == Etat.Repos, "en fond depuis 3 h → repos");
-        Vrai(Observateur.Rang(C(0, Etat.EnFond)) == Observateur.Rang(C(0, Etat.Travaille)), "en fond : même rang que le travail");
+        Vrai(Observateur.Rang(C(0, Etat.Travaille)) > Observateur.Rang(C(0, Etat.EnFond)), "une conversation qui travaille passe avant une autre en fond");
+        Vrai(Observateur.Rang(C(0, Etat.EnFond)) > Observateur.Rang(C(0, Etat.Travaille, relais: true)), "en fond pour l'utilisateur avant le travail du relais");
+        Vrai(Observateur.Rang(C(0, Etat.Fini)) > Observateur.Rang(C(0, Etat.Travaille)), "une fin à voir reste avant le travail");
     }
 
     [Fact]
