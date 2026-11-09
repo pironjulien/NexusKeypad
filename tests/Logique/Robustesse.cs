@@ -87,12 +87,12 @@ public static class Robustesse
             }));
 
         Essayer(vrai, "conversation Claude active : jamais d'exception sur entrées arbitraires", () =>
-            Prop.ForAll<Tuple<String, String, String, String>, DateTime, Int32>((textes, date, etatInt) =>
+            Prop.ForAll<Tuple<String, String>, DateTime, Int32>((textes, date, etatInt) =>
             {
-                var (titre, cwd, affiche, cwdActif) = textes;
+                var (titre, affiche) = textes;
                 var etat = (Etat)(Math.Abs(etatInt) % 6);
                 var conv = new Conversation(0, "id", titre ?? "", etat, date, date, true);
-                Observateur.ConversationClaudeActive(conv, cwd, affiche, cwdActif, maintenant);
+                Observateur.ConversationClaudeActive(conv, affiche, maintenant);
             }));
     }
 

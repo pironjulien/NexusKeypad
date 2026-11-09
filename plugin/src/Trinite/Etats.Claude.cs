@@ -58,7 +58,7 @@ namespace Loupedeck.TrinitePlugin
             // (claude-code-sessions\<compte>\<org>\local_*.json ; « <compte>\<org> » quand le compte est inconnu).
             var orgParCli = new Dictionary<String, String>(StringComparer.Ordinal);
             String? orgAffichee = null;
-            var brutes = new List<(Conversation Conv, String? Cwd)>();
+            var brutes = new List<Conversation>();
             foreach (var fichier in Directory.EnumerateFiles(racine, "local_*.json", SearchOption.AllDirectories))
             {
                 var ecrit = File.GetLastWriteTimeUtc(fichier);
@@ -105,19 +105,15 @@ namespace Loupedeck.TrinitePlugin
                 var source = relais ? SourcePourSujet(titre.StartsWith("Relais · ", StringComparison.Ordinal) ? titre["Relais · ".Length..] : "NexusRelay", 1) : -1;
                 // Regardée : sa question, sa fin ou son erreur retourne au repos (le « ? » s'efface dès l'arrivée, 29/10).
                 var conv = new Conversation(0, id, titre, etat is Etat.Fini or Etat.Erreur or Etat.Attend && vu ? Etat.Repos : etat, depuis, activite, vu, relais, source);
-                brutes.Add((conv, cwd));
+                brutes.Add(conv);
             }
 
             this._orgParCliClaude = orgParCli;
             this._orgQuotaClaude = OrganisationQuotaClaude(orgParCli, orgAffichee);
 
-            var cwdActif = this._sessionClaudeAffiche is not null
-                ? brutes.FirstOrDefault(b => b.Conv.Id == this._sessionClaudeAffiche).Cwd
-                : null;
-
-            foreach (var (conv, cwd) in brutes)
+            foreach (var conv in brutes)
             {
-                if (ConversationClaudeActive(conv, cwd, this._sessionClaudeAffiche, cwdActif, maintenantUtc))
+                if (ConversationClaudeActive(conv, this._sessionClaudeAffiche, maintenantUtc))
                 {
                     yield return conv;
                 }
@@ -188,7 +184,10 @@ namespace Loupedeck.TrinitePlugin
 
         private static readonly TimeSpan FenetreReposClaude = TimeSpan.FromHours(6);
 
-        public static Boolean ConversationClaudeActive(Conversation c, String? cwd, String? sessionAffichee, String? cwdActif, DateTime maintenantUtc, TimeSpan? fenetreRepos = null)
+        // Toutes les conversations non archivées des 6 dernières heures, quel que soit leur dossier (09/11/2026, demande de
+        // Julien : réservées au dossier de celle affichée, une conversation lancée depuis une autre, dans un autre dossier,
+        // n'était plus joignable par le pad).
+        public static Boolean ConversationClaudeActive(Conversation c, String? sessionAffichee, DateTime maintenantUtc, TimeSpan? fenetreRepos = null)
         {
             if (c.Etat is not Etat.Repos)
             {
@@ -206,15 +205,8 @@ namespace Loupedeck.TrinitePlugin
                 return false;
             }
 
-            if (cwdActif is not null && cwd is not null && !String.Equals(NormaliserDossier(cwd), NormaliserDossier(cwdActif), StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
             return true;
         }
-
-        private static String? NormaliserDossier(String d) => String.IsNullOrWhiteSpace(d) ? null : d.Replace('/', '\\').TrimEnd('\\');
 
         // Sessions récentes du compte Claude connecté (cliSessionId → organisation), relevées par Claude().
         private IReadOnlyDictionary<String, String> _orgParCliClaude = new Dictionary<String, String>();

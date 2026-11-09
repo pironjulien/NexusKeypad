@@ -217,25 +217,25 @@ public sealed class EtatsTests
     {
         var maintClaude = DateTime.UtcNow;
         var cTravaille = new Conversation(0, "c1", "Tâche en cours", Etat.Travaille, maintClaude.AddHours(-10), maintClaude.AddHours(-10), false);
-        Vrai(Observateur.ConversationClaudeActive(cTravaille, @"C:\ProjetA", "Autre", @"C:\ProjetB", maintClaude), "Claude : tâche en cours toujours active");
+        Vrai(Observateur.ConversationClaudeActive(cTravaille, "Autre", maintClaude), "Claude : tâche en cours toujours active");
         var cAffichee = new Conversation(0, "c2", "Tâche affichée", Etat.Repos, maintClaude.AddHours(-10), maintClaude.AddHours(-10), true);
-        Vrai(Observateur.ConversationClaudeActive(cAffichee, @"C:\ProjetA", cAffichee.Id, @"C:\ProjetA", maintClaude), "Claude : session exacte affichée à l'écran toujours active");
+        Vrai(Observateur.ConversationClaudeActive(cAffichee, cAffichee.Id, maintClaude), "Claude : session exacte affichée à l'écran toujours active");
         var cVieille = new Conversation(0, "c3", "Vieille tâche", Etat.Repos, maintClaude.AddHours(-8), maintClaude.AddHours(-8), true);
-        Vrai(!Observateur.ConversationClaudeActive(cVieille, @"C:\ProjetA", "Autre", @"C:\ProjetA", maintClaude), "Claude : tâche au repos > 6 h ignorée");
+        Vrai(!Observateur.ConversationClaudeActive(cVieille, "Autre", maintClaude), "Claude : tâche au repos > 6 h ignorée");
         var cAutreProjet = new Conversation(0, "c4", "Tâche autre projet", Etat.Repos, maintClaude.AddMinutes(-30), maintClaude.AddMinutes(-30), true);
-        Vrai(!Observateur.ConversationClaudeActive(cAutreProjet, @"C:\ProjetB", cAffichee.Id, @"C:\ProjetA", maintClaude), "Claude : tâche au repos d'un autre projet ignorée");
+        Vrai(Observateur.ConversationClaudeActive(cAutreProjet, cAffichee.Id, maintClaude), "Claude : tâche au repos d'un autre dossier < 6 h retenue (09/11)");
         var cMemeProjet = new Conversation(0, "c5", "Tâche même projet récente", Etat.Repos, maintClaude.AddMinutes(-30), maintClaude.AddMinutes(-30), true);
-        Vrai(Observateur.ConversationClaudeActive(cMemeProjet, @"C:\ProjetA", cAffichee.Id, @"C:\ProjetA", maintClaude), "Claude : tâche au repos du même projet < 6 h retenue");
+        Vrai(Observateur.ConversationClaudeActive(cMemeProjet, cAffichee.Id, maintClaude), "Claude : tâche au repos du même projet < 6 h retenue");
         var cMemeTitre = cAffichee with { Id = "c6" };
-        Vrai(!Observateur.ConversationClaudeActive(cMemeTitre, @"C:\ProjetA", cAffichee.Id, @"C:\ProjetA", maintClaude),
+        Vrai(!Observateur.ConversationClaudeActive(cMemeTitre, cAffichee.Id, maintClaude),
             "Claude : deux vieux chats de même titre, seul l'ID réellement affiché est retenu.");
-        Vrai(!Observateur.ConversationClaudeActive(cAffichee, @"C:\ProjetA", null, @"C:\ProjetA", maintClaude),
+        Vrai(!Observateur.ConversationClaudeActive(cAffichee, null, maintClaude),
             "Claude : titre connu sans ID affiché ne conserve pas une vieille session.");
-        Vrai(!Observateur.ConversationClaudeActive(cMemeTitre with { Activite = maintClaude.AddMinutes(-1) }, @"C:\ProjetB", cAffichee.Id, @"C:\ProjetA", maintClaude),
-            "Claude : homonyme récent d'un autre projet reste filtré.");
+        Vrai(Observateur.ConversationClaudeActive(cMemeTitre with { Activite = maintClaude.AddMinutes(-1) }, cAffichee.Id, maintClaude),
+            "Claude : homonyme récent d'un autre dossier retenu (seul l'âge compte).");
         foreach (var etatUrgent in new[] { Etat.Travaille, Etat.Attend, Etat.Autorisation, Etat.Fini, Etat.Erreur, Etat.Limite })
         {
-            Vrai(Observateur.ConversationClaudeActive(cMemeTitre with { Etat = etatUrgent }, @"C:\ProjetB", cAffichee.Id, @"C:\ProjetA", maintClaude),
+            Vrai(Observateur.ConversationClaudeActive(cMemeTitre with { Etat = etatUrgent }, cAffichee.Id, maintClaude),
                 "Claude : état actif préservé indépendamment du titre, de l'âge et du projet : " + etatUrgent);
         }
     }

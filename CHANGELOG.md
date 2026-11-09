@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.6] - 2026-11-09
+
+### Changed
+- The Claude key reaches every recent conversation again, whatever its folder: an idle conversation of another project
+  was left out (only working, waiting or finished ones were shown), so a conversation started from another one, in
+  another folder, could not be reached from the pad. Archived conversations stay out; idle ones still leave after 6 hours.
+
 ## [1.9.5] - 2026-11-09
 
 ### Fixed
@@ -995,7 +1002,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.5...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.6...HEAD
+[1.9.6]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.5...v1.9.6
 [1.9.5]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.4...v1.9.5
 [1.9.4]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.3...v1.9.4
 [1.9.3]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.2...v1.9.3
