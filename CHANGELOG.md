@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.7] - 2026-11-11
+
+### Fixed
+- The Antigravity key no longer shows "relaunch" while Antigravity is closed: background Node helpers started with
+  Antigravity's executable (such as an AI relay sidecar) were counted as the open app by the connection check, while
+  the head already ignored them. Both now share one rule.
+- The connector program builds again with the .NET 10.0.15 runtime: its pinned native compiler moves to 10.0.15.
+
 ## [1.9.6] - 2026-11-09
 
 ### Changed

@@ -92,7 +92,7 @@ namespace Loupedeck.TrinitePlugin
             {
                 try
                 {
-                    if (!Auxiliaire(p.Id) && (agent != 0 || AppliClaude(CheminExecutable(p.Id), File.Exists)) && (aine is null || p.StartTime < aine.StartTime))
+                    if (!LigneDeCommande.Auxiliaire(p.Id) &&(agent != 0 || AppliClaude(CheminExecutable(p.Id), File.Exists)) && (aine is null || p.StartTime < aine.StartTime))
                     {
                         (aine, var lache) = (p, aine);
                         lache?.Dispose();
@@ -109,15 +109,6 @@ namespace Loupedeck.TrinitePlugin
 
             this._lancees[agent] = aine;
             return aine is not null;
-        }
-
-        // Processus qui n'est pas l'appli elle-même : un onglet ou un utilitaire d'Electron (« --type= »), ou un
-        // auxiliaire lancé avec l'exécutable de l'appli en mode Node (« --import= » : compose-preview et device-hub
-        // d'Antigravity, qui survivent à la fermeture de sa fenêtre ; tête éveillée appli fermée, vu le 27/10).
-        private static Boolean Auxiliaire(Int32 pid)
-        {
-            var ligne = LigneDeCommande(pid);
-            return ligne.Contains(" --type=", StringComparison.Ordinal) || ligne.Contains(" --import=", StringComparison.Ordinal);
         }
 
         // « claude.exe » est aussi le nom du moteur Claude Code (claude-code\<version>\claude.exe, ~\.local\bin\claude.exe),
@@ -152,50 +143,6 @@ namespace Loupedeck.TrinitePlugin
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "QueryFullProcessImageNameW")]
         private static extern Boolean QueryFullProcessImageName(IntPtr processus, UInt32 format, [Out] Char[] chemin, ref UInt32 taille);
-
-        // Ligne de commande d'un processus, lue par Windows (sans WMI) ; "" si illisible.
-        private static String LigneDeCommande(Int32 pid)
-        {
-            var processus = OpenProcess(0x1000, false, (UInt32)pid); // PROCESS_QUERY_LIMITED_INFORMATION
-            if (processus == IntPtr.Zero)
-            {
-                return "";
-            }
-
-            try
-            {
-                _ = NtQueryInformationProcess(processus, ProcessCommandLineInformation, IntPtr.Zero, 0, out var taille); // taille seule
-                if (taille == 0)
-                {
-                    return "";
-                }
-
-                var tampon = Marshal.AllocHGlobal((Int32)taille);
-                try
-                {
-                    if (NtQueryInformationProcess(processus, ProcessCommandLineInformation, tampon, taille, out _) != 0)
-                    {
-                        return "";
-                    }
-
-                    // UNICODE_STRING : longueur en octets, puis l'adresse du texte (alignée sur un pointeur).
-                    return Marshal.PtrToStringUni(Marshal.ReadIntPtr(tampon, IntPtr.Size), (UInt16)Marshal.ReadInt16(tampon) / 2) ?? "";
-                }
-                finally
-                {
-                    Marshal.FreeHGlobal(tampon);
-                }
-            }
-            finally
-            {
-                CloseHandle(processus);
-            }
-        }
-
-        private const Int32 ProcessCommandLineInformation = 60;
-
-        [DllImport("ntdll.dll")]
-        private static extern Int32 NtQueryInformationProcess(IntPtr processus, Int32 classe, IntPtr information, UInt32 taille, out UInt32 tailleRendue);
 
         [DllImport("kernel32.dll")]
         private static extern IntPtr OpenProcess(UInt32 acces, Boolean herite, UInt32 pid);

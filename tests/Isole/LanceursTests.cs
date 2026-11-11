@@ -91,6 +91,11 @@ public sealed class LanceursTests
         Vrai(!Lanceurs.IdentiteAntigravity("other.exe", "Antigravity", "Google")
             && !Lanceurs.IdentiteAntigravity("Antigravity.exe", "Other", "Google")
             && !Lanceurs.IdentiteAntigravity("Antigravity.exe", "Antigravity", "Other"), "homonymes non officiels refusés");
+        // Sidecar du relais : l'exécutable d'Antigravity en mode Node, appli fermée (pad sur « Relancer », 11/11).
+        Vrai(LigneDeCommande.Auxiliaire("\"C:\\Users\\u\\AppData\\Local\\Programs\\antigravity\\Antigravity.exe\"  --import=file:///C:/Users/u/.gemini/antigravity/lib/node_modules/sidecar_sdk/register_loader.js main.mjs")
+            && LigneDeCommande.Auxiliaire("\"Antigravity.exe\" --type=renderer --user-data-dir=x"), "auxiliaires Node et Electron écartés");
+        Vrai(!LigneDeCommande.Auxiliaire("\"C:\\Users\\u\\AppData\\Local\\Programs\\antigravity\\Antigravity.exe\" --remote-debugging-port=9227 --remote-debugging-address=127.0.0.1")
+            && !LigneDeCommande.Auxiliaire("\"Antigravity.exe\""), "appli principale gardée");
     }
 
     private static class ArgumentsWindows

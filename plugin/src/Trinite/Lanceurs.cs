@@ -480,7 +480,9 @@ namespace Loupedeck.TrinitePlugin
             {
                 using (processus)
                 {
-                    if (ProcessusAttendu(agent, processus))
+                    // Un auxiliaire (sidecar Node d'Antigravity, onglet d'Electron) n'est pas l'appli ouverte : compté, il
+                    // montrait « Relancer » sur une appli fermée (11/11).
+                    if (ProcessusAttendu(agent, processus) && !LigneDeCommande.Auxiliaire(processus.Id))
                     {
                         resultat.Add(processus.Id);
                     }

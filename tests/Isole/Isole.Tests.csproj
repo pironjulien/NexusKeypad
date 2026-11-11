@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\plugin\src\Trinite\Lanceurs.cs" Link="Plugin\Lanceurs.cs" />
+    <Compile Include="..\..\plugin\src\Trinite\LigneDeCommande.cs" Link="Plugin\LigneDeCommande.cs" />
     <Compile Include="..\..\plugin\src\Trinite\UserApplication.cs" Link="Plugin\UserApplication.cs" />
     <Compile Include="..\..\plugin\src\Trinite\Uia.cs" Link="Plugin\Uia.cs" />
   </ItemGroup>
