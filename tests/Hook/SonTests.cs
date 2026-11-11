@@ -269,11 +269,8 @@ public sealed class SonTests : IDisposable
     {
         this.Noter("PreToolUse", new JsonObject { ["session_id"] = "claude-main", ["tool_name"] = "PowerShell" }, "claude");
         var fichier = JsonNode.Parse(File.ReadAllText(Path.Combine(this._racine, "claude", "claude-main.json")))!;
-        Verifier(fichier["tool"]?.GetValue<String>() == "PowerShell" && fichier["event"]?.GetValue<String>() == "PreToolUse",
-            "PreToolUse records the tool it started, for the pad's background state.");
-        this.Noter("PostToolUse", new JsonObject { ["session_id"] = "claude-main", ["tool_name"] = "PowerShell" }, "claude");
-        fichier = JsonNode.Parse(File.ReadAllText(Path.Combine(this._racine, "claude", "claude-main.json")))!;
-        Verifier(fichier["tool"] is null, "The tool's end clears it.");
+        Verifier(fichier["state"]?.GetValue<String>() == "run" && fichier["tool"] is null,
+            "PreToolUse keeps the AI working; no tool is recorded since a long tool no longer means background (11/11).");
     }
 
     [Fact]

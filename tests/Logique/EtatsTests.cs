@@ -77,17 +77,15 @@ public sealed class EtatsTests
     }
 
     [Fact]
-    public void En_fond_quand_un_processus_tourne_pour_l_IA()
+    public void En_fond_seulement_apres_la_fin_du_tour()
     {
-        // A tool that lasts (command, MCP wait): the agent no longer thinks, it waits for a process.
-        Vrai(Observateur.Traduire("run", Maintenant.AddSeconds(-5), null, "PreToolUse", "PowerShell") == Etat.Travaille, "outil de 5 s → travaille");
-        Vrai(Observateur.Traduire("run", Maintenant.AddSeconds(-40), null, "PreToolUse", "PowerShell") == Etat.EnFond, "commande de 40 s → en fond");
-        Vrai(Observateur.Traduire("run", Maintenant.AddSeconds(-40), null, "PreToolUse", "run_command") == Etat.EnFond, "commande d'Antigravity → en fond");
-        Vrai(Observateur.Traduire("run", Maintenant.AddMinutes(-5), null, "PreToolUse", "Agent") == Etat.Travaille, "sous-agent au premier plan : il réfléchit → travaille");
-        Vrai(Observateur.Traduire("run", Maintenant.AddMinutes(-5), null, "PostToolUse") == Etat.Travaille, "après un outil, il réfléchit → travaille");
-        Vrai(Observateur.Traduire("run", Maintenant.AddHours(-3), null, "PreToolUse", "PowerShell") == Etat.Repos, "outil de 3 h → repos");
+        // A turn in progress stays "working", even on a long command (Julien, 11/11); only Claude's Stop with
+        // background tasks or agents is "in the background".
+        Vrai(Observateur.Traduire("run", Maintenant.AddSeconds(-40)) == Etat.Travaille, "commande de 40 s pendant le tour → travaille");
+        Vrai(Observateur.Traduire("run", Maintenant.AddMinutes(-30)) == Etat.Travaille, "commande de 30 min pendant le tour → travaille");
+        Vrai(Observateur.Traduire("run", Maintenant.AddHours(-3)) == Etat.Repos, "outil de 3 h → repos");
         var outil = Maintenant.AddMinutes(-1);
-        Vrai(Observateur.Traduire("run", outil, outil.AddSeconds(5), "PreToolUse", "PowerShell") == Etat.Repos, "tour arrêté (Échap) pendant l'outil → repos");
+        Vrai(Observateur.Traduire("run", outil, outil.AddSeconds(5)) == Etat.Repos, "tour arrêté (Échap) pendant l'outil → repos");
         // Claude's Stop with background tasks or agents: it resumes by itself at their end.
         Vrai(Observateur.Traduire("bg", Maintenant.AddMinutes(-10), Maintenant.AddMinutes(-9)) == Etat.EnFond, "Stop avec tâches en fond → en fond, même après le bord de fin de tour");
         Vrai(Observateur.Traduire("bg", Maintenant.AddHours(-3)) == Etat.Repos, "en fond depuis 3 h → repos");

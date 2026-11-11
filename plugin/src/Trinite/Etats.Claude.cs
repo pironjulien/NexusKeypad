@@ -92,7 +92,7 @@ namespace Loupedeck.TrinitePlugin
                 }
 
                 var hook = cli is not null ? Hook("claude", cli) : null;
-                var etat = hook is { } h ? Traduire(h.Etat, h.Quand, Instant(Champ(meta, "lastTurnEdgeAt")), h.Evenement, h.Outil) : Etat.Repos;
+                var etat = hook is { } h ? Traduire(h.Etat, h.Quand, Instant(Champ(meta, "lastTurnEdgeAt"))) : Etat.Repos;
                 if (etat is Etat.Fini or Etat.Attend && cli is not null)
                 {
                     etat = this.SelonResumeClaude(fichier, ecrit, HookReponse("claude", cli), etat);

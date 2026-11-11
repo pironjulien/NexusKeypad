@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.8] - 2026-11-11
+
+### Changed
+- An AI key shows "working" for the whole turn of a conversation, even while it waits for a long command: "in the
+  background" now only means the turn has ended and background tasks or agents still work for the AI.
+
 ## [1.9.7] - 2026-11-11
 
 ### Fixed
@@ -1010,7 +1016,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.6...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.8...HEAD
+[1.9.8]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.7...v1.9.8
+[1.9.7]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.6...v1.9.7
 [1.9.6]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.5...v1.9.6
 [1.9.5]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.4...v1.9.5
 [1.9.4]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.3...v1.9.4

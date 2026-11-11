@@ -735,10 +735,6 @@ public static class Program
                 contenu = etat is null
                     ? new JsonObject { ["state"] = precedent["state"]!.DeepClone(), ["at"] = precedent["at"]?.DeepClone(), ["event"] = precedent["event"]?.DeepClone() }
                     : new JsonObject { ["state"] = etat, ["at"] = debut, ["event"] = evenement };
-                if (etat is not null && evenement == "PreToolUse" && Outil(charge) is { Length: > 0 } outil)
-                {
-                    contenu["tool"] = outil; // un outil qui dure fait passer l'IA « en fond » côté pad
-                }
                 if (agent == "claude" && evenement == "Stop" && reponse.Length > 0)
                 {
                     contenu["reply"] = reponse; // rattache le résumé de fin de tour de l'appli à ce tour-ci

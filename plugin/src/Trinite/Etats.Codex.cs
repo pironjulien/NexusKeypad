@@ -481,7 +481,7 @@ namespace Loupedeck.TrinitePlugin
             // Chats du relais : jamais de question à l'utilisateur.
             public (Etat, DateTime) Effectif(Boolean relais, DateTime maintenant, JsonElement? hook = null)
             {
-                var (etat, depuis) = this.SelonAppels(this.FusionnerHook(hook, maintenant), maintenant);
+                var (etat, depuis) = this.FusionnerHook(hook, maintenant);
                 var ouvertes = this._questions.Values.Where(q => q >= this._debutTour && maintenant - q <= TimeSpan.FromHours(12)).ToList();
                 return !relais && ouvertes.Count > 0 && etat is not (Etat.Autorisation or Etat.Travaille or Etat.Repos)
                     ? (Etat.Attend, ouvertes.Max())
@@ -539,7 +539,6 @@ namespace Loupedeck.TrinitePlugin
                 if (quand > this._dernierEvenement) { this._dernierEvenement = quand; }
                 if (ligne.Contains("\"response_item\"", StringComparison.Ordinal))
                 {
-                    this.LireAppel(ligne, quand);
                     this.LireQuestion(ligne, parDefaut);
                     return;
                 }
@@ -547,13 +546,6 @@ namespace Loupedeck.TrinitePlugin
                 if (!ligne.Contains("\"event_msg\"", StringComparison.Ordinal))
                 {
                     return;
-                }
-
-                if (ligne.Contains("\"type\":\"task_started\"", StringComparison.Ordinal)
-                    || ligne.Contains("\"type\":\"turn_aborted\"", StringComparison.Ordinal)
-                    || ligne.Contains("\"type\":\"task_complete\"", StringComparison.Ordinal))
-                {
-                    this._appels.Clear(); // un tour qui part ou finit n'a plus d'outil en cours
                 }
 
                 if (ligne.Contains("\"type\":\"task_started\"", StringComparison.Ordinal))
@@ -593,40 +585,6 @@ namespace Loupedeck.TrinitePlugin
                     (this.Etat, this._accord) = (Etat.Travaille, false);
                 }
             }
-
-            // Outils en cours (call_id → départ) : le journal note l'appel (function_call, custom_tool_call) à son départ et
-            // sa sortie (…_output) à sa fin ; entre les deux, Codex attend le processus (commande, attente d'agents).
-            private readonly Dictionary<String, DateTime> _appels = new(StringComparer.Ordinal);
-
-            private void LireAppel(String ligne, DateTime quand)
-            {
-                if (Champ(ligne, "call_id") is not { Length: > 0 } appel)
-                {
-                    return;
-                }
-
-                if (ligne.Contains("\"payload\":{\"type\":\"function_call\"", StringComparison.Ordinal)
-                    || ligne.Contains("\"payload\":{\"type\":\"custom_tool_call\"", StringComparison.Ordinal))
-                {
-                    // Une question à l'utilisateur n'est pas un processus : elle a ses propres états (question, carte).
-                    if (Champ(ligne, "name") is not ("request_user_input" or "request_user_input_async"))
-                    {
-                        this._appels[appel] = quand;
-                    }
-                }
-                else if (ligne.Contains("\"payload\":{\"type\":\"function_call_output\"", StringComparison.Ordinal)
-                    || ligne.Contains("\"payload\":{\"type\":\"custom_tool_call_output\"", StringComparison.Ordinal))
-                {
-                    this._appels.Remove(appel);
-                }
-            }
-
-            // Codex au travail mais arrêté sur un outil qui dure : « en fond » depuis le départ du plus ancien.
-            private (Etat, DateTime) SelonAppels((Etat Etat, DateTime Depuis) e, DateTime maintenant) =>
-                e.Etat == Etat.Travaille && this._appels.Count > 0 && this._appels.Values.Min() is var depart
-                    && depart >= this._debutTour && maintenant - depart >= Observateur.DelaiEnFond
-                    ? (Etat.EnFond, depart)
-                    : e;
 
             private void LireQuestion(String ligne, DateTime parDefaut)
             {
