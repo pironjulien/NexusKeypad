@@ -1,6 +1,6 @@
 {
   "name": "nexus-keypad",
-  "version": "1.9.8",
+  "version": "1.9.9",
   "description": "NexusKeypad in Claude and Codex: live states for the Logitech keypad (hooks), Claude's exact usage (5-hour and weekly) for the keypad. No alert, no network. Needs NexusKeypad, installed by NexusSystem (or NexusKeypad's get.ps1).",
   "author": {
     "name": "Julien Piron",

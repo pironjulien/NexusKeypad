@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.9] - 2026-11-14
+
+### Fixed
+- The Antigravity key no longer shows "working", nor an AI relay exchange, for a turn that Antigravity's restart or
+  closing cut short: a turn started before the running Antigravity was launched is over, as Antigravity sends no
+  end-of-turn signal when it closes.
+
 ## [1.9.8] - 2026-11-11
 
 ### Changed
@@ -1016,7 +1023,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.8...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.9...HEAD
+[1.9.9]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.8...v1.9.9
 [1.9.8]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.7...v1.9.8
 [1.9.7]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.6...v1.9.7
 [1.9.6]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.5...v1.9.6

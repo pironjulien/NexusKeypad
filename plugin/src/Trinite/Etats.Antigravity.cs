@@ -84,7 +84,7 @@ namespace Loupedeck.TrinitePlugin
         private Conversation? ConversationAgy(String id, String titre, DateTime activite, Boolean relais, Int32 source = -1)
         {
             var hook = Hook("antigravity", id);
-            var etat = hook is { } h ? Traduire(h.Etat, h.Quand) : Etat.Repos;
+            var etat = hook is { } h ? Traduire(h.Etat, h.Quand, this.FinTourAgy()) : Etat.Repos;
             if (relais && etat is not (Etat.Travaille or Etat.EnFond or Etat.Attend or Etat.Autorisation))
             {
                 return null;
@@ -101,6 +101,26 @@ namespace Loupedeck.TrinitePlugin
             var regardee = (etat is Etat.Fini or Etat.Erreur && (vu || relais)) || (etat == Etat.Attend && vu); // question vue : « ? » effacé
             titre = !relais && note.Titre is { Length: > 0 } renomme ? renomme : titre;
             return new(2, id, titre, regardee ? Etat.Repos : etat, depuis, activite == DateTime.MinValue ? depuis : activite, vu, relais, source);
+        }
+
+        // Un tour d'Antigravity meurt avec son appli, sans hook de fin : un « run » plus ancien que le lancement actuel
+        // (ou appli fermée) est fini. Une demande du relais livrée puis coupée par un redémarrage d'Antigravity montrait
+        // « au travail » et l'échange Claude → Antigravity pendant 2 h, sans rien dans l'appli (14/11).
+        private DateTime? FinTourAgy()
+        {
+            if (!this.LanceeMaintenant(2))
+            {
+                return DateTime.MaxValue;
+            }
+
+            try
+            {
+                return this._lancees[2]?.StartTime.ToUniversalTime();
+            }
+            catch (Exception)
+            {
+                return null; // heure illisible : le hook seul fait foi
+            }
         }
 
         // Dernière vue de la conversation notée par Antigravity lui-même (annotations/<id>.pbtxt, last_user_view_time) :
