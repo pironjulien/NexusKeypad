@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.10] - 2026-11-14
+
+### Fixed
+- Reconnecting Antigravity from the pad works again when Antigravity is set to run in the background: closing its
+  window left it running without a window, and the reconnection stopped there. Once its window has closed by itself
+  and the reconnection was confirmed on the pad, its remaining main process is ended and Antigravity starts again
+  with its connection.
+
 ## [1.9.9] - 2026-11-14
 
 ### Fixed
@@ -1023,7 +1031,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.9...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.10...HEAD
+[1.9.10]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.9...v1.9.10
 [1.9.9]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.8...v1.9.9
 [1.9.8]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.7...v1.9.8
 [1.9.7]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.6...v1.9.7

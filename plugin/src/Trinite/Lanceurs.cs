@@ -128,17 +128,7 @@ namespace Loupedeck.TrinitePlugin
 
                     if (LireProcessus(agent) is { Count: > 0 } processus)
                     {
-                        var ids = processus.ToHashSet();
-                        var fenetres = new List<IntPtr>();
-                        EnumWindows((fenetre, _) =>
-                        {
-                            if (GetWindowThreadProcessId(fenetre, out var id) != 0 && ids.Contains((Int32)id) && IsWindowVisible(fenetre) && GetWindowTextLength(fenetre) > 0)
-                            {
-                                fenetres.Add(fenetre);
-                            }
-
-                            return true;
-                        }, IntPtr.Zero);
+                        var fenetres = FenetresVisibles(processus);
                         if (fenetres.Count == 0 || fenetres.Any(f => !PostMessage(f, 0x0010, IntPtr.Zero, IntPtr.Zero)))
                         {
                             Erreurs[agent] = "app did not accept a normal close";
@@ -150,9 +140,18 @@ namespace Loupedeck.TrinitePlugin
                             Thread.Sleep(200);
                         }
 
+                        if (LireProcessus(agent) is { Count: > 0 } restants && FinirEnArrierePlan(agent, restants.Count, FenetresVisibles(restants).Count))
+                        {
+                            TerminerPrincipal(restants);
+                            for (var i = 0; i < 50 && LireProcessus(agent).Count > 0; i++)
+                            {
+                                Thread.Sleep(200);
+                            }
+                        }
+
                         if (LireProcessus(agent).Count > 0)
                         {
-                            Erreurs[agent] = "app is still open; no forced close was attempted";
+                            Erreurs[agent] = "app is still open";
                             return false;
                         }
                     }
@@ -163,6 +162,45 @@ namespace Loupedeck.TrinitePlugin
                 {
                     Erreurs[agent] = ex.GetType().Name;
                     return false;
+                }
+            }
+        }
+
+        // Antigravity réglé « Run in background » accepte la fermeture de sa fenêtre mais reste lancé, sans fenêtre, dans
+        // la zone de notification : la relance demandée ne pouvait jamais aboutir (14/11). Seul ce cas, fenêtre déjà
+        // fermée par l'appli elle-même (ses confirmations passées) et relance confirmée sur le pad sans conversation ni
+        // dictée active, termine son processus principal ; son serveur de langage et ses onglets s'arrêtent avec lui.
+        internal static Boolean FinirEnArrierePlan(Int32 agent, Int32 processusRestants, Int32 fenetresVisibles) =>
+            agent == 2 && processusRestants > 0 && fenetresVisibles == 0;
+
+        private static List<IntPtr> FenetresVisibles(IReadOnlyCollection<Int32> processus)
+        {
+            var ids = processus.ToHashSet();
+            var fenetres = new List<IntPtr>();
+            EnumWindows((fenetre, _) =>
+            {
+                if (GetWindowThreadProcessId(fenetre, out var id) != 0 && ids.Contains((Int32)id) && IsWindowVisible(fenetre) && GetWindowTextLength(fenetre) > 0)
+                {
+                    fenetres.Add(fenetre);
+                }
+
+                return true;
+            }, IntPtr.Zero);
+            return fenetres;
+        }
+
+        private static void TerminerPrincipal(IEnumerable<Int32> processus)
+        {
+            foreach (var id in processus)
+            {
+                try
+                {
+                    using var p = Process.GetProcessById(id);
+                    p.Kill(entireProcessTree: false);
+                }
+                catch (Exception)
+                {
+                    // déjà sorti
                 }
             }
         }

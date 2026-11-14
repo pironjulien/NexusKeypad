@@ -40,6 +40,16 @@ public sealed class LanceursTests
             () => ++lectures == 3, _ => { }) && lancement == 1 && lectures == 3, "fenêtre masquée : réactivation unique puis page vérifiée");
     }
 
+    [Fact]
+    public void Antigravity_reste_en_arriere_plan_apres_sa_fenetre_fermee()
+    {
+        Vrai(Lanceurs.FinirEnArrierePlan(2, 1, 0), "Antigravity sans fenêtre après sa fermeture : relance menée à bout");
+        Vrai(!Lanceurs.FinirEnArrierePlan(2, 1, 1), "fenêtre encore ouverte (confirmation, enregistrement) : jamais terminée");
+        Vrai(!Lanceurs.FinirEnArrierePlan(2, 0, 0), "appli déjà sortie : rien à terminer");
+        Vrai(!Lanceurs.FinirEnArrierePlan(0, 1, 0), "Claude : jamais terminé");
+        Vrai(!Lanceurs.FinirEnArrierePlan(1, 1, 0), "Codex : jamais terminé");
+    }
+
     private static String Page(String url, String socket, String type = "page") => JsonSerializer.Serialize(new[] { new { url, type, webSocketDebuggerUrl = socket } });
 
     [Fact]
