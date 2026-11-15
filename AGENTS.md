@@ -10,7 +10,10 @@
   dies when the app restarts, even with `CREATE_BREAKAWAY_FROM_JOB`: the pad goes black. Always start it through WMI
   (`outils\relancer_logi.ps1`, `Start-Logi` in get.ps1), so its parent is WmiPrvSE, never the app.
 - Never close an AI app with `taskkill /T`: the process tree can include the Logi agent restarted from it. After any
-  forced restart of an AI app, check `LogiPluginService` and the end of `NexusKeypad.log`.
+  forced restart of an AI app, check `LogiPluginService` and the end of the pad's log.
+- Logi recreates `Logs\plugin_logs\NexusKeypad.log` on every load attempt: each service start, each update, and the
+  refused second load ("already loaded") it tries a moment later. Its history stops at the last attempt; read the pad's
+  own log, which survives them: `%LOCALAPPDATA%\NexusKeypad\logs\NexusKeypad.log` (`PluginLog`, `JournalDurable`).
 - The pad sleeps on the `GoToSleep` order the Options+ agent sends when the screen turns off; a service restarted
   after that order misses it and the pad stays on. While the screen is off, the plugin only draws a slow night sky
   (`Moteur.cs`). Keep the pad awake through Logi or the plugin, never through Windows power settings or DDC/CI.

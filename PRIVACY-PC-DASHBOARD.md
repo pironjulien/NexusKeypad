@@ -46,6 +46,8 @@ instance).
 
 - The plugin log of the Logi Plugin Service (`…\LogiPluginService\Logs\plugin_logs\PcDashboard.log`): technical
   events, which can include the address of your website key. It stays on your computer.
+- `%LOCALAPPDATA%\NexusKeypad\logs\PcDashboard.log` (and `PcDashboard.1.log`): the same events, kept across restarts
+  of the Logi Plugin Service, which recreates its own log each time; at most 4 MB. It stays on your computer.
 - `~/.nexus/status/keypad.json`: the Plugin's version, written when it loads.
 - Nothing else: no other file, no cache, no clipboard use.
 

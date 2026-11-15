@@ -17,7 +17,8 @@ exactly what the two single-page plugins describe, on your computer only:
 
 Differences: at each press of its Website key, the addresses of the pages shown in Google Chrome app windows are read
 (Windows UI Automation) to find the window that key opened, neither kept nor logged; its log file is
-`…\LogiPluginService\Logs\plugin_logs\AiAgentsPc.log`; its Website key opens the address you
+`…\LogiPluginService\Logs\plugin_logs\AiAgentsPc.log`, kept across restarts in
+`%LOCALAPPDATA%\NexusKeypad\logs\AiAgentsPc.log`; its Website key opens the address you
 set in Logi Options+, kept by Logi Options+ like any action setting; page 2 is only read while it is shown on the keypad.
 
 The controller is **Julien Piron** ("the Developer"). Logitech's own processing is covered by

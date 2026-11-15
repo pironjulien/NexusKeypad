@@ -72,6 +72,8 @@ The Plugin reads data only to draw the keypad keys and to perform the action of 
 - `~/.nexus/status/keypad.json`: the Plugin's version for the Nexus app.
 - The plugin log of the Logi Plugin Service (`…\LogiPluginService\Logs\plugin_logs\TrinitePad.log`): technical events,
   which can include conversation titles and file names. It stays on your computer.
+- `%LOCALAPPDATA%\NexusKeypad\logs\TrinitePad.log` (and `TrinitePad.1.log`): the same events, kept across restarts of
+  the Logi Plugin Service, which recreates its own log each time; at most 4 MB. It stays on your computer.
 - The Windows clipboard: Screen capture and Phone photo put the image in the clipboard before pasting it.
 
 ## Network
