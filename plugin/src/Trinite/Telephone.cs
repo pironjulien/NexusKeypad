@@ -37,6 +37,7 @@ namespace Loupedeck.TrinitePlugin
         private readonly Object _connexion = new();
         private String? _adb;
         private DateTime _absentJusque = DateTime.MinValue;
+        private readonly HashSet<String> _echouees = []; // adresses essayées en vain depuis la dernière liaison
         private String? _reconnue; // liaison Wi-Fi reconnue à son numéro de série, sur un port autre que celui noté
         private Process? _veilleur;
         private volatile Boolean _fini;
@@ -365,7 +366,8 @@ namespace Loupedeck.TrinitePlugin
         }
 
         // Le téléphone de l'utilisateur (numéro noté par nexus-android) : USB d'abord, sinon son adresse Wi-Fi notée.
-        // Absent : nouvel essai dans 2 min, pour ne pas relancer un adb connect toutes les 3 s.
+        // Absent : nouvel essai dans 2 min, pour ne pas relancer un adb connect toutes les 3 s ; un port nouvellement
+        // annoncé est essayé tout de suite (AEssayer).
         // Une seule reconnexion à la fois : le veilleur et le tour de 3 s se coupaient la liaison (disconnect de l'un).
         private String? Connecter(String adb)
         {
@@ -408,33 +410,28 @@ namespace Loupedeck.TrinitePlugin
             }
 
             var serie = Present();
-            if (serie is not null || DateTime.UtcNow < this._absentJusque)
+            if (serie is not null)
             {
+                this._echouees.Clear();
                 return serie;
             }
 
+            var enAttente = DateTime.UtcNow < this._absentJusque;
             // Liaison Wi-Fi endormie (« offline », vu sur un téléphone après une veille) : la relancer d'abord.
-            if (appareils.Any(l => l[1] == "offline"))
+            if (!enAttente && appareils.Any(l => l[1] == "offline"))
             {
                 Lancer(adb, "reconnect offline", 10000);
                 System.Threading.Thread.Sleep(1500);
                 serie = Present();
             }
 
-            // Adresse notée, puis annonce mDNS du téléphone (son nom porte son numéro de série) : après un redémarrage,
-            // le port du débogage sans fil change et l'adresse notée ne répond plus.
-            var candidates = new List<String>();
-            if (adresse is not null)
+            // Annonce mDNS du téléphone (son nom porte son numéro de série), lue au serveur adb du PC sans rien envoyer au
+            // téléphone : lue aussi pendant l'attente, où seul un port nouveau est essayé.
+            var annonces = connu is null ? Array.Empty<String>() : Annonces(Lancer(adb, "mdns services", 10000).Sortie, connu);
+            var candidates = AEssayer(adresse, annonces, this._echouees, enAttente);
+            if (serie is null && enAttente && candidates.Count == 0)
             {
-                candidates.Add(adresse);
-            }
-
-            if (connu is not null)
-            {
-                candidates.AddRange(Lancer(adb, "mdns services", 10000).Sortie.Split('\n')
-                    .Where(l => l.Contains($"adb-{connu}", StringComparison.Ordinal) && l.Contains("_adb-tls-connect", StringComparison.Ordinal))
-                    .Select(l => System.Text.RegularExpressions.Regex.Match(l, @"(\d+\.\d+\.\d+\.\d+:\d+)").Value)
-                    .Where(a => a.Length > 0 && a != adresse));
+                return null;
             }
 
             foreach (var candidate in candidates.TakeWhile(_ => serie is null))
@@ -451,10 +448,41 @@ namespace Loupedeck.TrinitePlugin
 
             if (serie is null)
             {
-                this._absentJusque = DateTime.UtcNow.AddMinutes(2);
+                this._echouees.UnionWith(candidates);
+                if (!enAttente)
+                {
+                    this._absentJusque = DateTime.UtcNow.AddMinutes(2);
+                }
+            }
+            else
+            {
+                this._echouees.Clear();
             }
 
             return serie;
+        }
+
+        // Adresses « ip:port » que le téléphone de ce numéro de série annonce pour le débogage sans fil (adb mdns services).
+        public static String[] Annonces(String sortieMdns, String serie) => sortieMdns.Split('\n')
+            .Where(l => l.Contains($"adb-{serie}", StringComparison.Ordinal) && l.Contains("_adb-tls-connect", StringComparison.Ordinal))
+            .Select(l => System.Text.RegularExpressions.Regex.Match(l, @"(\d+\.\d+\.\d+\.\d+:\d+)").Value)
+            .Where(a => a.Length > 0).Distinct().ToArray();
+
+        // Adresses à essayer pour retrouver le téléphone : l'adresse notée puis ses annonces mDNS. Pendant les 2 min d'attente
+        // après un échec, seules les annonces jamais essayées en vain : un Wi-Fi qui décroche fait repartir le débogage
+        // sans fil sur un nouveau port, et le pad le suit dès l'annonce au lieu d'attendre la fin des 2 min (15/11 : deux
+        // décrochages en 45 s, photo sur la touche 77 s après la prise). Un port déjà essayé en vain n'est pas relancé
+        // toutes les 3 s.
+        public static List<String> AEssayer(String? adresse, IEnumerable<String> annonces, ISet<String> echouees, Boolean enAttente)
+        {
+            var toutes = new List<String>();
+            if (adresse is not null && !enAttente)
+            {
+                toutes.Add(adresse);
+            }
+
+            toutes.AddRange(annonces.Where(a => a != adresse && !(enAttente && echouees.Contains(a))));
+            return toutes.Distinct().ToList();
         }
 
         // Même adb que nexus-android (celui du PATH, sinon Platform Tools) : deux versions d'adb se coupent leur serveur.
