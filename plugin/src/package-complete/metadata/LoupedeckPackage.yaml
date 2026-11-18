@@ -12,13 +12,13 @@ name: AiAgentsPc
 displayName: NexusKeypad – AI Coding Agents + PC
 
 # Short description of the plugin.
-description: Two keypad pages - Claude, Codex and Antigravity as animated status keys with quotas, plus your PC - volume, Gmail, Calendar, Messages, PC health, updates and a website.
+description: Two keypad pages - Claude, Codex and Antigravity as status keys with quotas, plus your PC - volume, Gmail, Calendar, Messages, PC health, updates and a website.
 
 # Name of the plugin library file.
 pluginFileName: AiAgentsPcPlugin.dll
 
 # Plugin version.
-version: 1.9.12
+version: 1.9.13
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: Julien Piron

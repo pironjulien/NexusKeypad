@@ -137,7 +137,8 @@ one or the other. The [Marketplace editions](#other-editions) are the same code,
   (green when full, amber halfway, red when nearly empty), and the number of open conversations. A press opens the
   app's own usage panel; a second press closes it.
 - **Screen capture** grabs the screen as you see it and pastes it, without sending, into the conversation of the agent
-  in front (or of the last agent used). Images are reduced to WebP, at most 2000 px and 3 MB.
+  in front (or of the last agent used). With no agent used yet, the capture stays in the clipboard, ready to paste
+  anywhere; a green check confirms it either way. Images are reduced to WebP, at most 2000 px and 3 MB.
 - **Phone photo**: with an Android phone reachable over adb (USB or wireless debugging), the latest photo or
   screenshot of the phone; a press pastes it into the agent in front. **Without a phone**, the key is an animated
   clock with the date; a press opens the Windows notification center and calendar.

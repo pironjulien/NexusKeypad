@@ -927,21 +927,15 @@ namespace Loupedeck.TrinitePlugin
         // Capture ou photo : l'image copiée puis collée (sans envoyer) dans la conversation affichée de l'IA devant, sinon de
         // la dernière IA que l'utilisateur a utilisée, ramenée devant (la photo exigeait une IA devant : depuis une autre appli,
         // l'appui ne faisait rien, 24/10).
-        // Rend l'IA visée (-1 : aucune) et la cause d'un abandon (null : collée), pour le journal commun.
+        // Sans IA à viser (aucune utilisée depuis le démarrage, ou NexusKeypad coupé pour elle), l'image reste dans le
+        // presse-papiers, coche verte comprise, comme Win+Maj+S : la touche ne faisait rien sur un PC sans IA ouverte,
+        // et le testeur de Logitech l'a vue « en échec » (18/11/2026).
+        // Rend l'IA visée (-1 : aucune) et la cause d'un abandon (null : collée ou copiée), pour le journal commun.
         private (Int32 Cible, String? Cause) CollerDansIa(String geste, Func<Boolean> copier, Action collee)
         {
             var devant = Array.IndexOf(Observateur.Processus, Observateur.PremierPlan());
             var cible = devant >= 0 ? devant : this._derniereIa;
-            if (cible < 0)
-            {
-                PluginLog.Warning($"{geste} : aucune IA utilisée depuis le démarrage, rien n'a été copié");
-                return (-1, "no ai");
-            }
-
-            if (!Connecteurs.EvenementsActifs(Observateur.Agents[cible]))
-            {
-                return (cible, "NexusKeypad disabled");
-            }
+            var coller = cible >= 0 && Connecteurs.EvenementsActifs(Observateur.Agents[cible]);
 
             var chrono = System.Diagnostics.Stopwatch.StartNew();
             if (!copier() || this._arret)
@@ -950,6 +944,12 @@ namespace Loupedeck.TrinitePlugin
             }
 
             PluginLog.Info($"{geste} : image dans le presse-papiers en {chrono.ElapsedMilliseconds} ms");
+            if (!coller)
+            {
+                PluginLog.Info($"{geste} : {(cible < 0 ? "aucune IA utilisée depuis le démarrage" : "NexusKeypad coupé pour cette IA")}, image laissée dans le presse-papiers");
+                collee();
+                return (-1, null); // aucune IA visée : rien au journal d'une IA coupée
+            }
             if (devant < 0)
             {
                 chrono.Restart();

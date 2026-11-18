@@ -14,13 +14,13 @@ name: TrinitePad
 displayName: NexusKeypad – AI Coding Agents
 
 # Short description of the plugin.
-description: Claude, Codex and Antigravity as animated pixel-art status keys, with quota gauges and one-press access to the conversation that needs you.
+description: Claude, Codex and Antigravity as pixel-art status keys, with quota gauges and one-press access to the conversation that needs you.
 
 # Name of the plugin library file.
 pluginFileName: TrinitePadPlugin.dll
 
 # Plugin version.
-version: 1.9.12
+version: 1.9.13
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: Julien Piron

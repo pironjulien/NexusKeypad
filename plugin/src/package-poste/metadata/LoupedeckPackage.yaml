@@ -12,13 +12,13 @@ name: PcDashboard
 displayName: NexusKeypad – PC Dashboard
 
 # Short description of the plugin.
-description: Your PC at a glance on animated keys - volume and mute, unread Gmail and Messages, calendar, PC health, Store and Windows Update, and a website of your choice.
+description: Your PC at a glance on live keys - volume and mute, unread Gmail and Messages, calendar, PC health, Store and Windows Update, and a website of your choice.
 
 # Name of the plugin library file.
 pluginFileName: PcDashboardPlugin.dll
 
 # Plugin version.
-version: 1.9.12
+version: 1.9.13
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: Julien Piron

@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.13] - 2026-11-18
+
+### Fixed
+- The Screen capture key works on a PC where no AI agent has been used yet: it used to do nothing there. The capture
+  now stays in the clipboard, ready to paste anywhere, with the green check; with an agent in use it is still pasted
+  into that agent's conversation, never sent.
+
+### Changed
+- Marketplace descriptions no longer call the keys "animated", following Logitech's review of the submission.
+
 ## [1.9.12] - 2026-11-15
 
 ### Fixed
@@ -1046,7 +1056,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.12...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.13...HEAD
+[1.9.13]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.12...v1.9.13
 [1.9.12]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.11...v1.9.12
 [1.9.11]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.10...v1.9.11
 [1.9.10]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.9...v1.9.10
