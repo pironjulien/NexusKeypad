@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.14] - 2026-11-18
+
+### Changed
+- Each Marketplace plugin has its own static icon, as Logitech's review asks: AI Coding Agents shows the three agent
+  keys, PC Dashboard a keypad with a health pulse, AI Coding Agents + PC both. The complete NexusKeypad keeps its icon.
+
 ## [1.9.13] - 2026-11-18
 
 ### Fixed
@@ -1056,7 +1062,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.13...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.14...HEAD
+[1.9.14]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.13...v1.9.14
 [1.9.13]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.12...v1.9.13
 [1.9.12]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.11...v1.9.12
 [1.9.11]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.10...v1.9.11
