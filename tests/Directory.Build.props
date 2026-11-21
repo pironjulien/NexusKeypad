@@ -23,7 +23,7 @@
     <LogiService>C:\Program Files\Logi\LogiPluginService\</LogiService>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <PackageReference Include="xunit.v3" Version="4.0.3" />
     <Using Include="Xunit" />
     <AssemblyMetadata Include="NexusKeypad.Repository" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))" />
     <AssemblyMetadata Include="NexusKeypad.Build" Value="$(NexusBuild)" />
