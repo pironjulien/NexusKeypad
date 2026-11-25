@@ -29,6 +29,17 @@ public sealed class ConnecteursTests
     }
 
     [Fact]
+    public void Le_guide_dit_comment_diagnostiquer_un_pad_eteint()
+    {
+        // Raté du 25/11/2026 : diagnostic posé sans lire le journal durable du pad, puis service Logi relancé depuis
+        // l'appli d'IA (il serait mort avec elle). Le guide lu en premier par les trois IA garde ces deux consignes.
+        var guide = File.ReadAllText(Path.Combine(Depot, "connecteurs", "skills", "nexus-keypad", "SKILL.md"));
+        Assert.Contains(@"%LOCALAPPDATA%\NexusKeypad\logs\", guide, StringComparison.Ordinal);
+        Assert.Contains("get.ps1 -LogiService start", guide, StringComparison.Ordinal);
+        Assert.Contains("Never start `LogiPluginService.exe`", guide, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Une_seule_version_partout_comme_la_CI()
     {
         // Same check as the Release workflow's "One version everywhere" step, run locally before a push (09/11/2026:

@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.17] - 2026-11-25
+
+### Changed
+- The keypad guide that AI apps read first now covers a dark or frozen keypad: read the keypad's own log first, and
+  restart Logi's plugin service only through the shipped `get.ps1 -LogiService start`, never from the AI app itself
+  (the service would die with the app).
+
 ## [1.9.16] - 2026-11-25
 
 ### Fixed
@@ -1077,7 +1084,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.16...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.17...HEAD
+[1.9.17]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.16...v1.9.17
 [1.9.16]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.15...v1.9.16
 [1.9.15]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.14...v1.9.15
 [1.9.14]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.13...v1.9.14

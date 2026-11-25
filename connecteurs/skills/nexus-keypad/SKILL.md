@@ -22,6 +22,15 @@ and its completion note, including callbacks already loaded by a running app; th
 verifies the app connection separately. Respect the host's permission and reload flow and never interrupt a working
 conversation. Never claim a microphone, usage view or conversation-opening action works from file presence alone.
 
+Keypad dark, frozen or on the Logi logo: first read the keypad's own log, which survives every restart of Logi's
+plugin service, before concluding anything: `%LOCALAPPDATA%\NexusKeypad\logs\` (one file per edition, such as
+`NexusKeypad.log`; Logi's own plugin log restarts empty with each load). Lines starting `pad gardé allumé :` give the
+outcome of each relaunch that keeps the keypad lit while the screen is off; a service gone with no such line and no
+`moteur arrêté` was stopped from outside. If `LogiPluginService` is not running, start it only with the `get.ps1`
+shipped in the keypad plugin's `bin` folder (`%LOCALAPPDATA%\Logi\LogiPluginService\Plugins\<plugin>\bin`):
+`get.ps1 -LogiService start`, which creates it through WMI. Never start `LogiPluginService.exe` or its tool directly
+from this app: the service would belong to the app's process job and die with the app, leaving the keypad dark again.
+
 Per app:
 - Claude: a pre-existing complete `nexus-keypad@nexus` (private) or `nexus-keypad@nexus-plugins` (NexusSystem
   catalog) plugin is preserved and used as the connector instead of adding another one.
