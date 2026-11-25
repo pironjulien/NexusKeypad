@@ -28,10 +28,11 @@ public static class GarderAllume
         {
             pause(TimeSpan.FromSeconds(3)); // l'ordre GoToSleep de l'agent est passé
             var anciens = processus().Select(p => p.Id).ToHashSet();
-            if (!outil("stop"))
+            // Un arrêt annoncé en échec a pu arrêter le service quand même : la surveillance suit dans tous les cas.
+            var arret = outil("stop");
+            if (!arret)
             {
                 Ecrire(journal, "WARN ", "pad gardé allumé : arrêt du service refusé par l'outil de Logi");
-                return 1;
             }
 
             // Un service arrêté qui finit de sortir ne compte pas ; une extension encore en vie sans son service non plus
@@ -70,9 +71,14 @@ public static class GarderAllume
                 pause(TimeSpan.FromMilliseconds(500));
             }
 
-            if (!processus().Any(p => p.Nom == Service && !anciens.Contains(p.Id)))
+            var restants = processus();
+            if (!restants.Any(p => p.Nom == Service && !anciens.Contains(p.Id)))
             {
-                Ecrire(journal, "ERROR", "pad gardé allumé : service Logi absent après 1 min de surveillance");
+                // L'ancien service encore là : il n'a pas pris l'arrêt, le pad suit Logi (endormi), mais il tourne.
+                var ancien = restants.Any(p => p.Nom == Service);
+                Ecrire(journal, ancien ? "WARN " : "ERROR", ancien
+                    ? "pad gardé allumé : le service Logi n'a pas pris l'arrêt, pad laissé à Logi"
+                    : "pad gardé allumé : service Logi absent après 1 min de surveillance");
                 return 1;
             }
 

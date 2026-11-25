@@ -82,11 +82,23 @@ public sealed class GarderAllumeTests : IDisposable
     }
 
     [Fact]
-    public void Arret_refuse_rien_d_autre()
+    public void Arret_refuse_service_qui_continue()
     {
+        // Arrêt refusé et ancien service toujours là : rien n'est démarré à côté, le journal le dit sans parler d'absence.
         var poste = new Poste((t, ordres) => [(GarderAllume.Service, 1)], stopAccepte: false);
         Assert.Equal(1, poste.Lancer(this.Journal));
         Assert.Equal(["stop"], poste.Ordres);
         Assert.Contains("arrêt du service refusé", this.Lignes(), StringComparison.Ordinal);
+        Assert.Contains("WARN  | pad gardé allumé : le service Logi n'a pas pris l'arrêt", this.Lignes(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Arret_annonce_en_echec_mais_service_arrete_est_redemarre()
+    {
+        // L'outil rend une erreur alors que le service s'est arrêté : la surveillance le démarre quand même.
+        var poste = new Poste((t, ordres) => ordres.Contains("start") ? [(GarderAllume.Service, 5)]
+            : ordres.Contains("stop") ? [] : [(GarderAllume.Service, 1)], stopAccepte: false);
+        Assert.Equal(0, poste.Lancer(this.Journal));
+        Assert.Equal(["stop", "start"], poste.Ordres);
     }
 }

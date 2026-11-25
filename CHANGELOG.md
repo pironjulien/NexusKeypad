@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.16] - 2026-11-25
+
+### Fixed
+- When Logi's tool reports a failed stop although the plugin service did stop, the relaunch that keeps the keypad lit
+  still watches the service and starts it again, instead of giving up and leaving the keypad dark.
+- A plugin service that ignores the stop is logged as such, no longer as missing.
+
 ## [1.9.15] - 2026-11-25
 
 ### Fixed
@@ -1070,7 +1077,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.15...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.16...HEAD
+[1.9.16]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.15...v1.9.16
 [1.9.15]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.14...v1.9.15
 [1.9.14]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.13...v1.9.14
 [1.9.13]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.12...v1.9.13
