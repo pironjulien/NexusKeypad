@@ -76,6 +76,9 @@ namespace Loupedeck.TrinitePlugin
         // Set by the tests; null: the default file of the running plugin.
         internal static String? Chemin { get; set; }
 
+        // The file written now (the hook's relaunch of the Logi service appends to it).
+        internal static String Fichier => Chemin ?? Defaut;
+
         private static String Defaut
         {
             get

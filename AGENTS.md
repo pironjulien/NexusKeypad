@@ -16,7 +16,9 @@
   own log, which survives them: `%LOCALAPPDATA%\NexusKeypad\logs\NexusKeypad.log` (`PluginLog`, `JournalDurable`).
 - The pad sleeps on the `GoToSleep` order the Options+ agent sends when the screen turns off; a service restarted
   after that order misses it and the pad stays on. While the screen is off, the plugin only draws a slow night sky
-  (`Moteur.cs`). Keep the pad awake through Logi or the plugin, never through Windows power settings or DDC/CI.
+  (`Moteur.cs`). Keep the pad awake through Logi or the plugin, never through Windows power settings or DDC/CI. The
+  relaunch runs in `hook\GarderAllume.cs` and writes its outcome to the pad's own log (`pad gardé allumé : …`): a
+  service that died with no such line and no `moteur arrêté` was killed from outside, not by the night mode.
 - When moving or rewriting a Claude plugin (status line, connector), never bring back a Nexus Relay line under the
   prompt (`ui.render` SessionMode, `$.ui.status`): it was dropped in 1.8.25 and came back with three migrations.
 

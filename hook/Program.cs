@@ -51,6 +51,9 @@ public static class Program
                     // Processus bref, sans fenêtre : le hook appelant a déjà rendu sa réponse JSON.
                     Son.Jouer(note);
                     return 0;
+                case ["logi-garder-allume", var journal]:
+                    // Lancé par le plugin, par WMI, à l'extinction de l'écran (GarderAllume.cs).
+                    return GarderAllume.Executer(journal);
             }
 
             var debut = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;

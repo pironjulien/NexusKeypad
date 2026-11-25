@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.15] - 2026-11-25
+
+### Fixed
+- Keeping the keypad lit while the PC screen is off is more reliable. The plugin service relaunch is now done by the
+  keypad's native program, started directly through WMI (no PowerShell). It watches the service for a minute and
+  starts it again if it does not come back or exits, up to three times. Each outcome is written to the keypad's own
+  log.
+
 ## [1.9.14] - 2026-11-18
 
 ### Changed
@@ -1062,7 +1070,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.14...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.15...HEAD
+[1.9.15]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.14...v1.9.15
 [1.9.14]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.13...v1.9.14
 [1.9.13]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.12...v1.9.13
 [1.9.12]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.11...v1.9.12

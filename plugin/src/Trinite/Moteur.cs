@@ -650,7 +650,9 @@ namespace Loupedeck.TrinitePlugin
         // un service de plugins relancé après ne le reçoit pas et rallume le pad, sans rallumer l'écran (vu le 28/10 et le
         // 02/11). Son réveil direct (WakeUp) rallume l'écran, lui. Le service est donc relancé par son outil officiel,
         // 3 s après l'extinction (l'ordre est passé), au plus une fois par minute ; l'agent clavier/souris n'est pas
-        // touché. Le relanceur passe par WMI : enfant du service, il mourrait avec lui.
+        // touché. La relance, son contrôle pendant une minute et son journal sont faits par l'exécutable natif du paquet
+        // (nexuskeypad-hook logi-garder-allume, hook\GarderAllume.cs), créé directement par WMI : enfant du service, il
+        // mourrait avec lui.
         private void GarderAllume()
         {
             var temps = this._horloge.Elapsed.TotalSeconds;
@@ -662,33 +664,21 @@ namespace Loupedeck.TrinitePlugin
             this._garde = temps;
             try
             {
-                var outil = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Logi\LogiPluginService\LogiPluginServiceTool.exe");
-                if (!File.Exists(outil))
+                if (EtatsEnDirect.ExePaquet is not { } exe || !File.Exists(exe))
                 {
-                    PluginLog.Warning("écran éteint : outil officiel de Logi introuvable, pad laissé à Logi");
+                    PluginLog.Warning("écran éteint : exécutable du paquet introuvable, pad laissé à Logi");
                     return;
                 }
 
-                // Arrêt coopératif, attente de la fin des processus, puis redémarrage s'il n'a pas déjà été fait par l'agent.
-                var relance = $$"""
-                    Start-Sleep -Seconds 3
-                    $outil = '{{outil}}'
-                    $avant = @(Get-Process LogiPluginService, LogiPluginServiceExt -ErrorAction SilentlyContinue).Id
-                    & $outil stop | Out-Null
-                    $fin = (Get-Date).AddSeconds(30)
-                    while ((Get-Process -Id $avant -ErrorAction SilentlyContinue) -and (Get-Date) -lt $fin) { Start-Sleep -Milliseconds 100 }
-                    Start-Sleep -Seconds 4
-                    if (-not (Get-Process LogiPluginService -ErrorAction SilentlyContinue)) { & $outil start | Out-Null }
-                    """;
                 var console = Path.Combine(Environment.SystemDirectory, "conhost.exe");
-                var powershell = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
-                var ligne = $"\"{console}\" --headless \"{powershell}\" -NoProfile -NonInteractive -EncodedCommand {Code(relance)}";
-                var wmi = $"$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{ CommandLine = '{ligne}' }}; exit $r.ReturnValue";
-                using var lanceur = Process.Start(new ProcessStartInfo(powershell, $"-NoProfile -NonInteractive -EncodedCommand {Code(wmi)}")
+                var ligne = $"\"{console}\" --headless \"{exe}\" logi-garder-allume \"{JournalDurable.Fichier}\"";
+                var code = CreerParWmi(ligne, Path.GetDirectoryName(exe)!);
+                if (code != 0)
                 {
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                });
+                    PluginLog.Warning($"écran éteint : relance du service Logi refusée par WMI (code {code}), pad laissé à Logi");
+                    return;
+                }
+
                 PluginLog.Info("écran éteint : service Logi relancé pour garder le pad allumé");
             }
             catch (Exception e)
@@ -696,7 +686,19 @@ namespace Loupedeck.TrinitePlugin
                 PluginLog.Error(e, "pad gardé allumé");
             }
 
-            static String Code(String script) => Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
+            // Win32_Process.Create par l'automatisation COM de WMI (WbemScripting), sans PowerShell ni paquet de plus : le
+            // processus créé a WmiPrvSE pour parent, hors de l'objet tâche du service.
+            static Int32 CreerParWmi(String ligne, String dossier)
+            {
+                dynamic localisateur = Activator.CreateInstance(Type.GetTypeFromProgID("WbemScripting.SWbemLocator", throwOnError: true)!)!;
+                dynamic wmi = localisateur.ConnectServer(".", @"root\cimv2");
+                dynamic classe = wmi.Get("Win32_Process");
+                dynamic entree = classe.Methods_.Item("Create").InParameters.SpawnInstance_();
+                entree.CommandLine = ligne;
+                entree.CurrentDirectory = dossier;
+                dynamic sortie = classe.ExecMethod_("Create", entree);
+                return (Int32)sortie.ReturnValue;
+            }
         }
 #endif
 

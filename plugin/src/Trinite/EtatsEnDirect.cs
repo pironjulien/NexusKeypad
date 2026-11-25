@@ -62,7 +62,8 @@ namespace Loupedeck.TrinitePlugin
 
         // nexuskeypad-hook.exe livré à côté de la DLL du plugin (donné au chargement : le service charge la DLL en mémoire,
         // sans chemin d'assemblage).
-        private static String? _exePaquet;
+        // Le même exécutable, de la version du plugin chargé ; null avant le démarrage.
+        public static String? ExePaquet { get; private set; }
 
         // Hook posé par le pad : il appelle etat.py des sources ou l'exécutable du paquet (pas un autre outil qui citerait
         // le projet).
@@ -263,7 +264,7 @@ namespace Loupedeck.TrinitePlugin
         // Claude ou Antigravity est installé.
         public static void Demarrer(String exePaquet)
         {
-            _exePaquet = exePaquet;
+            ExePaquet = exePaquet;
             Connecteurs.Initialiser(exePaquet);
             var fil = new Thread(() =>
             {
@@ -291,7 +292,7 @@ namespace Loupedeck.TrinitePlugin
         // Action « Live states » : propose de poser, ou de retirer s'ils le sont déjà.
         public static void Basculer()
         {
-            if (_exePaquet is not { } exePaquet)
+            if (ExePaquet is not { } exePaquet)
             {
                 PluginLog.Warning("états en direct : plugin pas encore démarré");
                 return;
