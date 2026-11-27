@@ -19,7 +19,18 @@ namespace Loupedeck.TrinitePlugin
         // dessiné pour lui. État annoncé par Windows ; à défaut d'abonnement, deviné par l'inactivité. (Deviné seulement,
         // poste verrouillé l'écran s'éteignait après 1 min et non après le délai du mode d'alimentation : le pad, éteint
         // par Logi, était redessiné une minute de plus et restait allumé sur une image figée, mouchard du 29/10.)
-        private Boolean EcranEteint() => EtatAffichage.Connu ? EtatAffichage.Eteint : Inactif() > this.DelaiEcran();
+        // L'état est lu une seule fois : EcranConnu dit toujours si la réponse rendue vient de Windows.
+        private Boolean EcranEteint()
+        {
+            var etat = EtatAffichage.Etat;
+            this.EcranConnu = etat >= 0;
+            return this.EcranConnu ? etat == 0 : Inactif() > this.DelaiEcran();
+        }
+
+        // La dernière lecture de l'écran vient de Windows, pas de l'inactivité. Au chargement du plugin, Windows n'a pas
+        // encore répondu : deviné « allumé » puis annoncé « éteint », l'écran semblait s'éteindre à l'instant et le service
+        // Logi était relancé en boucle, toutes les 22 s (27/11).
+        public Boolean EcranConnu { get; private set; }
 
         // Pour l'édition PC Dashboard, qui ne lit rien d'autre ici.
         public Boolean Eteint => this.EcranEteint();
@@ -208,9 +219,8 @@ namespace Loupedeck.TrinitePlugin
             private static readonly RappelAlimentation Rappel = Changement; // gardé en vie pour Windows
             private static volatile Int32 _etat = -1;
 
-            public static Boolean Connu => _etat >= 0;
-
-            public static Boolean Eteint => _etat == 0;
+            // -1 tant que Windows n'a rien annoncé.
+            public static Int32 Etat => _etat;
 
             static EtatAffichage()
             {

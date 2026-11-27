@@ -21,11 +21,46 @@ public sealed class GarderAllumeTests : IDisposable
 
         public List<String> Ordres { get; } = [];
 
+        // Un verrou propre à chaque test : ni les tests en parallèle ni une vraie relance du poste ne se gênent.
+        public String Verrou { get; init; } = $@"Global\NexusKeypad.Test.{Guid.NewGuid():N}";
+
+        public Action? PremierePause { get; init; }
+
         public Int32 Lancer(String journal) => GarderAllume.Executer(journal,
-            pause: d => this.Heure += d,
-            outil: o => { this.Ordres.Add(o); return o != "stop" || stopAccepte; },
+            pause: d => { if (this.Heure == this._debut) { this.PremierePause?.Invoke(); } this.Heure += d; },
+            outil: o => { lock (this.Ordres) { this.Ordres.Add(o); } return o != "stop" || stopAccepte; },
             processus: () => vivants((this.Heure - this._debut).TotalSeconds, this.Ordres),
-            maintenant: () => this.Heure);
+            maintenant: () => this.Heure,
+            verrou: this.Verrou);
+    }
+
+    [Fact]
+    public void Deux_relances_en_meme_temps_une_seule_touche_au_service()
+    {
+        // Le cas du 27/11 : une seconde relance pendant la surveillance de la première. Elle s'arrête aussitôt, sans
+        // appeler l'outil de Logi ; la première fait son travail seule.
+        var verrou = $@"Global\NexusKeypad.Test.{Guid.NewGuid():N}";
+        Int32? seconde = null;
+        Poste Nouveau(Action? premiere) => new((t, o) => !o.Contains("stop") ? [(GarderAllume.Service, 1)]
+            : t < 4.5 ? [(GarderAllume.Service, 1)] : [(GarderAllume.Service, 2)]) { Verrou = verrou, PremierePause = premiere };
+        var autre = Nouveau(null);
+        var premiere = Nouveau(() =>
+        {
+            // La première tient le verrou : la seconde démarre sur un autre fil pendant ce temps et doit finir seule.
+            var fil = new Thread(() => seconde = autre.Lancer(this.Journal));
+            fil.Start();
+            Assert.True(fil.Join(TimeSpan.FromSeconds(30)));
+        });
+        Assert.Equal(0, premiere.Lancer(this.Journal));
+        Assert.Equal(0, seconde);
+        Assert.Equal(["stop"], premiere.Ordres);
+        Assert.Empty(autre.Ordres);
+        Assert.Contains("une relance est déjà en cours", this.Lignes(), StringComparison.Ordinal);
+
+        // Verrou rendu : une relance suivante passe.
+        var suivante = Nouveau(null);
+        Assert.Equal(0, suivante.Lancer(this.Journal));
+        Assert.Equal(["stop"], suivante.Ordres);
     }
 
     private String Lignes() => File.Exists(this.Journal) ? File.ReadAllText(this.Journal) : "";

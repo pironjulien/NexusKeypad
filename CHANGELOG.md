@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.18] - 2026-11-27
+
+### Fixed
+- The keypad no longer restarts Logi's plugin service over and over when the PC screen is already off. Right after
+  the plugin loaded, the screen state was guessed as on before Windows reported it; Windows then reported it off and
+  the plugin took it for a screen turning off, restarting the service again every 22 seconds. The service is now
+  restarted only when Windows itself reported the screen on, then off.
+- At most one restart of Logi's plugin service per minute, even across service restarts: the time of the last restart
+  is kept in a file instead of the plugin's memory.
+- Only one restart runs at a time: a second one started meanwhile stops at once, instead of stopping the service the
+  first one had just restarted.
+
+### Changed
+- The keypad's own log is much shorter: the conversations line is written when a state changes or a quota crosses a
+  threshold (50, 80, 95 %, full), no longer for every percentage point, and the first key image is logged once per
+  load instead of once per key.
+
 ## [1.9.17] - 2026-11-25
 
 ### Changed
@@ -1084,7 +1101,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.17...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.18...HEAD
+[1.9.18]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.17...v1.9.18
 [1.9.17]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.16...v1.9.17
 [1.9.16]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.15...v1.9.16
 [1.9.15]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.14...v1.9.15

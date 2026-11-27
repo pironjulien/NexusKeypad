@@ -33,7 +33,7 @@ namespace Loupedeck.TrinitePlugin
         public const String Groupe = "Trinity";
 #endif
 
-        private readonly Boolean[] _dessinees = new Boolean[Moteur.Touches];
+        private Int32 _dessinee; // 1 dès la première image demandée : une ligne au journal par chargement, pas une par touche
 
         public ToucheCommand()
             : base()
@@ -64,10 +64,9 @@ namespace Loupedeck.TrinitePlugin
         protected override BitmapImage? GetCommandImage(String actionParameter, PluginImageSize imageSize)
         {
             var touche = Index(actionParameter);
-            if (touche >= 0 && !this._dessinees[touche])
+            if (touche >= 0 && System.Threading.Interlocked.Exchange(ref this._dessinee, 1) == 0)
             {
-                this._dessinees[touche] = true;
-                PluginLog.Info($"première image de la touche {touche + 1} ({imageSize})");
+                PluginLog.Info($"première image demandée par le pad (touche {touche + 1}, {imageSize})");
             }
 
             if (touche < 0)

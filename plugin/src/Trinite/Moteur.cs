@@ -181,8 +181,10 @@ namespace Loupedeck.TrinitePlugin
         private Int32 _telephoneEncore;
         private Int32 _lectureOccupee;
 #if NEXUS || DEBUG
-        private Boolean _ecranLu; // l'état de l'écran a déjà été lu une fois par ce plugin
-        private Double _garde = -99; // dernière relance de Logi pour garder le pad allumé
+        private readonly GardeLogi _gardeLogi = new(GardeLogi.Defaut, () => DateTime.UtcNow);
+#endif
+#if !POSTE
+        private String _resumeJournal = ""; // dernier résumé écrit au journal (états, tranches de quota)
 #endif
         private Int32 _animationOccupee;
         private Pilote? _pilote;
@@ -610,29 +612,30 @@ namespace Loupedeck.TrinitePlugin
                 var resume = String.Join(" | ", Enumerable.Range(0, 3).Select(i =>
                     $"{Observateur.Agents[i]} {this._instantane.Ouvertes[i]} conv. : {(!this._instantane.Ouverte[i] ? "Fermé" : this._instantane.Premiere(i)?.Etat.ToString() ?? "—")}{(this._instantane.Alerte(i) is not null ? "·alerte" : "")}" +
                     $" ; quota 5 h {this._instantane.Quotas[i]?.Cinq * 100:0} % semaine {this._instantane.Quotas[i]?.Semaine * 100:0} %"));
-                if (resume != this.Resume)
+                this.Resume = resume;
+                var journal = ResumeJournal(this._instantane);
+                if (journal != this._resumeJournal)
                 {
-                    this.Resume = resume;
-                    PluginLog.Info($"conversations : {resume}");
+                    this._resumeJournal = journal;
+                    PluginLog.Info($"conversations : {journal}");
                 }
+#endif
+#if NEXUS || DEBUG
+                // Vu s'éteindre par Windows après l'avoir vu allumé (GardeLogi). Édition NexusKeypad seulement : les éditions
+                // du Marketplace ne relancent pas le service de l'utilisateur.
+                var garder = this._gardeLogi.Relancer(this._observateur.EcranConnu, this._instantane.Eteint);
 #endif
                 if (avant.Eteint != this._instantane.Eteint)
                 {
                     PluginLog.Info(this._instantane.Eteint ? "écran éteint : ciel de nuit" : "écran rallumé : le pad est redessiné");
-#if NEXUS || DEBUG
-                    // Vu s'éteindre par ce plugin (pas déjà éteint à son chargement, sinon le service vient d'être relancé).
-                    // Édition NexusKeypad seulement : les éditions du Marketplace ne relancent pas le service de l'utilisateur.
-                    if (this._instantane.Eteint && this._ecranLu)
-                    {
-                        this.GarderAllume();
-                    }
-#endif
-
                     this.Tout();
                 }
 
 #if NEXUS || DEBUG
-                this._ecranLu = true;
+                if (garder)
+                {
+                    GarderAllume();
+                }
 #endif
             }
             catch (Exception e)
@@ -645,23 +648,34 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
+#if !POSTE
+        // Ligne « conversations » du journal : les états, et les quotas par tranche (< 50 %, ≥ 50, ≥ 80, ≥ 95 %, plein). Écrite
+        // à chaque point de quota, elle faisait les trois quarts du journal (27/11) ; le détail reste dans Resume (pilote).
+        internal static String ResumeJournal(Instantane instantane) => String.Join(" | ", Enumerable.Range(0, 3).Select(i =>
+            $"{Observateur.Agents[i]} {instantane.Ouvertes[i]} conv. : {(!instantane.Ouverte[i] ? "Fermé" : instantane.Premiere(i)?.Etat.ToString() ?? "—")}{(instantane.Alerte(i) is not null ? "·alerte" : "")}" +
+            $" ; quota 5 h {Tranche(instantane.Quotas[i]?.Cinq)} semaine {Tranche(instantane.Quotas[i]?.Semaine)}"));
+
+        private static String Tranche(Double? part) => part switch
+        {
+            null => "—",
+            >= 0.995 => "plein",
+            >= 0.95 => "≥ 95 %",
+            >= 0.8 => "≥ 80 %",
+            >= 0.5 => "≥ 50 %",
+            _ => "< 50 %",
+        };
+#endif
+
 #if NEXUS || DEBUG
         // Logi endort le pad quand l'écran s'éteint (ordre GoToSleep de l'agent Options+), sans réglage pour l'en empêcher ;
         // un service de plugins relancé après ne le reçoit pas et rallume le pad, sans rallumer l'écran (vu le 28/10 et le
         // 02/11). Son réveil direct (WakeUp) rallume l'écran, lui. Le service est donc relancé par son outil officiel,
-        // 3 s après l'extinction (l'ordre est passé), au plus une fois par minute ; l'agent clavier/souris n'est pas
-        // touché. La relance, son contrôle pendant une minute et son journal sont faits par l'exécutable natif du paquet
-        // (nexuskeypad-hook logi-garder-allume, hook\GarderAllume.cs), créé directement par WMI : enfant du service, il
-        // mourrait avec lui.
-        private void GarderAllume()
+        // 3 s après l'extinction (l'ordre est passé), au plus une fois par minute (GardeLogi) ; l'agent clavier/souris n'est
+        // pas touché. La relance, son contrôle pendant une minute et son journal sont faits par l'exécutable natif du paquet
+        // (nexuskeypad-hook logi-garder-allume, hook\GarderAllume.cs, une seule à la fois), créé directement par WMI : enfant
+        // du service, il mourrait avec lui.
+        private static void GarderAllume()
         {
-            var temps = this._horloge.Elapsed.TotalSeconds;
-            if (temps - this._garde < 60)
-            {
-                return;
-            }
-
-            this._garde = temps;
             try
             {
                 if (EtatsEnDirect.ExePaquet is not { } exe || !File.Exists(exe))

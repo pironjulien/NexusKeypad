@@ -15,15 +15,63 @@ public static class GarderAllume
     public const string Service = "LogiPluginService";
     public const string Extension = "LogiPluginServiceExt";
 
-    // Dépendances remplaçables par les tests : attente, outil officiel (ordre → réussi), processus vivants (nom, id), horloge.
+    // Une seule relance à la fois sur le poste : une seconde, lancée pendant la minute de surveillance de la première, voyait
+    // le service arrêté par l'autre et le redémarrait, et chacune arrêtait le service que l'autre venait de relancer (27/11).
+    public const string Verrou = @"Global\NexusKeypad.LogiGarderAllume";
+
+    // Dépendances remplaçables par les tests : attente, outil officiel (ordre → réussi), processus vivants (nom, id), horloge,
+    // nom du verrou.
     public static int Executer(string journal, Action<TimeSpan>? pause = null, Func<string, bool>? outil = null,
-        Func<IReadOnlyList<(string Nom, int Id)>>? processus = null, Func<DateTime>? maintenant = null)
+        Func<IReadOnlyList<(string Nom, int Id)>>? processus = null, Func<DateTime>? maintenant = null, string verrou = Verrou)
     {
         pause ??= Thread.Sleep;
         outil ??= OutilOfficiel;
         processus ??= Processus;
         maintenant ??= () => DateTime.UtcNow;
 
+        Mutex seul;
+        try
+        {
+            seul = new Mutex(false, verrou);
+        }
+        catch (Exception e)
+        {
+            Ecrire(journal, "ERROR", $"pad gardé allumé : verrou indisponible, {e.GetType().Name} : {e.Message}");
+            return 1;
+        }
+
+        using (seul)
+        {
+            bool tenu;
+            try
+            {
+                tenu = seul.WaitOne(0);
+            }
+            catch (AbandonedMutexException)
+            {
+                tenu = true; // la relance précédente est morte en le tenant : il revient à celle-ci
+            }
+
+            if (!tenu)
+            {
+                Ecrire(journal, "INFO ", "pad gardé allumé : une relance est déjà en cours, celle-ci s'arrête");
+                return 0;
+            }
+
+            try
+            {
+                return Relancer(journal, pause, outil, processus, maintenant);
+            }
+            finally
+            {
+                seul.ReleaseMutex();
+            }
+        }
+    }
+
+    private static int Relancer(string journal, Action<TimeSpan> pause, Func<string, bool> outil,
+        Func<IReadOnlyList<(string Nom, int Id)>> processus, Func<DateTime> maintenant)
+    {
         try
         {
             pause(TimeSpan.FromSeconds(3)); // l'ordre GoToSleep de l'agent est passé
