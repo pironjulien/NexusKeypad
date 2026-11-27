@@ -39,7 +39,7 @@
     <EmbeddedResource Include="assets\claude.wav" LogicalName="NexusKeypad.Hook.claude.wav" />
     <Compile Include="..\plugin\src\Trinite\EtatsEnDirect.cs" />
     <Compile Include="..\plugin\src\Trinite\Connecteurs.cs" />
-    <PackageReference Include="Tomlyn" Version="2.10.2" />
+    <PackageReference Include="Tomlyn" Version="2.11.1" />
   </ItemGroup>
 
 </Project>

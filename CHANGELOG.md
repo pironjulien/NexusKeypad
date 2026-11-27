@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.19] - 2026-11-27
+
+### Changed
+- Dependencies: Tomlyn 2.11.1 and xunit.v3 4.0.3; CI actions codeql-action 4.39.3, setup-dotnet 6.1.0, zizmor-action
+  0.8.1 and NexusSystem's shared release workflows 1.8.0. The native hook's AOT compiler and trimmer stay on .NET 10
+  with the SDK `global.json` pins: Dependabot no longer proposes their major versions.
+
 ## [1.9.18] - 2026-11-27
 
 ### Fixed
@@ -1101,7 +1108,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.18...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.19...HEAD
+[1.9.19]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.18...v1.9.19
 [1.9.18]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.17...v1.9.18
 [1.9.17]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.16...v1.9.17
 [1.9.16]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.15...v1.9.16
