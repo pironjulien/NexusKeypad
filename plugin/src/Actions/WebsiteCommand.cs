@@ -61,7 +61,7 @@ namespace Loupedeck.TrinitePlugin
                 }
             }
 
-            return BitmapImage.FromArray(Rendu.Png(Moteur.Site, this.Moteur.Scene, Math.Min(imageWidth, imageHeight)));
+            return BitmapImage.FromArray(Rendu.Png(Moteur.Site, this.Moteur.Scene(), Math.Min(imageWidth, imageHeight)));
         }
 
         // Le nom du site sous la touche dans Options+ ; « Website » tant qu'aucune adresse n'est saisie.

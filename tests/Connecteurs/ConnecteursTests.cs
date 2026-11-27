@@ -56,6 +56,20 @@ public sealed class ConnecteursTests
     }
 
     [Fact]
+    public void Le_plugin_Logi_reste_en_net10()
+    {
+        // The Logi plugin DLL is loaded by Logi's plugin service, which ships its own .NET 10 runtime
+        // (C:\Program Files\Logi\LogiPluginService, coreclr 10.0). Since 1.10.0 the rest of the repository targets
+        // .NET 11; a plugin built for .NET 11 would not load there and the keypad would go dark. Move it only when that
+        // service ships a newer runtime. The plugin references no project of its own: its packages (LogiPluginApi,
+        // Tomlyn) are libraries the service's runtime loads.
+        var csproj = System.Xml.Linq.XDocument.Load(Path.Combine(Depot, "plugin", "src", "TrinitePadPlugin.csproj"));
+        var cibles = csproj.Descendants().Where(e => e.Name.LocalName is "TargetFramework" or "TargetFrameworks").Select(e => e.Value.Trim()).ToArray();
+        Assert.Equal(["net10.0"], cibles);
+        Assert.DoesNotContain(csproj.Descendants(), e => e.Name.LocalName == "ProjectReference");
+    }
+
+    [Fact]
     public void Paquet_Marketplace_Antigravity_conforme_au_connecteur()
     {
         // marketplace/antigravity is what the Antigravity Marketplace installs, outside the Logi package: the same

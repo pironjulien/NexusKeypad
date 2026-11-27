@@ -2,6 +2,10 @@
 
 ## Pitfalls
 
+- The Logi plugin (`plugin/src/TrinitePadPlugin.csproj`) and anything it loads stay on `net10.0`, while the rest of the
+  repository (hook, apercu, tests, Stream Deck) targets .NET 11: Logi's plugin service ships its own .NET 10 runtime
+  and would not load a .NET 11 DLL (dark keypad). Move it only when that service ships a newer runtime; a test
+  (`Le_plugin_Logi_reste_en_net10`) fails otherwise.
 - Frame rate cost lives in the Logi plugin service (each image sent is processed there), not in our rendering: images
   already have the pad size (116 px) and an image whose pixels did not change is never encoded or sent. Above 12 frames
   per second nothing more is visible on these small pixel arts, while the service saturates near 65 images/s.

@@ -70,7 +70,7 @@ try {
     # runtime test flag, alternate registry writer or trust bypass in the distributed connector.
     $cliSource = Join-Path $root 'cli-fixture'
     $cliOutput = Join-Path $local 'Claude-Data\fixture\claude-code\0.0.0\fixture'
-    WriteText (Join-Path $cliSource 'claude.csproj') '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AssemblyName>claude</AssemblyName><ImplicitUsings>enable</ImplicitUsings></PropertyGroup></Project>'
+    WriteText (Join-Path $cliSource 'claude.csproj') '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework><AssemblyName>claude</AssemblyName><ImplicitUsings>enable</ImplicitUsings></PropertyGroup></Project>'
     WriteText (Join-Path $cliSource 'Program.cs') @'
 using System.Text.Json.Nodes;
 var root = Path.GetFullPath(Environment.GetEnvironmentVariable("NEXUSKEYPAD_FIXTURE_ROOT") ?? throw new Exception("No isolated fixture root.")) + Path.DirectorySeparatorChar;

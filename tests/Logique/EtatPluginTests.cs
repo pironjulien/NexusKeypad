@@ -20,7 +20,7 @@ public sealed class EtatPluginTests
             Vrai(EtatPlugin.Version(Path.Combine(dossier, "absent")) == "", "état : pas de paquet, pas de version");
             var etat = Path.Combine(dossier, "status", "keypad.json");
             EtatPlugin.Ecrire("1.3.1", "installed", etat);
-            var lu = JsonDocument.Parse(File.ReadAllText(etat)).RootElement;
+            var lu = JsonElement.Parse(File.ReadAllText(etat));
             Vrai(lu.GetProperty("product").GetString() == "keypad" && lu.GetProperty("version").GetString() == "1.3.1"
                 && lu.GetProperty("state").GetString() == "idle" && lu.TryGetProperty("checked_at", out _), "état : au contrat de l'appli Nexus");
         }

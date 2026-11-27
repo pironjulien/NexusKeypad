@@ -82,7 +82,7 @@ namespace Loupedeck.TrinitePlugin
             // Le pad demande 116 px : l'image déjà dessinée et envoyée par le moteur ; une autre taille (Options+) à part.
             return imageSize == PluginImageSize.Width116 && this.Moteur.Image(touche) is { } image
                 ? image
-                : Rendu.Dessiner(touche, this.Moteur.Scene, imageSize);
+                : Rendu.Dessiner(touche, this.Moteur.Scene(), imageSize);
         }
 
         protected override String? GetCommandDisplayName(String actionParameter, PluginImageSize imageSize) => null;

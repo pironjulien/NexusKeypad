@@ -1,8 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- net10.0 on purpose, while the rest of the repository targets .NET 11: this DLL is loaded by Logi's plugin service,
+         which ships its own .NET 10 runtime (C:\Program Files\Logi\LogiPluginService, coreclr 10.0). Built for .NET 11
+         it would not load and the keypad would go dark. Checked by tests/Connecteurs (Le_plugin_Logi_reste_en_net10). -->
     <TargetFramework>net10.0</TargetFramework>
-    <Version>1.9.19</Version>
+    <Version>1.10.0</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

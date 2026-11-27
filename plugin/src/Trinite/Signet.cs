@@ -82,7 +82,8 @@ namespace Loupedeck.TrinitePlugin
             }
         }
 
-        private static Signet Defaut => new(Projet, null, null, null);
+        // Immuable (record sans image) : une seule instance suffit.
+        private static readonly Signet Defaut = new(Projet, null, null, null);
 
         private static String Hote(String url)
         {

@@ -14,7 +14,7 @@ doing, how much quota is left, and one press to the conversation that needs you.
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/pironjulien/NexusKeypad?style=flat-square&label=scorecard)](https://scorecard.dev/viewer/?uri=github.com/pironjulien/NexusKeypad)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16439/badge)](https://www.bestpractices.dev/projects/16439)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![C# .NET 10](https://img.shields.io/badge/C%23-.NET%2010-512BD4?style=flat-square)](plugin/src/TrinitePadPlugin.csproj)
+[![C# .NET 11](https://img.shields.io/badge/C%23-.NET%2011-512BD4?style=flat-square)](global.json)
 [![Windows 11](https://img.shields.io/badge/Windows-11-0078D4?style=flat-square)](#requirements)
 
 [![Website](https://img.shields.io/badge/%F0%9F%8C%90_Website-julienpiron.fr-1f6feb?style=for-the-badge)](https://julienpiron.fr/nexuskeypad/)
@@ -283,8 +283,9 @@ add three engines or MCP servers. The keypad prepares the required local app lau
 
 - Windows 11, a **Logitech MX Creative Console keypad** (MX Keypad) and **Logi Options+** with Logi Plugin Service 6.4
   or later.
-- From source only: [.NET 10 SDK](https://dotnet.microsoft.com/download). The complete edition and the Marketplace
-  editions need neither.
+- From source only: [.NET 11 SDK](https://dotnet.microsoft.com/download) (it also builds the Logi plugin, which
+  targets .NET 10, the runtime Logi's plugin service ships). The complete edition and the Marketplace editions need
+  neither.
 - Any of: **Claude Desktop** (Claude Code), **Codex** desktop app, **Antigravity**. A missing app just sleeps on its key.
   Claude's Code tab must have completed its first setup: the connector uses the official plugin manager bundled
   with that app. An unavailable plugin manager leaves setup pending instead of reporting a ready connection.

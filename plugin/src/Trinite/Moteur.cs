@@ -293,7 +293,7 @@ namespace Loupedeck.TrinitePlugin
             for (var t = 0; t < 9; t++)
             {
                 var touche = Disposition[(page - 1) * 9 + t];
-                var image = page == 2 ? Rendu.Image(touche, this.Scene).Image : this._images[touche] ?? Rendu.Image(touche, this.Scene).Image;
+                var image = page == 2 ? Rendu.Image(touche, this.Scene()).Image : this._images[touche] ?? Rendu.Image(touche, this.Scene()).Image;
                 b.DrawImage(image, Ecart + t % 3 * (Rendu.T + Ecart), Ecart + t / 3 * (Rendu.T + Ecart), Rendu.T, Rendu.T, BitmapRotation.None);
             }
 
@@ -306,7 +306,7 @@ namespace Loupedeck.TrinitePlugin
         {
             lock (this._envoi)
             {
-                var pixels = Rendu.Image(touche, this.Scene, this._pixels[touche], out var image);
+                var pixels = Rendu.Image(touche, this.Scene(), this._pixels[touche], out var image);
                 if (image is null)
                 {
                     return;
@@ -387,8 +387,9 @@ namespace Loupedeck.TrinitePlugin
         // Pad au repos (mise à jour de l'édition complète) : aucun appui depuis 60 s et aucun geste en file.
         public Boolean Repos => this._gestes.Count == 0 && this._horloge.Elapsed.TotalSeconds - this._appuis.Max() > 60;
 
-        // Photo toujours la plus récente (sans attendre la lecture suivante).
-        public Scene Scene => new()
+        // Une scène neuve à chaque appel (instantané du moment), d'où une méthode et non une propriété. Photo toujours la
+        // plus récente (sans attendre la lecture suivante).
+        public Scene Scene() => new()
         {
             Instantane = this._instantane with { Photo = this._observateur.Telephone.Derniere },
             Temps = this._horloge.Elapsed.TotalSeconds,
@@ -407,7 +408,7 @@ namespace Loupedeck.TrinitePlugin
         // site : adresse de la touche du site quand elle est une commande à part (WebsiteCommand) ; sinon son réglage.
         public Task<String> Appuyer(Int32 touche, Signet? site = null)
         {
-            var scene = this.Scene;
+            var scene = this.Scene();
             this._appuis[touche] = scene.Temps;
             this._observateur.NoterGeste();
             this.Envoyer(touche);

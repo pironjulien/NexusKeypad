@@ -50,7 +50,7 @@ public sealed class JournalCommunTests : IDisposable
         Vrai(File.Exists(fichier), $"journal commun : {fichier} écrit (keypad\\<agent>\\<AAAA-MM>.jsonl)");
         var texte = File.ReadAllText(fichier);
         Vrai(!texte.Contains(Titre, StringComparison.Ordinal), "journal commun : jamais le titre d'une conversation");
-        return texte.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => JsonDocument.Parse(l).RootElement.Clone()).ToList();
+        return texte.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => JsonElement.Parse(l)).ToList();
     }
 
     private static void Conforme(JsonElement ligne, Int32 ia, String action, String issue, String? erreur)

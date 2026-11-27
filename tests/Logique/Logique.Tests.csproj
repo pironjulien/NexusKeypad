@@ -3,7 +3,7 @@
   <!-- The pad's logic, outside the pad: states, order, quotas, Codex journal, image cache, update, live states,
        snapshot, Antigravity navigation and quota panel. Compiles the plugin's own sources (plugin\src\Trinite). -->
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net11.0-windows</TargetFramework>
     <!-- WinForms only for the opt-in real clipboard test (saves and restores the user's clipboard). -->
     <UseWindowsForms>true</UseWindowsForms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -25,9 +25,10 @@
     <Compile Include="..\..\plugin\src\Helpers\PluginLog.cs" Link="Plugin\PluginLog.cs" />
     <PackageReference Include="FsCheck" Version="3.6.0" />
     <PackageReference Include="Tomlyn" Version="2.11.1" />
-    <!-- The key previews (planches) are drawn by apercu, built with these tests and run by them. -->
+    <!-- The key previews (planches) are drawn by apercu, built with these tests and run by them (its output folder
+         carries its target framework, the one in apercu\apercu.csproj). -->
     <ProjectReference Include="..\..\apercu\apercu.csproj" ReferenceOutputAssembly="false" />
-    <AssemblyMetadata Include="NexusKeypad.Apercu" Value="$([System.IO.Path]::Combine('$(NexusKeypadBuild)', 'apercu', 'bin', '$(Configuration)', 'net10.0', 'apercu.exe'))" />
+    <AssemblyMetadata Include="NexusKeypad.Apercu" Value="$([System.IO.Path]::Combine('$(NexusKeypadBuild)', 'apercu', 'bin', '$(Configuration)', 'net11.0', 'apercu.exe'))" />
   </ItemGroup>
 
   <ItemGroup Condition="Exists('$(LogiService)PluginApi.dll')">

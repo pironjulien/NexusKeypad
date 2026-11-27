@@ -5,7 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-27
+
 ### Changed
+- Runs on .NET 11; the Logitech plugin stays on .NET 10, the runtime Logi's service ships. The native hook (its AOT
+  compiler and trimmer move to 11.0.0), the key previews and the tests are built with the .NET 11 SDK.
 - CI actions: codeql-action 4.39.4 and scorecard-action 2.6.0.
 
 ## [1.9.19] - 2026-11-27
@@ -1111,7 +1115,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test.ps1`: plugin build, rendering of every key, logic and hook rules; builds against the LogiPluginApi NuGet
   package when the Logi service is not installed (CI).
 
-[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.19...HEAD
+[Unreleased]: https://github.com/pironjulien/NexusKeypad/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.19...v1.10.0
 [1.9.19]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.18...v1.9.19
 [1.9.18]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.17...v1.9.18
 [1.9.17]: https://github.com/pironjulien/NexusKeypad/compare/v1.9.16...v1.9.17

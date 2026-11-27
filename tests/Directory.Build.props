@@ -7,7 +7,7 @@
     <NexusBuild Condition="'$(NexusBuild)' == ''">$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusKeypadBuild)', 'test'))))</NexusBuild>
     <BaseIntermediateOutputPath>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusBuild)', '$(MSBuildProjectName)', 'obj'))))</BaseIntermediateOutputPath>
     <BaseOutputPath>$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::Combine('$(NexusBuild)', '$(MSBuildProjectName)', 'bin'))))</BaseOutputPath>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>NexusKeypad.Tests</RootNamespace>
